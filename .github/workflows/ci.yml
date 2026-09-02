@@ -4,6 +4,7 @@ on:
   push:
     branches: ['**']
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -11,40 +12,47 @@ concurrency:
 
 env:
   FLUTTER_VERSION: '3.47.2'
+  # The fingerprint of app/android/dev-keystore.jks. Asserted after the APK is
+  # built so a broken signing config fails loudly here rather than silently
+  # producing a build that will not install over the previous one.
+  DEV_KEY_SHA256: 'f54adad394476e384b7df179176617f89c87b3dadc977ce5abc600ef95d65acb'
 
 jobs:
   core:
-    name: Analyse and test the pure-Dart core
+    name: Core (pure Dart)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # No Flutter here on purpose. mp_core and mp_runner carry the logic that
+      # has to be right during a long unattended run, and they are kept free of
+      # Flutter so they can be analysed and tested in seconds without a 2.5 GB
+      # SDK. If this job ever needs Flutter, that property has been lost.
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
 
-      - name: Resolve dependencies
-        run: dart pub get
-
-      - name: Analyse
-        run: dart analyze packages/mp_core packages/mp_runner
-
-      - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed packages/mp_core packages/mp_runner
-
-      - name: Test mp_core
+      - name: mp_core
         working-directory: packages/mp_core
-        run: dart test --reporter expanded
+        run: |
+          dart pub get
+          dart analyze
+          dart format --output=none --set-exit-if-changed .
+          dart test --reporter expanded
 
-      # Compiles and drives a fake `claude` binary, so the supervisor's limit
-      # detection and resume ladder are exercised without an API key and without
-      # waiting five hours for a real usage limit.
-      - name: Test mp_runner
+      # Compiles and drives a fake `claude` binary, so limit detection and the
+      # resume ladder are exercised without an API key and without waiting five
+      # hours for a real usage limit.
+      - name: mp_runner
         working-directory: packages/mp_runner
-        run: dart test --reporter expanded
+        run: |
+          dart pub get
+          dart analyze
+          dart format --output=none --set-exit-if-changed .
+          dart test --reporter expanded
 
   android:
-    name: Build the Android app
+    name: Android
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,23 +68,51 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Resolve dependencies
-        run: flutter pub get
-
-      - name: Analyse the app
+      - name: Resolve, analyse, test
         working-directory: app
-        run: flutter analyze
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
 
-      - name: Test the app
+      - name: Build release APK
         working-directory: app
-        run: flutter test
+        run: |
+          flutter build apk --release \
+            --dart-define=MP_BUILD=${{ github.run_number }} \
+            --dart-define=MP_SHA=${{ github.sha }}
 
-      - name: Build debug APK
-        working-directory: app
-        run: flutter build apk --debug
+      # The signing config is the single most failure-prone piece of this
+      # pipeline, and getting it wrong is invisible until an install is refused
+      # on the device. Assert the certificate instead of trusting it.
+      - name: Verify the APK is signed with the dev key
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          echo "using $APKSIGNER"
+          APK=app/build/app/outputs/flutter-apk/app-release.apk
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/certs.txt
+          ACTUAL=$(grep -i 'SHA-256 digest' /tmp/certs.txt | head -1 | awk '{print $NF}' | tr 'A-Z' 'a-z')
+          echo "expected $DEV_KEY_SHA256"
+          echo "actual   $ACTUAL"
+          if [ "$ACTUAL" != "$DEV_KEY_SHA256" ]; then
+            echo "::error::APK is not signed with the committed dev key. New builds would refuse to install over the previous one."
+            exit 1
+          fi
+
+      - name: Name the artifact
+        run: |
+          mkdir -p out
+          cp app/build/app/outputs/flutter-apk/app-release.apk \
+             "out/MasterPrompt-${{ github.run_number }}-$(echo ${{ github.sha }} | cut -c1-7).apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/*.apk
+          retention-days: 14
 
   windows:
-    name: Build the Windows app
+    name: Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,12 +123,80 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Resolve dependencies
-        run: flutter pub get
-
-      # The Windows binary cannot be produced on Linux, so this job is the only
-      # place it is ever compiled. The runner's logic lives in a plain dart:io
-      # package precisely so nearly all of it is proven on Linux first.
-      - name: Build Windows
+      # The only place a Windows binary can be produced — Flutter desktop needs
+      # a Windows host. This is why the runner logic lives in a plain dart:io
+      # package that is proven on Linux first.
+      - name: Build release
         working-directory: app
-        run: flutter build windows --debug
+        run: |
+          flutter pub get
+          flutter build windows --release `
+            --dart-define=MP_BUILD=${{ github.run_number }} `
+            --dart-define=MP_SHA=${{ github.sha }}
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $sha = "${{ github.sha }}".Substring(0,7)
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Compress-Archive -Path "app/build/windows/x64/runner/Release/*" `
+            -DestinationPath "out/MasterPrompt-windows-x64-${{ github.run_number }}-$sha.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*.zip
+          retention-days: 14
+
+  publish-dev:
+    name: Publish the rolling dev build
+    needs: [core, android, windows]
+    # Only for real pushes to the default branch: a pull request should not
+    # move the build everyone is installing from.
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: Latest development build
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          # Replaced wholesale each time, so the page never shows two builds and
+          # leaves you guessing which one you installed.
+          body: |
+            The newest build from the default branch. This tag always points at
+            the most recent green commit, so this page is worth bookmarking —
+            the link never changes.
+
+            | | |
+            |---|---|
+            | Build | `${{ github.run_number }}` |
+            | Commit | [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
+            | Built | ${{ github.event.head_commit.timestamp }} |
+
+            **Android** — download the `.apk` and open it. The first time,
+            Android will ask you to allow installs from your browser. Later
+            builds install straight over this one and keep your saved missions,
+            because every build is signed with the same key.
+
+            **Windows** — download the `.zip`, extract it anywhere, and run
+            `master_prompt.exe`. SmartScreen will warn that the publisher is
+            unknown, because the binary is unsigned: choose *More info* then
+            *Run anyway*.
+
+            Found something wrong? Open Settings, tap **Copy diagnostics**, and
+            paste that into the chat.
+          files: |
+            artifacts/android/*.apk
+            artifacts/windows/*.zip

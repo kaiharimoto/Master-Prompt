@@ -12,3 +12,16 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# ...with one deliberate exception. `dev-keystore.jks` is a throwaway key that
+# exists so every CI build is signed identically and a new dev build installs
+# over the previous one instead of forcing an uninstall that would delete the
+# missions saved on the device.
+#
+# It is committed on purpose and it is PUBLIC. That is acceptable only because
+# this app is sideloaded by hand for personal use. It must NEVER be used to sign
+# a Play Store release: anyone can read this key out of the repository and sign
+# an APK that Android would accept as an update to a store-published app.
+# A real release needs a fresh key kept out of version control.
+!dev-keystore.jks
+!dev-key.properties

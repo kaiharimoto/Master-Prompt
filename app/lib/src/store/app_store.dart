@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'diagnostics.dart';
 import 'project.dart';
 import 'settings.dart';
 
@@ -54,6 +55,7 @@ class AppStore extends ChangeNotifier {
         if (j is Map<String, Object?>) _projects.add(Project.fromJson(j));
       } on FormatException {
         // A corrupt file must not stop the rest of the projects loading.
+        Diagnostics.instance.log('Skipped an unreadable project file: ${e.path}');
         continue;
       }
     }
@@ -74,6 +76,7 @@ class AppStore extends ChangeNotifier {
 
     _currentId ??= _projects.isEmpty ? null : _projects.first.id;
     _loaded = true;
+    Diagnostics.instance.log('Loaded ${_projects.length} mission(s).');
     notifyListeners();
   }
 
@@ -95,6 +98,7 @@ class AppStore extends ChangeNotifier {
     );
     _projects.insert(0, p);
     _currentId = id;
+    Diagnostics.instance.log('Created mission "${p.spec.taskId}".');
     await save(p);
     notifyListeners();
     return p;

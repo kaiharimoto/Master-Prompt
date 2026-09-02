@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mp_design/mp_design.dart';
 
 import '../store/app_store.dart';
+import '../store/build_info.dart';
+import '../store/diagnostics.dart';
 import '../store/settings.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -234,12 +237,114 @@ class SettingsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: MpSpace.xl),
+                const MpSectionHeader(
+                  number: '05',
+                  title: 'Report a problem',
+                  subtitle:
+                      'Copy this and paste it into the chat. It carries the '
+                      'build, the mission state and the recent events, '
+                      'including anything captured from a crash.',
+                ),
+                const SizedBox(height: MpSpace.md),
+                _DiagnosticsPanel(store: store),
                 const SizedBox(height: MpSpace.xxl),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DiagnosticsPanel extends StatefulWidget {
+  const _DiagnosticsPanel({required this.store});
+
+  final AppStore store;
+
+  @override
+  State<_DiagnosticsPanel> createState() => _DiagnosticsPanelState();
+}
+
+class _DiagnosticsPanelState extends State<_DiagnosticsPanel> {
+  bool _copied = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final bool crashed = Diagnostics.instance.hasCrash;
+
+    return MpPanel(
+      accent: crashed ? c.danger : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          MpField(
+            label: 'This build',
+            child: Text(
+              BuildInfo.label,
+              style: MpType.numeric.copyWith(color: c.ink),
+            ),
+          ),
+          const SizedBox(height: MpSpace.xs),
+          Text(
+            '${BuildInfo.platform} · ${BuildInfo.osVersion}',
+            style: MpType.caption.copyWith(color: c.inkFaint),
+          ),
+          if (!BuildInfo.isCiBuild) ...<Widget>[
+            const SizedBox(height: MpSpace.xs),
+            Text(
+              'Built locally rather than by CI, so it has no build number.',
+              style: MpType.caption.copyWith(color: c.inkFaint),
+            ),
+          ],
+          if (crashed) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            Text(
+              'A crash was recorded and is included in the report below.',
+              style: MpType.body.copyWith(color: c.danger),
+            ),
+          ],
+          const SizedBox(height: MpSpace.md),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: MpButton(
+                  label: _copied ? 'Copied' : 'Copy diagnostics',
+                  icon: _copied ? Icons.check : Icons.content_copy,
+                  kind: MpButtonKind.primary,
+                  expand: true,
+                  onPressed: () async {
+                    final String text = Diagnostics.instance.report(
+                      project: widget.store.current,
+                      settings: widget.store.settings,
+                    );
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (!context.mounted) return;
+                    setState(() => _copied = true);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Diagnostics copied. Paste them in chat.'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (crashed) ...<Widget>[
+                const SizedBox(width: MpSpace.sm),
+                MpButton(
+                  label: 'Clear crash',
+                  onPressed: () async {
+                    await Diagnostics.instance.clearLastCrash();
+                    if (context.mounted) setState(() {});
+                  },
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

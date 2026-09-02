@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../store/app_store.dart';
 import '../store/desktop_runner.dart';
+import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../widgets/exchange.dart';
 
@@ -50,6 +51,10 @@ class _RunScreenState extends State<RunScreen> {
     final StateParseResult r = _parser.parse(
       reply,
       expectedTaskId: p.spec.taskId,
+    );
+    Diagnostics.instance.log(
+      'State paste (${reply.length} chars): ${r.status.name}'
+      '${r.repairs.isEmpty ? '' : ', repaired'}.',
     );
 
     // The raw paste is stored before anything else, always.

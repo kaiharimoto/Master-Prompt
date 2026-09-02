@@ -1,7 +1,8 @@
 name: Release
 
 # Android and Windows ship together from one tag, so a version is never
-# available on one platform and not the other.
+# available on one platform and not the other. Day-to-day builds come from the
+# rolling `dev` prerelease in ci.yml; this is for versioned milestones.
 on:
   push:
     tags: ['v*']
@@ -23,12 +24,10 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
-      - run: dart pub get
-      - run: dart analyze packages/mp_core packages/mp_runner
       - working-directory: packages/mp_core
-        run: dart test
+        run: dart pub get && dart analyze && dart test
       - working-directory: packages/mp_runner
-        run: dart test
+        run: dart pub get && dart analyze && dart test
 
   android:
     name: Android
@@ -45,34 +44,22 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - run: flutter pub get
 
-      # Signing is optional so the pipeline works before a keystore is
-      # configured; unsigned builds are clearly labelled rather than silently
-      # shipped as if they were release-signed.
-      - name: Configure signing
-        id: signing
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      # Signed with the committed dev key, exactly like the rolling dev builds,
+      # so a tagged build installs over one without an uninstall. If this ever
+      # goes to the Play Store it needs a fresh key kept out of the repository —
+      # see the note in app/android/.gitignore.
+      - name: Build
+        working-directory: app
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > app/android/app/upload-keystore.jks
-            cat > app/android/key.properties <<EOF
-          storeFile=upload-keystore.jks
-          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No keystore secret set; building unsigned." >&2
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - working-directory: app
-        run: flutter build apk --release --split-per-abi
-      - working-directory: app
-        run: flutter build appbundle --release
+          flutter pub get
+          flutter test
+          flutter build apk --release \
+            --dart-define=MP_BUILD=${{ github.run_number }} \
+            --dart-define=MP_SHA=${{ github.sha }}
+          flutter build appbundle --release \
+            --dart-define=MP_BUILD=${{ github.run_number }} \
+            --dart-define=MP_SHA=${{ github.sha }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -92,20 +79,26 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - run: flutter pub get
-      - working-directory: app
-        run: flutter build windows --release
+
+      - name: Build
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build windows --release `
+            --dart-define=MP_BUILD=${{ github.run_number }} `
+            --dart-define=MP_SHA=${{ github.sha }}
 
       - name: Package portable zip
         shell: pwsh
         run: |
-          $out = "app/build/windows/x64/runner/Release"
-          Compress-Archive -Path "$out/*" -DestinationPath "MasterPrompt-windows-x64.zip"
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Compress-Archive -Path "app/build/windows/x64/runner/Release/*" `
+            -DestinationPath "out/MasterPrompt-windows-x64.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: MasterPrompt-windows-x64.zip
+          path: out/*.zip
 
   publish:
     name: Publish one release with both platforms
@@ -114,13 +107,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Publish
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true

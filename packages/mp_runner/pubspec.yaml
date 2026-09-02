@@ -6,12 +6,12 @@ publish_to: none
 environment:
   sdk: ^3.9.0
 
-resolution: workspace
 
 dependencies:
   collection: ^1.19.0
   meta: ^1.16.0
-  mp_core: ^0.1.0
+  mp_core:
+    path: ../mp_core
 
 dev_dependencies:
   lints: ^6.0.0

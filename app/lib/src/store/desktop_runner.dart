@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:mp_runner/mp_runner.dart';
 
+import 'diagnostics.dart';
 import 'project.dart';
 import 'settings.dart';
 
@@ -49,6 +50,9 @@ class DesktopRunner extends ChangeNotifier {
 
   void _say(String line) {
     _log.add(line);
+    // Mirrored so a run that misbehaves is visible in a pasted report, not only
+    // in the on-screen log the user would have to transcribe by hand.
+    Diagnostics.instance.log('run: ${line.length > 160 ? '${line.substring(0, 160)}…' : line}');
     // A twelve-hour run produces a great deal of output; the UI keeps a window
     // of it and the full stream stays on disk.
     if (_log.length > 500) _log.removeRange(0, _log.length - 500);

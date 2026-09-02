@@ -3,6 +3,7 @@ import 'package:mp_core/mp_core.dart';
 import 'package:mp_design/mp_design.dart';
 
 import '../store/app_store.dart';
+import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../widgets/exchange.dart';
 
@@ -37,6 +38,10 @@ class _InterviewScreenState extends State<InterviewScreen> {
   Future<void> _applyReply(String reply) async {
     final Project p = widget.project;
     final SpecPatchResult r = _patcher.parse(reply, p.spec);
+    Diagnostics.instance.log(
+      'Interview reply pasted (${reply.length} chars): '
+      '${r.found ? '${r.applied.length} applied, ${r.rejected.length} rejected' : 'no mpspec block'}.',
+    );
 
     await widget.store.addTranscript(
       p,

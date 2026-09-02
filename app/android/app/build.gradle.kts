@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -29,11 +32,39 @@ android {
         versionName = flutter.versionName
     }
 
+    // The development signing key, committed to the repository on purpose.
+    //
+    // CI generates a fresh debug key on every run, which makes each build a
+    // different application as far as Android is concerned: installing a new one
+    // would require uninstalling the old one first, deleting any missions saved
+    // on the device. Signing every build with one fixed key is what lets a new
+    // dev build install straight over the last.
+    //
+    // This key is PUBLIC. It must never sign a Play Store release — see the note
+    // in android/.gitignore.
+    signingConfigs {
+        create("dev") {
+            val props = Properties()
+            val file = rootProject.file("dev-key.properties")
+            if (file.exists()) {
+                props.load(FileInputStream(file))
+                storeFile = rootProject.file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Fall back to the debug key only if the dev keystore is missing, so a
+            // checkout without it still builds rather than failing obscurely.
+            signingConfig = if (rootProject.file("dev-key.properties").exists()) {
+                signingConfigs.getByName("dev")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

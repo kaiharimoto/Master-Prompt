@@ -6,14 +6,16 @@ version: 0.1.0+1
 environment:
   sdk: ^3.9.0
 
-resolution: workspace
 
 dependencies:
   flutter:
     sdk: flutter
-  mp_core: ^0.1.0
-  mp_design: ^0.1.0
-  mp_runner: ^0.1.0
+  mp_core:
+    path: ../packages/mp_core
+  mp_design:
+    path: ../packages/mp_design
+  mp_runner:
+    path: ../packages/mp_runner
   path_provider: ^2.1.5
 
 dev_dependencies:
