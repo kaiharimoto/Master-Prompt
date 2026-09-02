@@ -11,3 +11,6 @@ export 'src/spec/mission_spec.dart';
 export 'src/spec/spec_field.dart';
 export 'src/spec/spec_sections.dart';
 export 'src/spec/spec_types.dart';
+export 'src/continuity/mp_state.dart';
+export 'src/continuity/state_parser.dart';
+export 'src/continuity/resume_capsule.dart';
