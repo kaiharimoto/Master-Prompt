@@ -14,3 +14,7 @@ export 'src/spec/spec_types.dart';
 export 'src/continuity/mp_state.dart';
 export 'src/continuity/state_parser.dart';
 export 'src/continuity/resume_capsule.dart';
+export 'src/interview/interview_engine.dart';
+export 'src/interview/interview_stage.dart';
+export 'src/interview/readiness.dart';
+export 'src/interview/spec_patch.dart';
