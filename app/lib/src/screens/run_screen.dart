@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:mp_design/mp_design.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../store/app_store.dart';
+import '../store/desktop_runner.dart';
 import '../store/project.dart';
 import '../widgets/exchange.dart';
 
@@ -33,8 +35,15 @@ class _RunScreenState extends State<RunScreen> {
   Color? _noteTone;
   bool _showCapsule = false;
 
-  bool get _canRunLocally =>
-      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+  final DesktopRunner _runner = DesktopRunner();
+
+  bool get _canRunLocally => DesktopRunner.isSupported;
+
+  @override
+  void dispose() {
+    _runner.dispose();
+    super.dispose();
+  }
 
   Future<void> _applyState(String reply) async {
     final Project p = widget.project;
@@ -126,7 +135,11 @@ class _RunScreenState extends State<RunScreen> {
                 const SizedBox(height: MpSpace.md),
 
                 if (_canRunLocally)
-                  const _DesktopRunnerNotice()
+                  _DesktopRunPanel(
+                    runner: _runner,
+                    project: p,
+                    store: widget.store,
+                  )
                 else
                   MpOutbound(
                     title: 'Mission brief',
@@ -189,8 +202,6 @@ class _RunScreenState extends State<RunScreen> {
     );
   }
 }
-
-const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
 
 class _StatePanel extends StatelessWidget {
   const _StatePanel({required this.state, required this.spec});
@@ -322,33 +333,169 @@ class _Capsule extends StatelessWidget {
   }
 }
 
-class _DesktopRunnerNotice extends StatelessWidget {
-  const _DesktopRunnerNotice();
+class _DesktopRunPanel extends StatefulWidget {
+  const _DesktopRunPanel({
+    required this.runner,
+    required this.project,
+    required this.store,
+  });
+
+  final DesktopRunner runner;
+  final Project project;
+  final AppStore store;
+
+  @override
+  State<_DesktopRunPanel> createState() => _DesktopRunPanelState();
+}
+
+class _DesktopRunPanelState extends State<_DesktopRunPanel> {
+  @override
+  void initState() {
+    super.initState();
+    // Probe the CLI on arrival so the user learns it is missing before they
+    // press anything, not after.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.runner.detect(widget.store.settings);
+    });
+  }
+
+  Future<void> _start() async {
+    final Directory dir = await getApplicationSupportDirectory();
+    if (!mounted) return;
+    await widget.runner.start(
+      project: widget.project,
+      settings: widget.store.settings,
+      stateDirectory: dir,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
-    return MpPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Desktop runner', style: MpType.heading.copyWith(color: c.ink)),
-          const SizedBox(height: MpSpace.sm),
-          Text(
-            'Set the Claude Code CLI path and a working directory in Settings, '
-            'then launch from there. The supervisor watches for usage limits, '
-            'schedules a resume that survives closing the app or rebooting, and '
-            'reattaches to the same session rather than starting over.',
-            style: MpType.prose.copyWith(color: c.inkMuted),
+
+    return ListenableBuilder(
+      listenable: widget.runner,
+      builder: (BuildContext context, _) {
+        final DesktopRunner r = widget.runner;
+
+        return MpPanel(
+          accent: switch (r.status) {
+            DesktopRunStatus.paused => c.warning,
+            DesktopRunStatus.failed => c.danger,
+            DesktopRunStatus.finished => c.success,
+            _ => null,
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  MpTag(r.status.name, tone: c.accent),
+                  const SizedBox(width: MpSpace.sm),
+                  if (r.install != null)
+                    Expanded(
+                      child: Text(
+                        'Claude Code ${r.install!.version} · '
+                        '${r.install!.authMode.name}',
+                        style: MpType.caption.copyWith(color: c.inkMuted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              ),
+
+              if (r.error != null) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                Text(r.error!, style: MpType.caption.copyWith(color: c.danger)),
+              ],
+
+              if (r.status == DesktopRunStatus.paused &&
+                  r.resumeAt != null) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                MpField(
+                  label: r.limitKind?.isAccountWide ?? false
+                      ? 'Account-wide limit'
+                      : 'Waiting out a limit',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Resuming at ${r.resumeAt!.toLocal()}',
+                        style: MpType.numeric.copyWith(color: c.ink),
+                      ),
+                      const SizedBox(height: MpSpace.xs),
+                      Text(
+                        r.limitKind?.isAccountWide ?? false
+                            ? 'This limit applies to the whole account, so '
+                                  'continuing on your phone will not help.'
+                            : 'The run reattaches to the same session when the '
+                                  'limit lifts. Closing the app is safe — the '
+                                  'schedule is on disk.',
+                        style: MpType.caption.copyWith(color: c.inkMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              if (r.log.isNotEmpty) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  decoration: BoxDecoration(
+                    color: c.canvas,
+                    borderRadius: MpRadius.card,
+                    border: Border.all(color: c.line),
+                  ),
+                  padding: const EdgeInsets.all(MpSpace.sm + 2),
+                  child: Scrollbar(
+                    child: ListView(
+                      reverse: true,
+                      shrinkWrap: true,
+                      children: <Widget>[
+                        for (final String line in r.log.reversed)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              line,
+                              style: MpType.mono.copyWith(color: c.inkMuted),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: MpSpace.md),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: MpButton(
+                      label: r.isBusy ? 'Running' : 'Run this mission',
+                      icon: Icons.play_arrow,
+                      kind: MpButtonKind.primary,
+                      expand: true,
+                      onPressed: r.isBusy || r.install == null ? null : _start,
+                    ),
+                  ),
+                  if (r.isBusy) ...<Widget>[
+                    const SizedBox(width: MpSpace.sm),
+                    MpButton(label: 'Stop', onPressed: r.stop),
+                  ],
+                ],
+              ),
+              const SizedBox(height: MpSpace.sm),
+              Text(
+                'The brief is written to the working directory as '
+                'MASTER_PROMPT.md, so the run stays auditable and recoverable '
+                'without this app.',
+                style: MpType.caption.copyWith(color: c.inkFaint),
+              ),
+            ],
           ),
-          const SizedBox(height: MpSpace.sm),
-          Text(
-            'The copy-paste flow below works here too, and is how a mission '
-            'moves between this machine and a phone.',
-            style: MpType.caption.copyWith(color: c.inkFaint),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -67,5 +67,23 @@ condition, not an error:
 
 ## Status
 
-Under active development. See `docs/` for the verified CLI contract that the runner is built
-against.
+Working end to end, headlessly verified. `packages/mp_runner/test/end_to_end_test.dart` takes a
+mission from a discussion patch through the readiness gate, compiles the brief, writes it to disk,
+launches a run against a fake CLI, is interrupted by a session limit, waits, resumes on the same
+session, finishes, parses the reported state back, and builds a capsule that could carry the mission
+into a fresh conversation — with no API key, no real CLI, and no five-hour wait.
+
+165 tests across the four packages. The Windows binary is built only on CI, since Flutter desktop
+needs a Windows host; that is why the runner lives in a plain `dart:io` package where nearly all of
+it is proven on Linux first.
+
+Read [`docs/method.md`](docs/method.md) for what the app is doing and why, and
+[`docs/cli-contract.md`](docs/cli-contract.md) for the CLI behaviour the runner is built against —
+verified by inspecting the shipped binary, because the documentation for it drifts.
+
+### Not yet done
+
+- The `.mpx` bundle round-trips and is fully tested, but is not yet wired to a file picker in the UI.
+- Windows sleep inhibition, tray presence and launch-at-login are designed but not implemented; a
+  scheduled resume currently relies on the app being open, or on being re-armed at next launch.
+- Support for API keys other than Anthropic's is scaffolded by the transport seam but not built.

@@ -12,3 +12,4 @@ export 'src/supervisor/limit_detector.dart';
 export 'src/supervisor/clock.dart';
 export 'src/supervisor/run_record.dart';
 export 'src/supervisor/run_supervisor.dart';
+export 'src/cli/cli_locator.dart';
