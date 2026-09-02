@@ -6,6 +6,10 @@ issues.
 
 _Last updated: the commit that set up the development loop._
 
+The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
+`dev` prerelease on every green push, and Settings carries a Copy diagnostics
+button. The core job runs on plain Dart in about 35 seconds.
+
 ## Where things stand
 
 The app is built end to end and both platforms compile on CI. **Nothing has yet
@@ -31,7 +35,7 @@ widget tests. The first real test is the first thing to do.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-165 tests across the four packages.
+170 tests across the four packages.
 
 ### Not yet proven
 

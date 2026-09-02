@@ -154,6 +154,7 @@ class Diagnostics {
       if (s != null) {
         b
           ..writeln('phase       ${s.phase.name}')
+          ..writeln('step        ${s.step}')
           ..writeln('cycle       ${s.cycle}')
           ..writeln('score       ${s.score}')
           ..writeln('next        ${s.next}');
