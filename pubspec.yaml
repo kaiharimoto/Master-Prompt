@@ -6,3 +6,5 @@ environment:
 workspace:
   - packages/mp_core
   - packages/mp_runner
+  - packages/mp_design
+  - app

@@ -1,0 +1,354 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:mp_core/mp_core.dart';
+import 'package:mp_design/mp_design.dart';
+
+import '../store/app_store.dart';
+import '../store/project.dart';
+import '../widgets/exchange.dart';
+
+/// Where a mission actually runs, and where a usage limit stops being a
+/// disaster.
+///
+/// On the desktop this drives the CLI. On a phone there is no CLI, so the same
+/// mission is carried by hand — and the resume capsule is what makes that
+/// survivable when Claude cuts the conversation off.
+class RunScreen extends StatefulWidget {
+  const RunScreen({required this.store, required this.project, super.key});
+
+  final AppStore store;
+  final Project project;
+
+  @override
+  State<RunScreen> createState() => _RunScreenState();
+}
+
+class _RunScreenState extends State<RunScreen> {
+  static const StateParser _parser = StateParser();
+  static const ResumeCapsuleBuilder _capsules = ResumeCapsuleBuilder();
+  static const InterviewEngine _engine = InterviewEngine();
+
+  String? _note;
+  Color? _noteTone;
+  bool _showCapsule = false;
+
+  bool get _canRunLocally =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
+  Future<void> _applyState(String reply) async {
+    final Project p = widget.project;
+    final StateParseResult r = _parser.parse(
+      reply,
+      expectedTaskId: p.spec.taskId,
+    );
+
+    // The raw paste is stored before anything else, always.
+    await widget.store.addTranscript(
+      p,
+      TranscriptEntry(
+        direction: TranscriptDirection.received,
+        text: reply,
+        at: DateTime.now().toUtc(),
+        note: 'state: ${r.status.name}',
+      ),
+    );
+
+    final MpColors c = MpTheme.colorsOf(context);
+    if (r.canAdvanceState && r.state != null) {
+      p.lastState = r.state;
+      await widget.store.save(p);
+      setState(() {
+        _note = r.repairs.isEmpty
+            ? 'State updated.'
+            : 'State updated, after repairs: ${r.repairs.join(' ')}';
+        _noteTone = c.success;
+      });
+    } else {
+      setState(() {
+        _note =
+            r.diagnostic ?? 'That reply could not be read as a state block.';
+        _noteTone = r.status == StateParseStatus.foreign ? c.danger : c.warning;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final Project p = widget.project;
+    final ReadinessReport report = _engine.assess(p.spec);
+
+    if (!report.canCompile) {
+      return const Padding(
+        padding: EdgeInsets.all(MpSpace.xl),
+        child: MpEmpty(
+          title: 'Nothing to run yet',
+          detail:
+              'Finish the discussion first. A run started from an incomplete '
+              'brief will stop to ask questions, which is exactly what this is '
+              'meant to prevent.',
+        ),
+      );
+    }
+
+    final CompiledPrompt compiled = const PromptCompiler().compile(
+      p.spec,
+      profile: TransportProfile.paste,
+    );
+    final MpState? state = p.lastState;
+
+    return ListView(
+      padding: const EdgeInsets.all(MpSpace.md),
+      children: <Widget>[
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: MpSpace.readingWidth),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const MpSectionHeader(number: '01', title: 'Progress'),
+                const SizedBox(height: MpSpace.md),
+                _StatePanel(state: state, spec: p.spec),
+
+                const SizedBox(height: MpSpace.xl),
+                MpSectionHeader(
+                  number: '02',
+                  title: _canRunLocally ? 'Run' : 'Carry the mission',
+                  subtitle: _canRunLocally
+                      ? 'The desktop runner drives the Claude Code CLI, detects '
+                            'usage limits, and resumes automatically when they '
+                            'lift.'
+                      : 'Paste the brief into the Claude app, then bring each '
+                            'reply back here. The app tracks progress from the '
+                            'heartbeat block at the end of every reply.',
+                ),
+                const SizedBox(height: MpSpace.md),
+
+                if (_canRunLocally)
+                  const _DesktopRunnerNotice()
+                else
+                  MpOutbound(
+                    title: 'Mission brief',
+                    subtitle:
+                        'Start a new Claude conversation and paste this first.',
+                    text: compiled.body,
+                  ),
+
+                const SizedBox(height: MpSpace.md),
+                MpInbound(
+                  onSubmit: _applyState,
+                  hint: "Paste Claude's reply, including its mpstate block",
+                  actionLabel: 'Record progress',
+                ),
+
+                if (_note != null) ...<Widget>[
+                  const SizedBox(height: MpSpace.md),
+                  MpPanel(
+                    accent: _noteTone,
+                    child: Text(
+                      _note!,
+                      style: MpType.prose.copyWith(color: c.inkMuted),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: MpSpace.xl),
+                MpSectionHeader(
+                  number: '03',
+                  title: 'If the conversation is cut off',
+                  subtitle:
+                      'A Pro plan will hit its limit partway through a long '
+                      'mission. Start a fresh Claude chat and paste the capsule '
+                      'below; it carries everything the new conversation needs '
+                      'to continue from exactly here.',
+                ),
+                const SizedBox(height: MpSpace.md),
+                if (!_showCapsule)
+                  MpButton(
+                    label: 'Build a resume capsule',
+                    icon: Icons.restart_alt,
+                    expand: true,
+                    onPressed: () => setState(() => _showCapsule = true),
+                  )
+                else
+                  _Capsule(
+                    capsule: _capsules.build(
+                      spec: p.spec,
+                      state: state,
+                      compiled: compiled,
+                      producedArtifacts: p.producedArtifacts,
+                    ),
+                  ),
+                const SizedBox(height: MpSpace.xxl),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
+
+class _StatePanel extends StatelessWidget {
+  const _StatePanel({required this.state, required this.spec});
+
+  final MpState? state;
+  final MissionSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    // Bound to a local so the null check promotes: a public field cannot be.
+    final MpState? s = state;
+
+    if (s == null) {
+      return MpPanel(
+        child: Text(
+          'Nothing recorded yet. Progress appears here once a reply carrying an '
+          'mpstate block has been pasted back.',
+          style: MpType.prose.copyWith(color: c.inkMuted),
+        ),
+      );
+    }
+
+    final double scoreFraction = spec.rubric.total == 0
+        ? 0
+        : s.score / spec.rubric.total;
+    final bool passing = s.score >= spec.rubric.exitThreshold;
+
+    return MpPanel(
+      accent: s.isBlocked ? c.danger : (passing ? c.success : null),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              MpTag(s.phase.name, tone: c.accent),
+              const SizedBox(width: MpSpace.sm),
+              if (s.cycle > 0) MpTag('cycle ${s.cycle}'),
+              const Spacer(),
+              Text(
+                '${s.score.toStringAsFixed(0)} / ${spec.rubric.total}',
+                style: MpType.numeric.copyWith(color: c.ink),
+              ),
+            ],
+          ),
+          const SizedBox(height: MpSpace.sm),
+          MpMeter(value: scoreFraction, tone: passing ? c.success : c.ink),
+          const SizedBox(height: MpSpace.xs),
+          Text(
+            'Exit at ${spec.rubric.exitThreshold}',
+            style: MpType.caption.copyWith(color: c.inkFaint),
+          ),
+          if (s.step.isNotEmpty) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            MpField(
+              label: 'Current step',
+              child: Text(s.step, style: MpType.body.copyWith(color: c.ink)),
+            ),
+          ],
+          if (s.next.isNotEmpty) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            MpField(
+              label: 'Next action',
+              child: Text(s.next, style: MpType.body.copyWith(color: c.ink)),
+            ),
+          ],
+          if (s.isBlocked) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            MpField(
+              label: 'Blocked',
+              child: Text(
+                s.blocked!,
+                style: MpType.body.copyWith(color: c.danger),
+              ),
+            ),
+          ],
+          if (s.hasQuestion) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            MpField(
+              label: 'Asking you',
+              child: Text(s.ask!, style: MpType.body.copyWith(color: c.ink)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Capsule extends StatelessWidget {
+  const _Capsule({required this.capsule});
+
+  final ResumeCapsule capsule;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final List<String> parts = capsule.chunk();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (capsule.droppedSections.isNotEmpty) ...<Widget>[
+          MpPanel(
+            accent: c.warning,
+            child: Text(
+              'Trimmed to fit: ${capsule.droppedSections.join(', ')}. The '
+              'rubric, failure conditions and next action are always kept.',
+              style: MpType.caption.copyWith(color: c.inkMuted),
+            ),
+          ),
+          const SizedBox(height: MpSpace.sm),
+        ],
+        for (int i = 0; i < parts.length; i++) ...<Widget>[
+          MpOutbound(
+            title: parts.length == 1
+                ? 'Resume capsule'
+                : 'Resume capsule — part ${i + 1} of ${parts.length}',
+            subtitle: parts.length == 1
+                ? 'Paste into a brand-new Claude conversation.'
+                : 'Paste these in order, waiting for the acknowledgement '
+                      'between each.',
+            text: parts[i],
+          ),
+          const SizedBox(height: MpSpace.sm),
+        ],
+      ],
+    );
+  }
+}
+
+class _DesktopRunnerNotice extends StatelessWidget {
+  const _DesktopRunnerNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    return MpPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Desktop runner', style: MpType.heading.copyWith(color: c.ink)),
+          const SizedBox(height: MpSpace.sm),
+          Text(
+            'Set the Claude Code CLI path and a working directory in Settings, '
+            'then launch from there. The supervisor watches for usage limits, '
+            'schedules a resume that survives closing the app or rebooting, and '
+            'reattaches to the same session rather than starting over.',
+            style: MpType.prose.copyWith(color: c.inkMuted),
+          ),
+          const SizedBox(height: MpSpace.sm),
+          Text(
+            'The copy-paste flow below works here too, and is how a mission '
+            'moves between this machine and a phone.',
+            style: MpType.caption.copyWith(color: c.inkFaint),
+          ),
+        ],
+      ),
+    );
+  }
+}

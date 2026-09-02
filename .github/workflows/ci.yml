@@ -64,12 +64,15 @@ jobs:
         run: flutter pub get
 
       - name: Analyse the app
+        working-directory: app
         run: flutter analyze
 
       - name: Test the app
+        working-directory: app
         run: flutter test
 
       - name: Build debug APK
+        working-directory: app
         run: flutter build apk --debug
 
   windows:
@@ -91,4 +94,5 @@ jobs:
       # place it is ever compiled. The runner's logic lives in a plain dart:io
       # package precisely so nearly all of it is proven on Linux first.
       - name: Build Windows
+        working-directory: app
         run: flutter build windows --debug

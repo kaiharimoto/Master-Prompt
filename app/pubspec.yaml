@@ -1,0 +1,25 @@
+name: master_prompt
+description: "Write prompts that run unattended."
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  mp_core: ^0.1.0
+  mp_design: ^0.1.0
+  mp_runner: ^0.1.0
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
