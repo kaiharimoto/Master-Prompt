@@ -2,7 +2,9 @@ import 'package:meta/meta.dart';
 
 /// Helpers shared by the value types below.
 List<String> _stringList(Object? raw) =>
-    (raw as List<Object?>? ?? const <Object?>[]).map((Object? e) => '$e').toList();
+    (raw as List<Object?>? ?? const <Object?>[])
+        .map((Object? e) => '$e')
+        .toList();
 
 E _byName<E extends Enum>(List<E> values, Object? name, E fallback) {
   for (final E v in values) {
@@ -328,9 +330,10 @@ class BuildStep {
     ordinal: (j['ordinal'] as num).toInt(),
     name: '${j['name']}',
     instruction: '${j['instruction'] ?? ''}',
-    producesEvidence: (j['producesEvidence'] as List<Object?>? ?? const <Object?>[])
-        .map((Object? e) => (e! as num).toInt())
-        .toList(),
+    producesEvidence:
+        (j['producesEvidence'] as List<Object?>? ?? const <Object?>[])
+            .map((Object? e) => (e! as num).toInt())
+            .toList(),
   );
 }
 
@@ -347,6 +350,8 @@ class FailureCondition {
     'severity': severity,
   };
 
-  static FailureCondition fromJson(Map<String, Object?> j) =>
-      FailureCondition(text: '${j['text']}', severity: '${j['severity'] ?? 'blocking'}');
+  static FailureCondition fromJson(Map<String, Object?> j) => FailureCondition(
+    text: '${j['text']}',
+    severity: '${j['severity'] ?? 'blocking'}',
+  );
 }

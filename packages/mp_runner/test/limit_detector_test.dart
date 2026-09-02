@@ -28,7 +28,8 @@ void main() {
         LimitSignals(
           exitCode: 0,
           now: t0,
-          stdoutText: 'I have documented the rate limit handling in the README.',
+          stdoutText:
+              'I have documented the rate limit handling in the README.',
         ),
       );
       expect(v.isLimited, isFalse);
@@ -59,8 +60,11 @@ void main() {
         ),
       );
       expect(v.kind, LimitKind.sevenDay);
-      expect(v.kind.isAccountWide, isTrue,
-          reason: 'switching to the phone will not help');
+      expect(
+        v.kind.isAccountWide,
+        isTrue,
+        reason: 'switching to the phone will not help',
+      );
     });
 
     test('Opus-specific weekly limit is distinguished', () {
@@ -99,8 +103,11 @@ void main() {
           ],
         ),
       );
-      expect(v.kind, LimitKind.auth,
-          reason: 'auth must win even alongside a 429');
+      expect(
+        v.kind,
+        LimitKind.auth,
+        reason: 'auth must win even alongside a 429',
+      );
       expect(v.kind.isWaitable, isFalse);
       expect(v.resetAt, isNull);
     });
@@ -115,8 +122,10 @@ void main() {
           exitCode: 1,
           now: t0,
           events: <CliEvent>[
-            ev('{"type":"system","subtype":"api_error","error_status":429,'
-                '"retryAttempt":3,"maxRetries":5,"error":{}}'),
+            ev(
+              '{"type":"system","subtype":"api_error","error_status":429,'
+              '"retryAttempt":3,"maxRetries":5,"error":{}}',
+            ),
           ],
         ),
       );
@@ -133,8 +142,10 @@ void main() {
           exitCode: 1,
           now: t0,
           events: <CliEvent>[
-            ev('{"type":"system","subtype":"api_error","error_status":503,'
-                '"retryAttempt":2}'),
+            ev(
+              '{"type":"system","subtype":"api_error","error_status":503,'
+              '"retryAttempt":2}',
+            ),
           ],
         ),
       );
@@ -219,8 +230,10 @@ void main() {
           exitCode: 1,
           now: t0,
           events: <CliEvent>[
-            ev('{"type":"system","subtype":"api_error","error_status":429,'
-                '"retryInMs":900000}'),
+            ev(
+              '{"type":"system","subtype":"api_error","error_status":429,'
+              '"retryInMs":900000}',
+            ),
           ],
         ),
       );
@@ -303,21 +316,27 @@ void main() {
     });
 
     test('patterns survive a JSON round trip and fall back when empty', () {
-      final LimitPatterns p =
-          LimitPatterns.fromJson(const LimitPatterns().toJson());
+      final LimitPatterns p = LimitPatterns.fromJson(
+        const LimitPatterns().toJson(),
+      );
       expect(p.fiveHour, contains("you've hit your session limit"));
 
-      final LimitPatterns empty =
-          LimitPatterns.fromJson(<String, Object?>{'fiveHour': <Object?>[]});
-      expect(empty.fiveHour, isNotEmpty,
-          reason: 'an empty override must not blind the detector');
+      final LimitPatterns empty = LimitPatterns.fromJson(<String, Object?>{
+        'fiveHour': <Object?>[],
+      });
+      expect(
+        empty.fiveHour,
+        isNotEmpty,
+        reason: 'an empty override must not blind the detector',
+      );
     });
   });
 
   group('unknown failures are surfaced, never silently swallowed', () {
     test('a nonzero exit with no recognisable signal is unknown', () {
-      final LimitVerdict v =
-          d.detect(LimitSignals(stderr: 'weird', exitCode: 3, now: t0));
+      final LimitVerdict v = d.detect(
+        LimitSignals(stderr: 'weird', exitCode: 3, now: t0),
+      );
       expect(v.kind, LimitKind.unknown);
       expect(v.confidence, lessThan(0.5));
       expect(v.evidence, isNotEmpty);

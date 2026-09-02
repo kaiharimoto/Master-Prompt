@@ -32,8 +32,11 @@ void main() {
     });
 
     test('carries the full 100-point rubric with a 90 exit threshold', () {
-      expect(spec.rubric.isBalanced, isTrue,
-          reason: 'reference rubric weights must sum to 100');
+      expect(
+        spec.rubric.isBalanced,
+        isTrue,
+        reason: 'reference rubric weights must sum to 100',
+      );
       expect(body, contains('Exit threshold — 90 / 100'));
       for (final RubricCategory c in spec.rubric.categories) {
         expect(body, contains(c.name));
@@ -56,8 +59,9 @@ void main() {
     });
 
     test('designates exactly one hero artifact at the higher minimum', () {
-      final List<EvidenceArtifact> heroes =
-          spec.evidence.where((EvidenceArtifact e) => e.isHero).toList();
+      final List<EvidenceArtifact> heroes = spec.evidence
+          .where((EvidenceArtifact e) => e.isHero)
+          .toList();
       expect(heroes, hasLength(1));
       expect(heroes.single.fileName, '03_restaurant_hero.png');
       expect(body, contains('2560x1440'));
@@ -125,7 +129,10 @@ void main() {
       expect(body, contains('Do not answer with only a plan'));
       expect(body, contains('The user may be unavailable.'));
       expect(body, contains('Stop only for credentials'));
-      expect(body, contains('not merely until the first working result exists'));
+      expect(
+        body,
+        contains('not merely until the first working result exists'),
+      );
     });
 
     test('requires cold-start validation and an honest final report', () {
@@ -160,10 +167,14 @@ void main() {
 
     test('the paste profile differs from the cli profile', () {
       final MissionSpec spec = referenceSkylineSpec();
-      final CompiledPrompt cli =
-          const PromptCompiler().compile(spec, profile: TransportProfile.cli);
-      final CompiledPrompt paste =
-          const PromptCompiler().compile(spec, profile: TransportProfile.paste);
+      final CompiledPrompt cli = const PromptCompiler().compile(
+        spec,
+        profile: TransportProfile.cli,
+      );
+      final CompiledPrompt paste = const PromptCompiler().compile(
+        spec,
+        profile: TransportProfile.paste,
+      );
       expect(cli.hash, isNot(paste.hash));
       expect(paste.body, contains('no tool access and no filesystem'));
       expect(cli.body, isNot(contains('no tool access and no filesystem')));
@@ -171,8 +182,9 @@ void main() {
 
     test('spec content hash ignores timestamps but tracks content', () {
       final MissionSpec a = referenceSkylineSpec();
-      final MissionSpec b = referenceSkylineSpec()
-          .copyWith(updatedAt: DateTime.utc(2030));
+      final MissionSpec b = referenceSkylineSpec().copyWith(
+        updatedAt: DateTime.utc(2030),
+      );
       expect(a.contentHash(), b.contentHash());
 
       final MissionSpec changed = a.copyWith(title: 'Something else');
@@ -189,8 +201,9 @@ void main() {
     });
 
     test('sections can be extracted individually for capsule assembly', () {
-      final CompiledPrompt out =
-          const PromptCompiler().compile(referenceSkylineSpec());
+      final CompiledPrompt out = const PromptCompiler().compile(
+        referenceSkylineSpec(),
+      );
       final String? rubric = out.section('05 / RUBRIC');
       expect(rubric, isNotNull);
       expect(rubric, contains('Exit threshold'));
@@ -207,8 +220,9 @@ void main() {
         presetId: 'generic',
       );
       final CompiledPrompt out = const PromptCompiler().compile(bare);
-      final String sections =
-          out.warnings.map((CompileWarning w) => w.section).join(' ');
+      final String sections = out.warnings
+          .map((CompileWarning w) => w.section)
+          .join(' ');
       expect(sections, contains('05 / RUBRIC'));
       expect(sections, contains('08 / DELIVERABLES'));
       expect(sections, contains('04 / REVIEW LOOP'));

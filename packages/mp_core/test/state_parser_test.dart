@@ -49,8 +49,10 @@ void main() {
           .parse(block(), expectedTaskId: 'skyline-restaurant-bar')
           .state!;
       final MpState b = parser
-          .parse('```mpstate\n${a.render()}\n```',
-              expectedTaskId: 'skyline-restaurant-bar')
+          .parse(
+            '```mpstate\n${a.render()}\n```',
+            expectedTaskId: 'skyline-restaurant-bar',
+          )
           .state!;
       expect(b.phase, a.phase);
       expect(b.cycle, a.cycle);
@@ -61,11 +63,13 @@ void main() {
 
   group('survives what a chat UI and a clipboard do to text', () {
     test('smart quotes and non-breaking spaces', () {
-      final String mangled = block(step: 'the “hero” camera')
-          .replaceAll(' ', ' ')
-          .replaceAll('"', '“');
-      final StateParseResult r =
-          parser.parse(mangled, expectedTaskId: 'skyline-restaurant-bar');
+      final String mangled = block(
+        step: 'the “hero” camera',
+      ).replaceAll(' ', ' ').replaceAll('"', '“');
+      final StateParseResult r = parser.parse(
+        mangled,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.canAdvanceState, isTrue);
       expect(r.repairs, isNotEmpty);
     });
@@ -80,21 +84,21 @@ void main() {
     });
 
     test('the fence was stripped by copy-as-plain-text', () {
-      final String noFence =
-          block().replaceAll('```mpstate\n', '').replaceAll('\n```', '');
-      final StateParseResult r =
-          parser.parse('Some prose first.\n\n$noFence',
-              expectedTaskId: 'skyline-restaurant-bar');
+      final String noFence = block()
+          .replaceAll('```mpstate\n', '')
+          .replaceAll('\n```', '');
+      final StateParseResult r = parser.parse(
+        'Some prose first.\n\n$noFence',
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.canAdvanceState, isTrue);
       expect(r.state!.next, contains('Re-render'));
-      expect(
-        r.repairs.any((String s) => s.contains('fence')),
-        isTrue,
-      );
+      expect(r.repairs.any((String s) => s.contains('fence')), isTrue);
     });
 
     test('markdown emphasis applied to the keys', () {
-      const String bolded = '```mpstate\n'
+      const String bolded =
+          '```mpstate\n'
           '**v**=1\n'
           '**task**=skyline-restaurant-bar\n'
           '**phase**=build\n'
@@ -105,32 +109,41 @@ void main() {
           '**blocked**=none\n'
           '**ask**=none\n'
           '```';
-      final StateParseResult r =
-          parser.parse(bolded, expectedTaskId: 'skyline-restaurant-bar');
+      final StateParseResult r = parser.parse(
+        bolded,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.canAdvanceState, isTrue);
       expect(r.state!.phase, MissionPhase.build);
       expect(r.state!.next, 'Block out the kitchen line');
     });
 
     test('quoted as a blockquote', () {
-      final String quoted =
-          block().split('\n').map((String l) => '> $l').join('\n');
-      final StateParseResult r =
-          parser.parse(quoted, expectedTaskId: 'skyline-restaurant-bar');
+      final String quoted = block()
+          .split('\n')
+          .map((String l) => '> $l')
+          .join('\n');
+      final StateParseResult r = parser.parse(
+        quoted,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.canAdvanceState, isTrue);
       expect(r.state!.cycle, 3);
     });
 
     test('colon separators instead of equals', () {
       final String colons = block().replaceAll('=', ': ');
-      final StateParseResult r =
-          parser.parse(colons, expectedTaskId: 'skyline-restaurant-bar');
+      final StateParseResult r = parser.parse(
+        colons,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.canAdvanceState, isTrue);
       expect(r.state!.phase, MissionPhase.review);
     });
 
     test('a long value reflowed onto a second line is rejoined', () {
-      const String reflowed = '```mpstate\n'
+      const String reflowed =
+          '```mpstate\n'
           'v=1\n'
           'task=skyline-restaurant-bar\n'
           'phase=review\n'
@@ -142,8 +155,10 @@ void main() {
           'blocked=none\n'
           'ask=none\n'
           '```';
-      final StateParseResult r =
-          parser.parse(reflowed, expectedTaskId: 'skyline-restaurant-bar');
+      final StateParseResult r = parser.parse(
+        reflowed,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.canAdvanceState, isTrue);
       expect(r.state!.next, contains('contact shadows'));
       expect(r.repairs.any((String s) => s.contains('wrapped')), isTrue);
@@ -168,33 +183,45 @@ void main() {
 
   group('refuses to advance on a truncated paste', () {
     test('the block was cut off mid-way', () {
-      const String cut = 'Work so far...\n\n```mpstate\n'
+      const String cut =
+          'Work so far...\n\n```mpstate\n'
           'v=1\n'
           'task=skyline-restaurant-bar\n'
           'phase=review\n'
           'step=diagnosing bar ligh';
-      final StateParseResult r =
-          parser.parse(cut, expectedTaskId: 'skyline-restaurant-bar');
+      final StateParseResult r = parser.parse(
+        cut,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.status, StateParseStatus.truncated);
-      expect(r.canAdvanceState, isFalse,
-          reason: 'next= was cut off, so advancing would use a stale action');
+      expect(
+        r.canAdvanceState,
+        isFalse,
+        reason: 'next= was cut off, so advancing would use a stale action',
+      );
       expect(r.diagnostic, contains('cut off'));
       expect(r.rawText, cut, reason: 'the paste is never discarded');
     });
 
-    test('a closed block missing only optional tail fields is still usable', () {
-      const String noAsk = '```mpstate\n'
-          'v=1\n'
-          'task=skyline-restaurant-bar\n'
-          'phase=build\n'
-          'step=modelling\n'
-          'next=Continue the graybox\n'
-          'ask=none\n'
-          '```';
-      final StateParseResult r =
-          parser.parse(noAsk, expectedTaskId: 'skyline-restaurant-bar');
-      expect(r.canAdvanceState, isTrue);
-    });
+    test(
+      'a closed block missing only optional tail fields is still usable',
+      () {
+        const String noAsk =
+            '```mpstate\n'
+            'v=1\n'
+            'task=skyline-restaurant-bar\n'
+            'phase=build\n'
+            'step=modelling\n'
+            'next=Continue the graybox\n'
+            'ask=none\n'
+            '```';
+        final StateParseResult r = parser.parse(
+          noAsk,
+          expectedTaskId: 'skyline-restaurant-bar',
+        );
+        expect(r.canAdvanceState, isTrue);
+      },
+    );
   });
 
   group('catches the wrong conversation', () {
@@ -219,8 +246,10 @@ void main() {
   group('never loses a paste', () {
     test('plain prose with no block at all', () {
       const String prose = 'I have finished the bar. What next?';
-      final StateParseResult r =
-          parser.parse(prose, expectedTaskId: 'skyline-restaurant-bar');
+      final StateParseResult r = parser.parse(
+        prose,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.status, StateParseStatus.unusable);
       expect(r.canAdvanceState, isFalse);
       expect(r.rawText, prose);
@@ -248,8 +277,7 @@ void main() {
         'v=1 is the version we use',
       ];
       for (final String s in notBlocks) {
-        final StateParseResult r =
-            parser.parse(s, expectedTaskId: 'anything');
+        final StateParseResult r = parser.parse(s, expectedTaskId: 'anything');
         expect(r.canAdvanceState, isFalse, reason: 'should not accept: $s');
       }
     });
@@ -260,14 +288,17 @@ void main() {
       final String twice =
           'As a reminder the format is:\n\n${block(phase: 'bootstrap', cycle: '0')}\n\n'
           'And here is my actual state:\n\n${block(phase: 'validation', cycle: '5')}';
-      final StateParseResult r =
-          parser.parse(twice, expectedTaskId: 'skyline-restaurant-bar');
+      final StateParseResult r = parser.parse(
+        twice,
+        expectedTaskId: 'skyline-restaurant-bar',
+      );
       expect(r.state!.phase, MissionPhase.validation);
       expect(r.state!.cycle, 5);
     });
 
     test('unknown keys are preserved for forward compatibility', () {
-      const String withExtra = '```mpstate\n'
+      const String withExtra =
+          '```mpstate\n'
           'v=1\n'
           'task=t\n'
           'phase=build\n'
@@ -282,19 +313,26 @@ void main() {
 
     test('blocked and ask recognise their empty forms', () {
       for (final String empty in <String>['none', 'None', 'n/a', '-', '']) {
-        final StateParseResult r =
-            parser.parse(block(blocked: empty, ask: empty));
+        final StateParseResult r = parser.parse(
+          block(blocked: empty, ask: empty),
+        );
         expect(r.state!.isBlocked, isFalse, reason: 'blocked="$empty"');
         expect(r.state!.hasQuestion, isFalse, reason: 'ask="$empty"');
       }
-      final StateParseResult r =
-          parser.parse(block(blocked: 'GPU out of memory'));
+      final StateParseResult r = parser.parse(
+        block(blocked: 'GPU out of memory'),
+      );
       expect(r.state!.isBlocked, isTrue);
       expect(r.state!.blocked, 'GPU out of memory');
     });
 
     test('alternate fence spellings are accepted', () {
-      for (final String tag in <String>['mpstate', 'mp-state', 'mp_state', 'MPSTATE']) {
+      for (final String tag in <String>[
+        'mpstate',
+        'mp-state',
+        'mp_state',
+        'MPSTATE',
+      ]) {
         final String s = block().replaceFirst('mpstate', tag);
         final StateParseResult r = parser.parse(s);
         expect(r.canAdvanceState, isTrue, reason: 'tag: $tag');

@@ -39,22 +39,86 @@ MissionSpec referenceSkylineSpec() {
   ];
 
   const List<List<String>> artifacts = <List<String>>[
-    <String>['01_lift_lobby_arrival.png', 'Lift lobby arrival', 'Compressed threshold, host cue, coat storage, and first skyline reveal.'],
-    <String>['02_host_and_waiting_lounge.png', 'Host and waiting lounge', 'Arrival operation, material transition, and view toward bar.'],
-    <String>['03_restaurant_hero.png', 'Restaurant hero', 'Wide view uniting bar, dining layers, open kitchen, windows, and city.'],
-    <String>['04_cocktail_bar_front.png', 'Cocktail bar front', "Twenty-seat bar, backbar depth, equipment, patrons' edge, and lighting."],
-    <String>['05_behind_bar_operation.png', 'Behind bar operation', 'Ice, sink, rails, refrigeration, glass storage, POS, and service logic.'],
-    <String>['06_main_dining_room.png', 'Main dining room', 'Varied tables, banquettes, circulation, table lighting, and skyline depth.'],
-    <String>['07_window_dining.png', 'Window dining', 'Premium seats with balanced interior/exterior exposure and facade detail.'],
-    <String>['08_open_kitchen_and_pass.png', 'Open kitchen and pass', 'Hot line, ventilation, plating, chef counter, and guest boundary.'],
-    <String>['09_private_dining_suite.png', 'Private dining suite', 'Operable division, pantry support, AV, art, and acoustic enclosure.'],
-    <String>['10_wine_room.png', 'Wine room', 'Bottle density, cooling details, tasting table, and glass enclosure.'],
-    <String>['11_restroom_vanity.png', 'Restroom vanity', 'Stone, mirror, fixtures, cubicle threshold, and accessible quality.'],
-    <String>['12_back_of_house_route.png', 'Back of house route', 'Prep, storage, dishwash, service connection, and non-public completeness.'],
-    <String>['13_sky_terrace.png', 'Sky terrace', 'Wind screens, seating, planters, guards, drainage, and skyline.'],
-    <String>['14_table_setting_detail.png', 'Table setting detail', 'Cutlery, glass, porcelain, linen, menu, lamp, and food detail.'],
-    <String>['15_bar_material_detail.png', 'Bar material detail', 'Stone edge, bronze trim, leather stool, foot rail, bottles, and reflections.'],
-    <String>['16_ceiling_and_reverse_audit.png', 'Ceiling and reverse audit', 'Service stations, room backs, facade junctions, and ceiling coordination.'],
+    <String>[
+      '01_lift_lobby_arrival.png',
+      'Lift lobby arrival',
+      'Compressed threshold, host cue, coat storage, and first skyline reveal.',
+    ],
+    <String>[
+      '02_host_and_waiting_lounge.png',
+      'Host and waiting lounge',
+      'Arrival operation, material transition, and view toward bar.',
+    ],
+    <String>[
+      '03_restaurant_hero.png',
+      'Restaurant hero',
+      'Wide view uniting bar, dining layers, open kitchen, windows, and city.',
+    ],
+    <String>[
+      '04_cocktail_bar_front.png',
+      'Cocktail bar front',
+      "Twenty-seat bar, backbar depth, equipment, patrons' edge, and lighting.",
+    ],
+    <String>[
+      '05_behind_bar_operation.png',
+      'Behind bar operation',
+      'Ice, sink, rails, refrigeration, glass storage, POS, and service logic.',
+    ],
+    <String>[
+      '06_main_dining_room.png',
+      'Main dining room',
+      'Varied tables, banquettes, circulation, table lighting, and skyline depth.',
+    ],
+    <String>[
+      '07_window_dining.png',
+      'Window dining',
+      'Premium seats with balanced interior/exterior exposure and facade detail.',
+    ],
+    <String>[
+      '08_open_kitchen_and_pass.png',
+      'Open kitchen and pass',
+      'Hot line, ventilation, plating, chef counter, and guest boundary.',
+    ],
+    <String>[
+      '09_private_dining_suite.png',
+      'Private dining suite',
+      'Operable division, pantry support, AV, art, and acoustic enclosure.',
+    ],
+    <String>[
+      '10_wine_room.png',
+      'Wine room',
+      'Bottle density, cooling details, tasting table, and glass enclosure.',
+    ],
+    <String>[
+      '11_restroom_vanity.png',
+      'Restroom vanity',
+      'Stone, mirror, fixtures, cubicle threshold, and accessible quality.',
+    ],
+    <String>[
+      '12_back_of_house_route.png',
+      'Back of house route',
+      'Prep, storage, dishwash, service connection, and non-public completeness.',
+    ],
+    <String>[
+      '13_sky_terrace.png',
+      'Sky terrace',
+      'Wind screens, seating, planters, guards, drainage, and skyline.',
+    ],
+    <String>[
+      '14_table_setting_detail.png',
+      'Table setting detail',
+      'Cutlery, glass, porcelain, linen, menu, lamp, and food detail.',
+    ],
+    <String>[
+      '15_bar_material_detail.png',
+      'Bar material detail',
+      'Stone edge, bronze trim, leather stool, foot rail, bottles, and reflections.',
+    ],
+    <String>[
+      '16_ceiling_and_reverse_audit.png',
+      'Ceiling and reverse audit',
+      'Service stations, room backs, facade junctions, and ceiling coordination.',
+    ],
   ];
 
   return MissionSpec(
@@ -81,7 +145,8 @@ MissionSpec referenceSkylineSpec() {
       provenance: FieldProvenance.user,
     ),
     scale: const SpecField<String>(
-      value: 'Approximately 1,200 m² on a single high-rise floor. Blender units in metres.',
+      value:
+          'Approximately 1,200 m² on a single high-rise floor. Blender units in metres.',
       resolution: FieldResolution.confirmed,
       provenance: FieldProvenance.user,
     ),
@@ -97,7 +162,8 @@ MissionSpec referenceSkylineSpec() {
       primaryTool:
           'Blender via the command line. Write Blender Python and debug renders '
           'directly through the CLI. No MCP, no add-on assistants.',
-      harness: 'Subagents required for the review loop (fresh-context critics).',
+      harness:
+          'Subagents required for the review loop (fresh-context critics).',
       startingAssets:
           'No pre-made scripts, plugins, MCP servers, or skills. Everything is '
           'generated from scratch.',
@@ -139,9 +205,19 @@ MissionSpec referenceSkylineSpec() {
         name: 'Bar equipment',
         description: 'Working bar with real service depth.',
         members: <String>[
-          'bottle shelves', 'glass racks', 'speed rails', 'sinks', 'ice wells',
-          'taps', 'refrigeration', 'dishwasher', 'garnish trays', 'POS',
-          'bar tools', 'foot rail', 'undercounter access',
+          'bottle shelves',
+          'glass racks',
+          'speed rails',
+          'sinks',
+          'ice wells',
+          'taps',
+          'refrigeration',
+          'dishwasher',
+          'garnish trays',
+          'POS',
+          'bar tools',
+          'foot rail',
+          'undercounter access',
         ],
       ),
       ComponentFamily(
@@ -149,9 +225,18 @@ MissionSpec referenceSkylineSpec() {
         name: 'Kitchen equipment',
         description: 'A functioning hot line and pass.',
         members: <String>[
-          'ranges', 'plancha', 'ovens', 'refrigeration', 'stainless prep',
-          'ventilation hood', 'salamander', 'heated pass', 'plate shelves',
-          'chef screens', 'wash-up', 'safety clearances',
+          'ranges',
+          'plancha',
+          'ovens',
+          'refrigeration',
+          'stainless prep',
+          'ventilation hood',
+          'salamander',
+          'heated pass',
+          'plate shelves',
+          'chef screens',
+          'wash-up',
+          'safety clearances',
         ],
       ),
       ComponentFamily(
@@ -159,15 +244,23 @@ MissionSpec referenceSkylineSpec() {
         name: 'Wine display',
         description: 'Bottle positions using efficient instances.',
         minimumCount: 500,
-        variationRule: 'Angled display, bulk racks, cooling grilles, inventory labels.',
+        variationRule:
+            'Angled display, bulk racks, cooling grilles, inventory labels.',
       ),
       ComponentFamily(
         id: 'tabletop',
         name: 'Tabletop props',
         description: 'Table settings at believable states of use.',
         members: <String>[
-          'plates', 'cutlery', 'stemware', 'water glasses', 'folded napkins',
-          'lamps', 'menus', 'serving trays', 'carafes',
+          'plates',
+          'cutlery',
+          'stemware',
+          'water glasses',
+          'folded napkins',
+          'lamps',
+          'menus',
+          'serving trays',
+          'carafes',
         ],
       ),
       ComponentFamily(
@@ -175,8 +268,12 @@ MissionSpec referenceSkylineSpec() {
         name: 'City context',
         description: 'The world outside the glass.',
         members: <String>[
-          'layered towers', 'rooftop plant', 'street grids', 'aircraft beacons',
-          'distant water or haze', 'varied illuminated window patterns with parallax',
+          'layered towers',
+          'rooftop plant',
+          'street grids',
+          'aircraft beacons',
+          'distant water or haze',
+          'varied illuminated window patterns with parallax',
         ],
       ),
     ],
@@ -285,24 +382,102 @@ MissionSpec referenceSkylineSpec() {
     review: const ReviewLoopSpec(
       minimumCycles: 4,
       critics: <Critic>[
-        Critic(id: 'c1', name: 'Circulation critic', judges: 'Guest arrival, cover count, table clearances, service paths, restroom access, and terrace safety.'),
-        Critic(id: 'c2', name: 'Operations critic', judges: 'Bar, open kitchen, pass, storage, wash-up, wine service, and back-of-house plausibility.'),
-        Critic(id: 'c3', name: 'Craft critic', judges: 'Material restraint, joinery, furniture hierarchy, acoustic comfort, and crafted detail.'),
-        Critic(id: 'c4', name: 'Dressing critic', judges: 'Table settings, bar mise en place, kitchen props, scale, and believable use.'),
-        Critic(id: 'c5', name: 'Lighting critic', judges: 'Interior/exterior exposure, practical pools, reflections, skyline depth, and focal hierarchy.'),
-        Critic(id: 'c6', name: 'Technical critic', judges: 'Render stability, paths, organisation, instances, material links, and delivery.'),
+        Critic(
+          id: 'c1',
+          name: 'Circulation critic',
+          judges:
+              'Guest arrival, cover count, table clearances, service paths, restroom access, and terrace safety.',
+        ),
+        Critic(
+          id: 'c2',
+          name: 'Operations critic',
+          judges:
+              'Bar, open kitchen, pass, storage, wash-up, wine service, and back-of-house plausibility.',
+        ),
+        Critic(
+          id: 'c3',
+          name: 'Craft critic',
+          judges:
+              'Material restraint, joinery, furniture hierarchy, acoustic comfort, and crafted detail.',
+        ),
+        Critic(
+          id: 'c4',
+          name: 'Dressing critic',
+          judges:
+              'Table settings, bar mise en place, kitchen props, scale, and believable use.',
+        ),
+        Critic(
+          id: 'c5',
+          name: 'Lighting critic',
+          judges:
+              'Interior/exterior exposure, practical pools, reflections, skyline depth, and focal hierarchy.',
+        ),
+        Critic(
+          id: 'c6',
+          name: 'Technical critic',
+          judges:
+              'Render stability, paths, organisation, instances, material links, and delivery.',
+        ),
       ],
     ),
     rubric: const Rubric(
       exitThreshold: 90,
       categories: <RubricCategory>[
-        RubricCategory(id: 'r1', name: 'Circulation and capacity', weight: 15, minimum: 12.8, criteria: 'Arrival, covers, service routes, privacy, accessibility, terrace logic'),
-        RubricCategory(id: 'r2', name: 'Operational credibility', weight: 20, minimum: 17.0, criteria: 'Kitchen, pass, bar equipment, storage, wine, wash-up, service detail'),
-        RubricCategory(id: 'r3', name: 'Asset density and craft', weight: 15, minimum: 12.8, criteria: 'Quantity, variety, craft, and close-range credibility'),
-        RubricCategory(id: 'r4', name: 'Architecture and construction', weight: 15, minimum: 12.8, criteria: 'Proportion, joinery, construction, acoustics, restrained finish quality'),
-        RubricCategory(id: 'r5', name: 'Light and atmosphere', weight: 20, minimum: 17.0, criteria: 'Blue-hour balance, practical hierarchy, reflections, exposure, city depth'),
-        RubricCategory(id: 'r6', name: 'Composition and storytelling', weight: 10, minimum: 8.5, criteria: 'Camera hierarchy, intimacy, movement, and lived-in storytelling'),
-        RubricCategory(id: 'r7', name: 'Technical delivery', weight: 5, minimum: 4.3, criteria: 'Clean editable scene, performance, dependencies, and outputs'),
+        RubricCategory(
+          id: 'r1',
+          name: 'Circulation and capacity',
+          weight: 15,
+          minimum: 12.8,
+          criteria:
+              'Arrival, covers, service routes, privacy, accessibility, terrace logic',
+        ),
+        RubricCategory(
+          id: 'r2',
+          name: 'Operational credibility',
+          weight: 20,
+          minimum: 17.0,
+          criteria:
+              'Kitchen, pass, bar equipment, storage, wine, wash-up, service detail',
+        ),
+        RubricCategory(
+          id: 'r3',
+          name: 'Asset density and craft',
+          weight: 15,
+          minimum: 12.8,
+          criteria: 'Quantity, variety, craft, and close-range credibility',
+        ),
+        RubricCategory(
+          id: 'r4',
+          name: 'Architecture and construction',
+          weight: 15,
+          minimum: 12.8,
+          criteria:
+              'Proportion, joinery, construction, acoustics, restrained finish quality',
+        ),
+        RubricCategory(
+          id: 'r5',
+          name: 'Light and atmosphere',
+          weight: 20,
+          minimum: 17.0,
+          criteria:
+              'Blue-hour balance, practical hierarchy, reflections, exposure, city depth',
+        ),
+        RubricCategory(
+          id: 'r6',
+          name: 'Composition and storytelling',
+          weight: 10,
+          minimum: 8.5,
+          criteria:
+              'Camera hierarchy, intimacy, movement, and lived-in storytelling',
+        ),
+        RubricCategory(
+          id: 'r7',
+          name: 'Technical delivery',
+          weight: 5,
+          minimum: 4.3,
+          criteria:
+              'Clean editable scene, performance, dependencies, and outputs',
+        ),
       ],
     ),
     validation: const ValidationPlan(
@@ -321,7 +496,8 @@ MissionSpec referenceSkylineSpec() {
     deliverables: const DeliverablePlan(
       projectDirectory: 'skyline_restaurant_bar',
       tree: <String, String>{
-        'skyline_restaurant_bar_final.blend': 'the final editable Blender scene',
+        'skyline_restaurant_bar_final.blend':
+            'the final editable Blender scene',
         'README.md': 'structure, version, controls, deps, rerender',
         'scripts/': 'scene-generation and rerender utilities',
         'textures/': 'locally generated or baked textures, if used',
@@ -339,17 +515,50 @@ MissionSpec referenceSkylineSpec() {
       ],
     ),
     failureConditions: const <FailureCondition>[
-      FailureCondition(text: 'Dining capacity is represented by rigid copied rows with no hierarchy or service clearances.'),
-      FailureCondition(text: 'The bar lacks real equipment, bartender work depth, refrigeration, sinks, or storage.'),
-      FailureCondition(text: 'Kitchen and guest circulation conflict, or the open kitchen is only a decorative backdrop.'),
-      FailureCondition(text: 'The skyline is black, flat, repeated, overexposed, or visibly too close to the facade.'),
-      FailureCondition(text: 'Luxury depends on excessive gold, glossy marble, and bloom rather than proportion, craft, and light.'),
-      FailureCondition(text: 'Any required zone is missing, represented only by a sign, or built as a camera-facing shell.'),
-      FailureCondition(text: 'Multiple final views reveal floating assets, severe intersections, incorrect scale, missing faces, broken normals, or default materials.'),
-      FailureCondition(text: 'Darkness, fog, depth of field, cropping, reflections, or camera placement are used to conceal incomplete work.'),
-      FailureCondition(text: 'Only one direction is finished, while reverse angles, circulation paths, ceilings, service edges, or exterior boundaries collapse under inspection.'),
-      FailureCondition(text: 'renders/final/ is absent, contains viewport screenshots, or does not cover the required scene.'),
-      FailureCondition(text: 'The final .blend cannot open and render with all required textures and linked resources available.'),
+      FailureCondition(
+        text:
+            'Dining capacity is represented by rigid copied rows with no hierarchy or service clearances.',
+      ),
+      FailureCondition(
+        text:
+            'The bar lacks real equipment, bartender work depth, refrigeration, sinks, or storage.',
+      ),
+      FailureCondition(
+        text:
+            'Kitchen and guest circulation conflict, or the open kitchen is only a decorative backdrop.',
+      ),
+      FailureCondition(
+        text:
+            'The skyline is black, flat, repeated, overexposed, or visibly too close to the facade.',
+      ),
+      FailureCondition(
+        text:
+            'Luxury depends on excessive gold, glossy marble, and bloom rather than proportion, craft, and light.',
+      ),
+      FailureCondition(
+        text:
+            'Any required zone is missing, represented only by a sign, or built as a camera-facing shell.',
+      ),
+      FailureCondition(
+        text:
+            'Multiple final views reveal floating assets, severe intersections, incorrect scale, missing faces, broken normals, or default materials.',
+      ),
+      FailureCondition(
+        text:
+            'Darkness, fog, depth of field, cropping, reflections, or camera placement are used to conceal incomplete work.',
+      ),
+      FailureCondition(
+        text:
+            'Only one direction is finished, while reverse angles, circulation paths, ceilings, service edges, or exterior boundaries collapse under inspection.',
+      ),
+      FailureCondition(
+        text:
+            'renders/final/ is absent, contains viewport screenshots, or does not cover the required scene.',
+      ),
+      FailureCondition(
+        text:
+            'The final .blend cannot open and render with all required textures and linked resources available.',
+      ),
     ],
   );
 }

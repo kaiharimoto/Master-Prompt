@@ -3,7 +3,9 @@ import 'package:meta/meta.dart';
 import 'spec_types.dart';
 
 List<String> _strings(Object? raw) =>
-    (raw as List<Object?>? ?? const <Object?>[]).map((Object? e) => '$e').toList();
+    (raw as List<Object?>? ?? const <Object?>[])
+        .map((Object? e) => '$e')
+        .toList();
 
 /// Section 00 — the machine, the tools, and how much rope the agent gets.
 @immutable
@@ -12,7 +14,8 @@ class RuntimeProfile {
     this.compute = '',
     this.primaryTool = '',
     this.harness = '',
-    this.startingAssets = 'Nothing pre-made. Everything is generated from scratch.',
+    this.startingAssets =
+        'Nothing pre-made. Everything is generated from scratch.',
     this.tokenBudget = '100 million tokens',
     this.wallClock = '',
     this.autonomy =

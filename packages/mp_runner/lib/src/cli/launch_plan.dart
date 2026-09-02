@@ -243,8 +243,10 @@ class LaunchPlanBuilder {
     }
 
     if (request.effortPreference.isNotEmpty) {
-      final String? effort =
-          capabilities.bestValue('--effort', request.effortPreference);
+      final String? effort = capabilities.bestValue(
+        '--effort',
+        request.effortPreference,
+      );
       if (effort != null) {
         args.addAll(<String>['--effort', effort]);
         if (effort != request.effortPreference.first) {
@@ -260,7 +262,10 @@ class LaunchPlanBuilder {
 
     // --- autonomy -----------------------------------------------------------
     if (capabilities.has('--permission-mode') &&
-        capabilities.supportsValue('--permission-mode', request.permissionMode)) {
+        capabilities.supportsValue(
+          '--permission-mode',
+          request.permissionMode,
+        )) {
       args.addAll(<String>['--permission-mode', request.permissionMode]);
     } else if (request.permissionMode == 'bypassPermissions' &&
         capabilities.has('--dangerously-skip-permissions')) {
@@ -291,9 +296,10 @@ class LaunchPlanBuilder {
     }
     if (request.appendSystemPrompt != null &&
         capabilities.has('--append-system-prompt')) {
-      args.addAll(
-        <String>['--append-system-prompt', request.appendSystemPrompt!],
-      );
+      args.addAll(<String>[
+        '--append-system-prompt',
+        request.appendSystemPrompt!,
+      ]);
     }
     if (request.settingsPath != null && capabilities.has('--settings')) {
       args.addAll(<String>['--settings', request.settingsPath!]);
@@ -302,9 +308,10 @@ class LaunchPlanBuilder {
       args.addAll(<String>['--fallback-model', request.fallbackModel!]);
     }
     if (request.maxBudgetUsd != null && capabilities.has('--max-budget-usd')) {
-      args.addAll(
-        <String>['--max-budget-usd', request.maxBudgetUsd!.toStringAsFixed(2)],
-      );
+      args.addAll(<String>[
+        '--max-budget-usd',
+        request.maxBudgetUsd!.toStringAsFixed(2),
+      ]);
     }
 
     // The prompt goes last, as a positional argument.

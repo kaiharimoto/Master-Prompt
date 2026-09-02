@@ -124,18 +124,27 @@ void main() {
       expect(std.droppedSections, contains('full domain brief (section 07)'));
     });
 
-    test('a capsule with no recorded state says so rather than inventing one', () {
-      final ResumeCapsule none =
-          builder.build(spec: spec, state: null, compiled: compiled);
-      expect(none.text, contains('No state was recorded'));
-      expect(none.text, contains('establish the current position'));
-    });
+    test(
+      'a capsule with no recorded state says so rather than inventing one',
+      () {
+        final ResumeCapsule none = builder.build(
+          spec: spec,
+          state: null,
+          compiled: compiled,
+        );
+        expect(none.text, contains('No state was recorded'));
+        expect(none.text, contains('establish the current position'));
+      },
+    );
   });
 
   group('chunking for chat apps with paste limits', () {
     test('short capsules are a single part', () {
-      final ResumeCapsule c =
-          builder.build(spec: spec, state: midRun, tier: CapsuleTier.minimal);
+      final ResumeCapsule c = builder.build(
+        spec: spec,
+        state: midRun,
+        tier: CapsuleTier.minimal,
+      );
       expect(c.chunk(maxCharacters: 100000), hasLength(1));
     });
 
@@ -166,10 +175,13 @@ void main() {
     test('a reply following the capsule template parses cleanly', () {
       final ResumeCapsule c = builder.build(spec: spec, state: midRun);
       // Simulate the assistant following the contract the capsule states.
-      final String reply = 'Done. Re-rendered 04 and 05.\n\n'
+      final String reply =
+          'Done. Re-rendered 04 and 05.\n\n'
           '```mpstate\n${midRun.copyWith(cycle: 4, score: 83).render()}\n```';
-      final StateParseResult r = const StateParser()
-          .parse(reply, expectedTaskId: c.taskId);
+      final StateParseResult r = const StateParser().parse(
+        reply,
+        expectedTaskId: c.taskId,
+      );
       expect(r.status, StateParseStatus.accepted);
       expect(r.state!.cycle, 4);
       expect(r.state!.score, 83);

@@ -81,7 +81,15 @@ class StateParser {
 
   /// Keys the app understands. Anything else is preserved in [MpState.extra].
   static const Set<String> knownKeys = <String>{
-    'v', 'task', 'phase', 'step', 'cycle', 'score', 'next', 'blocked', 'ask',
+    'v',
+    'task',
+    'phase',
+    'step',
+    'cycle',
+    'score',
+    'next',
+    'blocked',
+    'ask',
   };
 
   StateParseResult parse(String pasted, {String? expectedTaskId}) {
@@ -109,7 +117,8 @@ class StateParser {
         rawText: pasted,
         repairs: repairs,
         prose: located.prose,
-        diagnostic: 'An mpstate block was found but no readable key=value lines.',
+        diagnostic:
+            'An mpstate block was found but no readable key=value lines.',
       );
     }
 
@@ -355,7 +364,9 @@ class StateParser {
       if (m != null) {
         final String key = m.group(1)!.toLowerCase();
         String value = (m.group(2) ?? '').trim();
-        if (rawLine.contains('**') || rawLine.contains('__')) sawMarkdown = true;
+        if (rawLine.contains('**') || rawLine.contains('__')) {
+          sawMarkdown = true;
+        }
         // Strip a wrapping quote pair the model may have added.
         if (value.length >= 2 &&
             ((value.startsWith('"') && value.endsWith('"')) ||

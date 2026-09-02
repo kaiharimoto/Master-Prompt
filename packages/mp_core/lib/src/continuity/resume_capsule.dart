@@ -60,7 +60,8 @@ class ResumeCapsule {
     final List<String> lines = text.split('\n');
     StringBuffer current = StringBuffer();
     for (final String line in lines) {
-      if (current.length + line.length + 1 > maxCharacters && current.isNotEmpty) {
+      if (current.length + line.length + 1 > maxCharacters &&
+          current.isNotEmpty) {
         parts.add(current.toString().trimRight());
         current = StringBuffer();
       }
@@ -187,7 +188,9 @@ class ResumeCapsuleBuilder {
       b.writeln();
     } else {
       b.writeln('- **Phase** — ${state.phase.name}');
-      if (state.step.isNotEmpty) b.writeln('- **Current step** — ${state.step}');
+      if (state.step.isNotEmpty) {
+        b.writeln('- **Current step** — ${state.step}');
+      }
       if (state.cycle > 0) b.writeln('- **Review cycle** — ${state.cycle}');
       if (state.score > 0) {
         b.writeln(

@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.2'
+
+jobs:
+  core:
+    name: Analyse and test the pure-Dart core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Resolve dependencies
+        run: dart pub get
+
+      - name: Analyse
+        run: dart analyze packages/mp_core packages/mp_runner
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed packages/mp_core packages/mp_runner
+
+      - name: Test mp_core
+        working-directory: packages/mp_core
+        run: dart test --reporter expanded
+
+      # Compiles and drives a fake `claude` binary, so the supervisor's limit
+      # detection and resume ladder are exercised without an API key and without
+      # waiting five hours for a real usage limit.
+      - name: Test mp_runner
+        working-directory: packages/mp_runner
+        run: dart test --reporter expanded
+
+  android:
+    name: Build the Android app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyse the app
+        run: flutter analyze
+
+      - name: Test the app
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+  windows:
+    name: Build the Windows app
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # The Windows binary cannot be produced on Linux, so this job is the only
+      # place it is ever compiled. The runner's logic lives in a plain dart:io
+      # package precisely so nearly all of it is proven on Linux first.
+      - name: Build Windows
+        run: flutter build windows --debug

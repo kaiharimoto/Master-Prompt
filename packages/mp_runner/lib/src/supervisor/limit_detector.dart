@@ -147,8 +147,8 @@ class LimitDetector {
     final DateTime now = (signals.now ?? DateTime.now()).toUtc();
     final List<String> evidence = <String>[];
 
-    final String haystack =
-        '${signals.stderr}\n${signals.stdoutText}'.toLowerCase();
+    final String haystack = '${signals.stderr}\n${signals.stdoutText}'
+        .toLowerCase();
 
     // --- 1. Auth first. It must never consume the retry budget. -------------
     if (patterns.auth.any(haystack.contains)) {
@@ -294,12 +294,15 @@ class LimitDetector {
     // 1. An explicit epoch. The CLI's own rate-limit bookkeeping stores this as
     //    epoch *seconds*; reading it as milliseconds would schedule a resume
     //    fifty years out, so the unit is asserted by range.
-    final Match? epoch =
-        RegExp(r'\b(1[6-9]\d{8}|2[0-9]{9})\b').firstMatch(haystack);
+    final Match? epoch = RegExp(
+      r'\b(1[6-9]\d{8}|2[0-9]{9})\b',
+    ).firstMatch(haystack);
     if (epoch != null) {
       final int seconds = int.parse(epoch.group(1)!);
-      final DateTime at =
-          DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
+      final DateTime at = DateTime.fromMillisecondsSinceEpoch(
+        seconds * 1000,
+        isUtc: true,
+      );
       if (at.isAfter(now) && at.difference(now) < const Duration(days: 30)) {
         return _Reset(at, ResetSource.explicit, <String>[
           'reset timestamp found in output',

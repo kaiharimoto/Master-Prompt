@@ -9,14 +9,15 @@ CapabilityProfile realProfile() => const HelpParser().parse(
   fingerprint: 'test',
 );
 
-CapabilityProfile minimal(Set<String> flags,
-        {Map<String, List<String>> choices = const <String, List<String>>{}}) =>
-    CapabilityProfile(
-      version: 'test',
-      fingerprint: 'test',
-      flags: flags,
-      choices: choices,
-    );
+CapabilityProfile minimal(
+  Set<String> flags, {
+  Map<String, List<String>> choices = const <String, List<String>>{},
+}) => CapabilityProfile(
+  version: 'test',
+  fingerprint: 'test',
+  flags: flags,
+  choices: choices,
+);
 
 void main() {
   const LaunchPlanBuilder builder = LaunchPlanBuilder();
@@ -46,13 +47,15 @@ void main() {
       expect(p.arguments, contains('--verbose'));
     });
 
-    test('pre-assigns the session id so a run is resumable before it starts',
-        () {
-      expect(p.sessionId, base.sessionId);
-      final int i = p.arguments.indexOf('--session-id');
-      expect(i, greaterThanOrEqualTo(0));
-      expect(p.arguments[i + 1], base.sessionId);
-    });
+    test(
+      'pre-assigns the session id so a run is resumable before it starts',
+      () {
+        expect(p.sessionId, base.sessionId);
+        final int i = p.arguments.indexOf('--session-id');
+        expect(i, greaterThanOrEqualTo(0));
+        expect(p.arguments[i + 1], base.sessionId);
+      },
+    );
 
     test('applies bypassPermissions as the unattended default', () {
       final int i = p.arguments.indexOf('--permission-mode');
@@ -70,8 +73,11 @@ void main() {
         ),
       );
       final int i = hi.arguments.indexOf('--effort');
-      expect(hi.arguments[i + 1], 'high',
-          reason: '2.1.42 accepts only low/medium/high');
+      expect(
+        hi.arguments[i + 1],
+        'high',
+        reason: '2.1.42 accepts only low/medium/high',
+      );
       expect(hi.notes.any((String n) => n.contains('Effort reduced')), isTrue);
     });
 
@@ -87,24 +93,27 @@ void main() {
   });
 
   group('resume shapes', () {
-    test('a plain resume drops the pinned id rather than building an error', () {
-      // Verified from the binary: --session-id with --resume is rejected
-      // unless --fork-session is present.
-      final LaunchPlan p = builder.build(
-        executable: 'claude',
-        capabilities: real,
-        request: const LaunchRequest(
-          prompt: 'Continue.',
-          workingDirectory: '/w',
-          intent: LaunchIntent.resume,
-          resumeSessionId: 'abc',
-          sessionId: 'def',
-        ),
-      );
-      expect(p.arguments, contains('--resume'));
-      expect(p.arguments, isNot(contains('--session-id')));
-      expect(p.notes.any((String n) => n.contains('not pinned')), isTrue);
-    });
+    test(
+      'a plain resume drops the pinned id rather than building an error',
+      () {
+        // Verified from the binary: --session-id with --resume is rejected
+        // unless --fork-session is present.
+        final LaunchPlan p = builder.build(
+          executable: 'claude',
+          capabilities: real,
+          request: const LaunchRequest(
+            prompt: 'Continue.',
+            workingDirectory: '/w',
+            intent: LaunchIntent.resume,
+            resumeSessionId: 'abc',
+            sessionId: 'def',
+          ),
+        );
+        expect(p.arguments, contains('--resume'));
+        expect(p.arguments, isNot(contains('--session-id')));
+        expect(p.notes.any((String n) => n.contains('not pinned')), isTrue);
+      },
+    );
 
     test('a fork resume may pin a new id', () {
       final LaunchPlan p = builder.build(
@@ -179,22 +188,27 @@ void main() {
       );
       expect(p.telemetry, TelemetryTier.text);
       expect(
-        p.notes.any((String n) => n.contains('automatic resume is unavailable')),
+        p.notes.any(
+          (String n) => n.contains('automatic resume is unavailable'),
+        ),
         isTrue,
       );
     });
 
-    test('uses the legacy skip-permissions flag when the mode is unsupported',
-        () {
-      final LaunchPlan p = builder.build(
-        executable: 'claude',
-        capabilities: minimal(
-          <String>{'--print', '--dangerously-skip-permissions'},
-        ),
-        request: base,
-      );
-      expect(p.arguments, contains('--dangerously-skip-permissions'));
-    });
+    test(
+      'uses the legacy skip-permissions flag when the mode is unsupported',
+      () {
+        final LaunchPlan p = builder.build(
+          executable: 'claude',
+          capabilities: minimal(<String>{
+            '--print',
+            '--dangerously-skip-permissions',
+          }),
+          request: base,
+        );
+        expect(p.arguments, contains('--dangerously-skip-permissions'));
+      },
+    );
 
     test('steps down to acceptEdits and warns the run may stall', () {
       final LaunchPlan p = builder.build(

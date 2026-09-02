@@ -6,8 +6,7 @@ import 'package:test/test.dart';
 void main() {
   // Captured verbatim from a real install. Parsing must be validated against
   // what the binary actually prints, not against a hand-written sample.
-  final String help =
-      File('test/fixtures/help_2.1.42.txt').readAsStringSync();
+  final String help = File('test/fixtures/help_2.1.42.txt').readAsStringSync();
 
   final CapabilityProfile p = const HelpParser().parse(
     helpText: help,
@@ -89,7 +88,10 @@ void main() {
     });
 
     test('finds subcommands', () {
-      expect(p.subcommands, containsAll(<String>['auth', 'mcp', 'setup-token']));
+      expect(
+        p.subcommands,
+        containsAll(<String>['auth', 'mcp', 'setup-token']),
+      );
     });
 
     test('does not read prose in parentheses as an enumeration', () {

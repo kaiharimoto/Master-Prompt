@@ -16,7 +16,9 @@ import 'dart:io';
 int _attempt(String? statePath) {
   if (statePath == null) return 1;
   final File f = File(statePath);
-  final int n = f.existsSync() ? (int.tryParse(f.readAsStringSync().trim()) ?? 0) : 0;
+  final int n = f.existsSync()
+      ? (int.tryParse(f.readAsStringSync().trim()) ?? 0)
+      : 0;
   f.writeAsStringSync('${n + 1}');
   return n + 1;
 }

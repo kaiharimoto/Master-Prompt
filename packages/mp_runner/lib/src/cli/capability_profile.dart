@@ -64,28 +64,32 @@ class CapabilityProfile {
     'subcommands': subcommands.toList()..sort(),
   };
 
-  static CapabilityProfile fromJson(Map<String, Object?> j) => CapabilityProfile(
-    version: '${j['version']}',
-    fingerprint: '${j['fingerprint']}',
-    flags: <String>{
-      for (final Object? f in (j['flags'] as List<Object?>? ?? const <Object?>[]))
-        '$f',
-    },
-    choices: <String, List<String>>{
-      for (final MapEntry<Object?, Object?> e
-          in (j['choices'] as Map<Object?, Object?>? ?? const <Object?, Object?>{})
-              .entries)
-        '${e.key}': <String>[
-          for (final Object? v in (e.value as List<Object?>? ?? const <Object?>[]))
-            '$v',
-        ],
-    },
-    subcommands: <String>{
-      for (final Object? s
-          in (j['subcommands'] as List<Object?>? ?? const <Object?>[]))
-        '$s',
-    },
-  );
+  static CapabilityProfile fromJson(Map<String, Object?> j) =>
+      CapabilityProfile(
+        version: '${j['version']}',
+        fingerprint: '${j['fingerprint']}',
+        flags: <String>{
+          for (final Object? f
+              in (j['flags'] as List<Object?>? ?? const <Object?>[]))
+            '$f',
+        },
+        choices: <String, List<String>>{
+          for (final MapEntry<Object?, Object?> e
+              in (j['choices'] as Map<Object?, Object?>? ??
+                      const <Object?, Object?>{})
+                  .entries)
+            '${e.key}': <String>[
+              for (final Object? v
+                  in (e.value as List<Object?>? ?? const <Object?>[]))
+                '$v',
+            ],
+        },
+        subcommands: <String>{
+          for (final Object? s
+              in (j['subcommands'] as List<Object?>? ?? const <Object?>[]))
+            '$s',
+        },
+      );
 
   @override
   String toString() =>
@@ -105,8 +109,10 @@ class HelpParser {
   );
 
   /// `(choices: "a", "b", "c")` — the form commander emits for enumerated values.
-  static final RegExp _explicitChoices =
-      RegExp(r'\(choices:\s*([^)]*)\)', caseSensitive: false);
+  static final RegExp _explicitChoices = RegExp(
+    r'\(choices:\s*([^)]*)\)',
+    caseSensitive: false,
+  );
 
   /// `(low, medium, high)` — a bare parenthesised list at the end of a
   /// description. Only treated as an enumeration when every item is a plain

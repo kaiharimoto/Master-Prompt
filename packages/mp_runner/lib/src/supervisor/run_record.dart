@@ -134,8 +134,9 @@ class RunRecord {
     prompt: prompt,
     sessionId: sessionId ?? this.sessionId,
     attempts: attempts ?? this.attempts,
-    scheduledResumeAt:
-        clearSchedule ? null : (scheduledResumeAt ?? this.scheduledResumeAt),
+    scheduledResumeAt: clearSchedule
+        ? null
+        : (scheduledResumeAt ?? this.scheduledResumeAt),
     blockStartedAt: blockStartedAt ?? this.blockStartedAt,
     conclusion: conclusion ?? this.conclusion,
     lastVerdict: lastVerdict ?? this.lastVerdict,

@@ -165,8 +165,9 @@ class MissionSpec {
     'rubric': rubric.toJson(),
     'validation': validation.toJson(),
     'deliverables': deliverables.toJson(),
-    'failureConditions':
-        failureConditions.map((FailureCondition f) => f.toJson()).toList(),
+    'failureConditions': failureConditions
+        .map((FailureCondition f) => f.toJson())
+        .toList(),
     if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
   };
@@ -203,10 +204,14 @@ class MissionSpec {
         .map((Object? e) => '$e')
         .toList(),
     families: (j['families'] as List<Object?>? ?? const <Object?>[])
-        .map((Object? e) => ComponentFamily.fromJson(e! as Map<String, Object?>))
+        .map(
+          (Object? e) => ComponentFamily.fromJson(e! as Map<String, Object?>),
+        )
         .toList(),
     evidence: (j['evidence'] as List<Object?>? ?? const <Object?>[])
-        .map((Object? e) => EvidenceArtifact.fromJson(e! as Map<String, Object?>))
+        .map(
+          (Object? e) => EvidenceArtifact.fromJson(e! as Map<String, Object?>),
+        )
         .toList(),
     quality: QualityLanguage.fromJson(
       j['quality'] as Map<String, Object?>? ?? const <String, Object?>{},
@@ -228,8 +233,10 @@ class MissionSpec {
     ),
     failureConditions:
         (j['failureConditions'] as List<Object?>? ?? const <Object?>[])
-            .map((Object? e) =>
-                FailureCondition.fromJson(e! as Map<String, Object?>))
+            .map(
+              (Object? e) =>
+                  FailureCondition.fromJson(e! as Map<String, Object?>),
+            )
             .toList(),
     createdAt: j['createdAt'] == null
         ? null
@@ -246,13 +253,16 @@ class MissionSpec {
     final Map<String, Object?> j = toJson()
       ..remove('createdAt')
       ..remove('updatedAt');
-    return sha256.convert(utf8.encode(_canonical(j))).toString().substring(0, 16);
+    return sha256
+        .convert(utf8.encode(_canonical(j)))
+        .toString()
+        .substring(0, 16);
   }
 
   static String _canonical(Object? value) {
     if (value is Map) {
-      final List<String> keys =
-          value.keys.map((Object? k) => '$k').toList()..sort();
+      final List<String> keys = value.keys.map((Object? k) => '$k').toList()
+        ..sort();
       return '{${keys.map((String k) => '"$k":${_canonical(value[k])}').join(',')}}';
     }
     if (value is List) {

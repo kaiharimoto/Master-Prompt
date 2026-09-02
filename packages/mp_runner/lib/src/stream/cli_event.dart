@@ -64,7 +64,8 @@ class InitEvent extends CliEvent {
   String? get model => raw['model'] as String?;
 
   List<String> get tools => <String>[
-    for (final Object? t in (raw['tools'] as List<Object?>? ?? const <Object?>[]))
+    for (final Object? t
+        in (raw['tools'] as List<Object?>? ?? const <Object?>[]))
       '$t',
   ];
 }
@@ -80,15 +81,18 @@ class ApiErrorEvent extends CliEvent {
 
   int? get status => (raw['error_status'] as num?)?.toInt();
 
-  int get attempt => (raw['retryAttempt'] as num?)?.toInt() ??
+  int get attempt =>
+      (raw['retryAttempt'] as num?)?.toInt() ??
       (raw['attempt'] as num?)?.toInt() ??
       0;
 
-  int? get maxRetries => (raw['maxRetries'] as num?)?.toInt() ??
+  int? get maxRetries =>
+      (raw['maxRetries'] as num?)?.toInt() ??
       (raw['max_retries'] as num?)?.toInt();
 
   /// Milliseconds the CLI intends to wait before its next attempt.
-  int? get retryInMs => (raw['retryInMs'] as num?)?.toInt() ??
+  int? get retryInMs =>
+      (raw['retryInMs'] as num?)?.toInt() ??
       (raw['retry_delay_ms'] as num?)?.toInt();
 
   /// A category string when one is present. Often absent.
@@ -115,7 +119,8 @@ class CompactionEvent extends CliEvent {
   const CompactionEvent(super.raw);
 
   Map<String, Object?> get _meta =>
-      raw['compact_metadata'] as Map<String, Object?>? ?? const <String, Object?>{};
+      raw['compact_metadata'] as Map<String, Object?>? ??
+      const <String, Object?>{};
 
   String? get trigger => _meta['trigger'] as String?;
 

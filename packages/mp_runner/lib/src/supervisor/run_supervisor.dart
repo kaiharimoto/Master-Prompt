@@ -82,8 +82,9 @@ class RunSupervisor {
     );
     await store.save(record);
 
-    LaunchIntent intent =
-        record.sessionId == null ? LaunchIntent.fresh : LaunchIntent.resume;
+    LaunchIntent intent = record.sessionId == null
+        ? LaunchIntent.fresh
+        : LaunchIntent.resume;
     String? pinnedId = record.sessionId ?? _uuid();
     bool forkNext = false;
 
@@ -138,8 +139,9 @@ class RunSupervisor {
       if (r.attempt.succeeded) {
         final bool progressed = r.madeProgress;
         record = record.copyWith(
-          consecutiveNoProgress:
-              progressed ? 0 : record.consecutiveNoProgress + 1,
+          consecutiveNoProgress: progressed
+              ? 0
+              : record.consecutiveNoProgress + 1,
           clearSchedule: true,
         );
         if (r.completed) {
@@ -151,7 +153,7 @@ class RunSupervisor {
           _emit(
             'stalled',
             'Resumed ${record.consecutiveNoProgress} times without progress. '
-            'Stopping so this does not loop silently.',
+                'Stopping so this does not loop silently.',
           );
           record = record.copyWith(conclusion: RunConclusion.stalled);
           break;
@@ -186,7 +188,7 @@ class RunSupervisor {
         _emit(
           'resume',
           'The session cannot be reattached. Restarting cold from the mission '
-          'brief and the recorded state.',
+              'brief and the recorded state.',
         );
         intent = LaunchIntent.fresh;
         forkNext = false;
@@ -197,19 +199,15 @@ class RunSupervisor {
       }
 
       if (!v.kind.isWaitable) {
-        _emit(
-          'stalled',
-          switch (v.kind) {
-            LimitKind.auth =>
-              'Authentication failed. Sign in again, then resume this run.',
-            LimitKind.overage =>
-              'A spend or credit limit was reached. This needs a billing '
-                  'decision, not time.',
-            LimitKind.fatal => 'Unrecoverable: ${v.evidence.join('; ')}',
-            _ => 'Stopped: ${v.evidence.join('; ')}',
-          },
-          record: record,
-        );
+        _emit('stalled', switch (v.kind) {
+          LimitKind.auth =>
+            'Authentication failed. Sign in again, then resume this run.',
+          LimitKind.overage =>
+            'A spend or credit limit was reached. This needs a billing '
+                'decision, not time.',
+          LimitKind.fatal => 'Unrecoverable: ${v.evidence.join('; ')}',
+          _ => 'Stopped: ${v.evidence.join('; ')}',
+        }, record: record);
         record = record.copyWith(conclusion: RunConclusion.stalled);
         break;
       }
@@ -222,7 +220,7 @@ class RunSupervisor {
       _emit(
         'limited',
         '${_describe(v.kind)} Resuming at ${resumeAt.toIso8601String()} '
-        '(${v.source.name}).',
+            '(${v.source.name}).',
         record: record,
       );
 
@@ -314,7 +312,7 @@ class RunSupervisor {
             _emit(
               'compaction',
               'Context was compacted at ${e.preTokens ?? 'an unknown number of'} '
-              'tokens. The next turn will be reoriented from the run record.',
+                  'tokens. The next turn will be reoriented from the run record.',
               e: e,
             );
           }
@@ -322,16 +320,15 @@ class RunSupervisor {
         })
         .asFuture<void>();
 
-    final Future<void> errDone = process.stderr
-        .transform(utf8.decoder)
-        .listen((String chunk) {
-          // stderr is a first-class channel: the human-readable limit message
-          // exists nowhere else, because Error.message is non-enumerable and
-          // the CLI serialises events with a plain JSON.stringify.
-          stderrBuffer.write(chunk);
-          _emit('stderr', chunk.trimRight());
-        })
-        .asFuture<void>();
+    final Future<void> errDone = process.stderr.transform(utf8.decoder).listen((
+      String chunk,
+    ) {
+      // stderr is a first-class channel: the human-readable limit message
+      // exists nowhere else, because Error.message is non-enumerable and
+      // the CLI serialises events with a plain JSON.stringify.
+      stderrBuffer.write(chunk);
+      _emit('stderr', chunk.trimRight());
+    }).asFuture<void>();
 
     final int exitCode = await process.exitCode;
     await Future.wait<void>(<Future<void>>[outDone, errDone]);
@@ -350,7 +347,8 @@ class RunSupervisor {
             ),
           );
 
-    final bool resumeRejected = exitCode != 0 &&
+    final bool resumeRejected =
+        exitCode != 0 &&
         RegExp(
           r'no conversation found|session .*not found|cannot resume',
           caseSensitive: false,
@@ -366,8 +364,8 @@ class RunSupervisor {
         strategy: plan.arguments.contains('--fork-session')
             ? 'fork-resume'
             : plan.arguments.contains('--resume')
-                ? 'resume'
-                : 'fresh',
+            ? 'resume'
+            : 'fresh',
         verdict: verdict,
         assistantText: assistantText.toString(),
         eventCount: events.length,
@@ -388,8 +386,9 @@ class RunSupervisor {
   static String _uuid() {
     final int n = DateTime.now().microsecondsSinceEpoch + (_counter++);
     final String hex = n.toRadixString(16).padLeft(16, '0');
-    final String tail =
-        (n * 2654435761 & 0xFFFFFFFFFFFF).toRadixString(16).padLeft(12, '0');
+    final String tail = (n * 2654435761 & 0xFFFFFFFFFFFF)
+        .toRadixString(16)
+        .padLeft(12, '0');
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
         '4${hex.substring(13, 16)}-a${tail.substring(0, 3)}-${tail.substring(0, 12)}';
   }

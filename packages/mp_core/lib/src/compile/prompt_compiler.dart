@@ -364,15 +364,15 @@ class PromptCompiler {
       );
     }
 
-    w.line('Score the work out of ${r.total} against these weighted categories.');
+    w.line(
+      'Score the work out of ${r.total} against these weighted categories.',
+    );
     w.blank();
     w.line('| # | Category | Weight | Minimum | Judged on |');
     w.line('|---|---|---:|---:|---|');
     int i = 1;
     for (final RubricCategory c in r.categories) {
-      final String min = c.minimum == null
-          ? '—'
-          : _trimNum(c.minimum!);
+      final String min = c.minimum == null ? '—' : _trimNum(c.minimum!);
       w.line('| ${_pad(i)} | ${c.name} | ${c.weight} | $min | ${c.criteria} |');
       i++;
     }
@@ -436,7 +436,9 @@ class PromptCompiler {
         w.blank();
         i++;
       }
-      final bool anyLegible = spec.regions.any((ScopeRegion r) => r.mustBeLegible);
+      final bool anyLegible = spec.regions.any(
+        (ScopeRegion r) => r.mustBeLegible,
+      );
       if (anyLegible) {
         w.line(
           'No required part may exist only as a label. A part may be compact, '
@@ -471,7 +473,9 @@ class PromptCompiler {
       );
       w.blank();
       for (final ComponentFamily f in spec.families) {
-        final StringBuffer b = StringBuffer('- **${f.name}** — ${f.description}');
+        final StringBuffer b = StringBuffer(
+          '- **${f.name}** — ${f.description}',
+        );
         if (f.minimumCount != null) {
           b.write(' _At least ${f.minimumCount}._');
         }
@@ -562,8 +566,10 @@ class PromptCompiler {
       );
       w.blank();
       final List<EvidenceArtifact> set = <EvidenceArtifact>[...spec.evidence]
-        ..sort((EvidenceArtifact a, EvidenceArtifact b) =>
-            a.ordinal.compareTo(b.ordinal));
+        ..sort(
+          (EvidenceArtifact a, EvidenceArtifact b) =>
+              a.ordinal.compareTo(b.ordinal),
+        );
       for (final EvidenceArtifact e in set) {
         w.line('**${_pad(e.ordinal)} · `${e.fileName}`** — ${e.name}');
         w.line('  ${e.proves}');
@@ -583,8 +589,10 @@ class PromptCompiler {
     if (d.tree.isNotEmpty) {
       w.line('**File structure**');
       w.blank();
-      final int width = d.tree.keys
-          .fold<int>(0, (int a, String k) => k.length > a ? k.length : a);
+      final int width = d.tree.keys.fold<int>(
+        0,
+        (int a, String k) => k.length > a ? k.length : a,
+      );
       w.code(<String>[
         for (final MapEntry<String, String> e in d.tree.entries)
           '${e.key.padRight(width + 2)}# ${e.value}',

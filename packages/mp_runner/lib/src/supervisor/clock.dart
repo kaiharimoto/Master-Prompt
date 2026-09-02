@@ -23,8 +23,9 @@ class SystemClock implements Clock {
     while (true) {
       final Duration remaining = when.difference(nowUtc());
       if (remaining <= Duration.zero) return;
-      final Duration slice =
-          remaining > const Duration(minutes: 1) ? const Duration(minutes: 1) : remaining;
+      final Duration slice = remaining > const Duration(minutes: 1)
+          ? const Duration(minutes: 1)
+          : remaining;
       await Future<void>.delayed(slice);
     }
   }

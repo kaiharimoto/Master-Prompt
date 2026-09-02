@@ -68,8 +68,12 @@ void main() {
     test('completes on the first attempt and records the session', () async {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final RunStore store = RunStore(Directory('${tmp.path}/store1'));
-      final RunSupervisor s = supervisorFor('success',
-          clock: clock, store: store, stateKey: 'clean');
+      final RunSupervisor s = supervisorFor(
+        'success',
+        clock: clock,
+        store: store,
+        stateKey: 'clean',
+      );
 
       final RunRecord out = await s.execute(newRun('success'));
       await s.dispose();
@@ -87,8 +91,12 @@ void main() {
     test('detects the limit, waits, resumes, and finishes', () async {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final RunStore store = RunStore(Directory('${tmp.path}/store2'));
-      final RunSupervisor s = supervisorFor('limit_then_success',
-          clock: clock, store: store, stateKey: 'pause');
+      final RunSupervisor s = supervisorFor(
+        'limit_then_success',
+        clock: clock,
+        store: store,
+        stateKey: 'pause',
+      );
 
       final List<SupervisorEvent> log = <SupervisorEvent>[];
       s.events.listen(log.add);
@@ -104,8 +112,11 @@ void main() {
       expect(first.verdict!.kind, LimitKind.fiveHour);
 
       final RunAttempt second = out.attempts[1];
-      expect(second.strategy, 'resume',
-          reason: 'must reattach to the same session, not start over');
+      expect(
+        second.strategy,
+        'resume',
+        reason: 'must reattach to the same session, not start over',
+      );
       expect(second.succeeded, isTrue);
 
       // It actually waited, and for the right kind of interval.
@@ -125,8 +136,12 @@ void main() {
     test('the resume prompt tells the model not to start over', () async {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final RunStore store = RunStore(Directory('${tmp.path}/store2b'));
-      final RunSupervisor s = supervisorFor('limit_then_success',
-          clock: clock, store: store, stateKey: 'nudge');
+      final RunSupervisor s = supervisorFor(
+        'limit_then_success',
+        clock: clock,
+        store: store,
+        stateKey: 'nudge',
+      );
       final List<String> launches = <String>[];
       s.events
           .where((SupervisorEvent e) => e.kind == 'launch')
@@ -147,16 +162,21 @@ void main() {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final Directory dir = Directory('${tmp.path}/store3');
       final RunStore store = RunStore(dir);
-      final RunSupervisor s = supervisorFor('always_limit',
-          clock: clock, store: store, stateKey: 'persist', maxAttempts: 2);
+      final RunSupervisor s = supervisorFor(
+        'always_limit',
+        clock: clock,
+        store: store,
+        stateKey: 'persist',
+        maxAttempts: 2,
+      );
 
       final List<RunRecord> whileWaiting = <RunRecord>[];
-      s.events.where((SupervisorEvent e) => e.kind == 'limited').listen(
-        (SupervisorEvent e) async {
-          final RunRecord? onDisk = await RunStore(dir).load('run-always_limit');
-          if (onDisk != null) whileWaiting.add(onDisk);
-        },
-      );
+      s.events.where((SupervisorEvent e) => e.kind == 'limited').listen((
+        SupervisorEvent e,
+      ) async {
+        final RunRecord? onDisk = await RunStore(dir).load('run-always_limit');
+        if (onDisk != null) whileWaiting.add(onDisk);
+      });
 
       await s.execute(newRun('always_limit'));
       await s.dispose();
@@ -166,64 +186,80 @@ void main() {
       final RunRecord paused = whileWaiting.first;
       expect(paused.scheduledResumeAt, isNotNull);
       expect(paused.isFinished, isFalse);
-      expect(paused.prompt, 'Build the mission.',
-          reason: 'a cold reseed must be possible from the record alone');
-    });
-
-    test('a run interrupted mid-wait is offered for resume on next launch',
-        () async {
-      final Directory dir = Directory('${tmp.path}/store3b');
-      // Exactly the state the app would find after being killed while waiting.
-      await RunStore(dir).save(
-        RunRecord(
-          runId: 'interrupted',
-          taskId: 'skyline-restaurant-bar',
-          workingDirectory: tmp.path,
-          prompt: 'Build the mission.',
-          sessionId: 'sess-1',
-          scheduledResumeAt: DateTime.utc(2026, 9, 2, 17),
-        ),
+      expect(
+        paused.prompt,
+        'Build the mission.',
+        reason: 'a cold reseed must be possible from the record alone',
       );
-
-      final List<RunRecord> pending = await RunStore(dir).pendingResumes();
-      expect(pending, hasLength(1));
-      expect(pending.single.runId, 'interrupted');
-      expect(pending.single.sessionId, 'sess-1');
     });
+
+    test(
+      'a run interrupted mid-wait is offered for resume on next launch',
+      () async {
+        final Directory dir = Directory('${tmp.path}/store3b');
+        // Exactly the state the app would find after being killed while waiting.
+        await RunStore(dir).save(
+          RunRecord(
+            runId: 'interrupted',
+            taskId: 'skyline-restaurant-bar',
+            workingDirectory: tmp.path,
+            prompt: 'Build the mission.',
+            sessionId: 'sess-1',
+            scheduledResumeAt: DateTime.utc(2026, 9, 2, 17),
+          ),
+        );
+
+        final List<RunRecord> pending = await RunStore(dir).pendingResumes();
+        expect(pending, hasLength(1));
+        expect(pending.single.runId, 'interrupted');
+        expect(pending.single.sessionId, 'sess-1');
+      },
+    );
   });
 
   group('the resume ladder', () {
-    test('falls back to forking when the session cannot be reattached',
-        () async {
-      final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
-      final RunStore store = RunStore(Directory('${tmp.path}/store4'));
-      final RunSupervisor s = supervisorFor('resume_rejected',
-          clock: clock, store: store, stateKey: 'ladder');
-      final List<SupervisorEvent> log = <SupervisorEvent>[];
-      s.events.listen(log.add);
+    test(
+      'falls back to forking when the session cannot be reattached',
+      () async {
+        final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+        final RunStore store = RunStore(Directory('${tmp.path}/store4'));
+        final RunSupervisor s = supervisorFor(
+          'resume_rejected',
+          clock: clock,
+          store: store,
+          stateKey: 'ladder',
+        );
+        final List<SupervisorEvent> log = <SupervisorEvent>[];
+        s.events.listen(log.add);
 
-      final RunRecord out = await s.execute(newRun('resume_rejected'));
-      await s.dispose();
+        final RunRecord out = await s.execute(newRun('resume_rejected'));
+        await s.dispose();
 
-      expect(out.conclusion, RunConclusion.completed);
-      final List<String> strategies =
-          out.attempts.map((RunAttempt a) => a.strategy).toList();
-      expect(strategies, contains('fork-resume'));
-      expect(
-        log.any((SupervisorEvent e) => e.message.contains('forking')),
-        isTrue,
-      );
-      // A rejected resume must not burn a five-hour wait.
-      expect(clock.waitedUntil, isEmpty);
-    });
+        expect(out.conclusion, RunConclusion.completed);
+        final List<String> strategies = out.attempts
+            .map((RunAttempt a) => a.strategy)
+            .toList();
+        expect(strategies, contains('fork-resume'));
+        expect(
+          log.any((SupervisorEvent e) => e.message.contains('forking')),
+          isTrue,
+        );
+        // A rejected resume must not burn a five-hour wait.
+        expect(clock.waitedUntil, isEmpty);
+      },
+    );
   });
 
   group('failures that time cannot fix stop immediately', () {
     test('an auth failure stalls without waiting or retrying', () async {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final RunStore store = RunStore(Directory('${tmp.path}/store5'));
-      final RunSupervisor s = supervisorFor('auth_failure',
-          clock: clock, store: store, stateKey: 'auth');
+      final RunSupervisor s = supervisorFor(
+        'auth_failure',
+        clock: clock,
+        store: store,
+        stateKey: 'auth',
+      );
       final List<SupervisorEvent> log = <SupervisorEvent>[];
       s.events.listen(log.add);
 
@@ -262,8 +298,10 @@ void main() {
       expect(out.lastVerdict!.kind, LimitKind.sevenDay);
       expect(out.lastVerdict!.kind.isAccountWide, isTrue);
       expect(
-        log.any((SupervisorEvent e) =>
-            e.message.contains('another device will not help')),
+        log.any(
+          (SupervisorEvent e) =>
+              e.message.contains('another device will not help'),
+        ),
         isTrue,
         reason: 'sending the user to their phone would waste their time',
       );
@@ -300,8 +338,12 @@ void main() {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final Directory dir = Directory('${tmp.path}/store8');
       final RunStore store = RunStore(dir);
-      final RunSupervisor s = supervisorFor('limit_then_success',
-          clock: clock, store: store, stateKey: 'record');
+      final RunSupervisor s = supervisorFor(
+        'limit_then_success',
+        clock: clock,
+        store: store,
+        stateKey: 'record',
+      );
       final RunRecord out = await s.execute(newRun('limit_then_success'));
       await s.dispose();
 
@@ -316,8 +358,12 @@ void main() {
       final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
       final Directory dir = Directory('${tmp.path}/store9');
       final RunStore store = RunStore(dir);
-      final RunSupervisor s = supervisorFor('success',
-          clock: clock, store: store, stateKey: 'notpending');
+      final RunSupervisor s = supervisorFor(
+        'success',
+        clock: clock,
+        store: store,
+        stateKey: 'notpending',
+      );
       await s.execute(newRun('success'));
       await s.dispose();
 
