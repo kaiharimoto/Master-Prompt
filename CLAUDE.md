@@ -144,6 +144,15 @@ the menu.
   one field.
 - A paste is never discarded. Every parse outcome keeps the raw text, and a
   parse that finds nothing returns a `diagnostic` saying what it saw instead.
+- **Every question the model asks comes with options and a recommendation.**
+  Two to four numbered options, a line each on what choosing it would mean, one
+  marked recommended with a reason grounded in what this mission has already
+  settled, and explicit permission to have no opinion — a model asked for a
+  recommendation invents one otherwise, and false confidence in a brief that
+  runs unattended is worse than none. The paired rule is that **a recommendation
+  is not an answer**: it may not enter the patch block until the user picks it,
+  which is presumption rather than invention and needed saying separately. There
+  is deliberately no "just take all your recommendations" shortcut.
 - **The interview assumes one continuing chat.** `nextTurn` takes a
   `TurnStyle`: `standalone` carries the framing, everything settled and the
   format rules; `continuing` carries only the round and its schema, roughly a

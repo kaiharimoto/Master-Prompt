@@ -146,6 +146,22 @@ class InterviewEngine {
       )
       ..writeln()
       ..writeln(
+        'Give each option **one line on what it would mean for the build** — '
+        'the consequence, not the label restated. "Twelve seats" is a label; '
+        '"twelve seats, so the room reads as intimate and the pass can stay '
+        'open" is a choice I can actually make.',
+      )
+      ..writeln()
+      ..writeln(
+        '**Mark one option recommended and say in a few words why**, based on '
+        'what is already settled above rather than on general good practice. A '
+        'recommendation that would fit any mission is worth nothing. If you '
+        'genuinely have no basis to prefer one, say that instead of inventing '
+        'a preference — this brief will run for hours with nobody available to '
+        'correct it, and false confidence in it is worse than no opinion.',
+      )
+      ..writeln()
+      ..writeln(
         'Do not ask about anything already settled above. Do not write the '
         'brief yet.',
       )
@@ -163,6 +179,13 @@ class InterviewEngine {
         'Include only the keys this round actually settled. Write full '
         'sentences in the values — they go into the brief verbatim. Do not '
         'include a key you are guessing at; leave it out and ask me next round.',
+      )
+      ..writeln()
+      ..writeln(
+        '**A recommendation is not an answer.** However obvious your '
+        'recommended option looks, it does not go in the block until I have '
+        'picked it. Waiting costs one message; a value I never agreed to '
+        'reaching an unattended run costs the whole run.',
       )
       ..writeln();
     _patchFormat(b, stage);
@@ -200,8 +223,9 @@ class InterviewEngine {
       ..writeln()
       ..writeln(
         'Same as before: two to four questions on these, each with numbered '
-        'options I can answer by number, and then end your reply with one '
-        'fenced `json` block and nothing after it.',
+        'options I can answer by number, one of them recommended with a '
+        'reason, nothing in the block I have not picked, and then end your '
+        'reply with one fenced `json` block and nothing after it.',
       )
       ..writeln();
     _patchFormat(b, stage);
@@ -259,7 +283,9 @@ class InterviewEngine {
       ..writeln(
         'Then end your reply with exactly one fenced `json` block containing '
         'only the fixes you would make, and nothing after it. Where a fix is a '
-        'judgement call I should make, ask instead of guessing.',
+        'judgement call I should make, ask instead of guessing — and ask it '
+        'the same way: numbered options, one of them recommended with a '
+        'reason, and nothing in the block until I have picked it.',
       )
       ..writeln();
     _patchFormat(b, InterviewStage.ready);

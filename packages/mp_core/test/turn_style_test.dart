@@ -77,7 +77,7 @@ void main() {
       );
     });
 
-    test('keeps the two rules a reply has to obey', () {
+    test('keeps the rules a reply has to obey', () {
       final String text = engine
           .nextTurn(midway, style: TurnStyle.continuing)
           .text;
@@ -88,6 +88,22 @@ void main() {
         reason:
             'answering by number is the thing that makes this usable on a '
             'phone, and models drop it within a couple of rounds',
+      );
+      expect(
+        text,
+        contains('recommended with a'),
+        reason:
+            'the round-to-round prompt is the one that has to keep working; '
+            'an instruction that survives only in the first message of a nine '
+            'round interview has been dropped, not kept',
+      );
+      expect(
+        text,
+        contains('nothing in the block I have not picked'),
+        reason:
+            'the guard against a recommendation being treated as an answer '
+            'matters most in the terse turn, where there is least room for the '
+            'model to be reminded of anything',
       );
       expect(
         text,

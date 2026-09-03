@@ -174,6 +174,67 @@ void main() {
       },
     );
 
+    test('one option is recommended, and the reason has to be specific', () {
+      final InterviewTurn t = engine.nextTurn(blank);
+
+      expect(
+        t.text,
+        contains('Mark one option recommended'),
+        reason:
+            'four options with nothing to choose between them is four unknowns '
+            'to weigh; a marked one turns most rounds into a glance and a '
+            'number',
+      );
+      expect(
+        t.text,
+        contains('rather than on general good practice'),
+        reason:
+            'a recommendation that would fit any mission is decoration — the '
+            'expertise is in it being grounded in what this mission settled',
+      );
+      expect(
+        t.text,
+        contains('what it would mean for the build'),
+        reason:
+            'an option restated is not a choice; the consequence is what makes '
+            'it answerable without thinking the whole thing through again',
+      );
+    });
+
+    test('it is allowed to have no opinion', () {
+      expect(
+        engine.nextTurn(blank).text,
+        allOf(
+          contains('no basis to prefer one'),
+          contains('instead of inventing a preference'),
+        ),
+        reason:
+            'a model asked for a recommendation will always produce one unless '
+            'told it may decline, and an invented preference in a brief that '
+            'runs for hours unattended is worse than no opinion at all',
+      );
+    });
+
+    test('a recommendation may not be treated as an answer', () {
+      final InterviewTurn t = engine.nextTurn(blank);
+
+      expect(
+        t.text,
+        contains('A recommendation is not an answer'),
+        reason:
+            'with a recommended value already written out the model is one '
+            'step from putting it in the patch block unasked, which walks '
+            'straight past the readiness gate that the whole design rests on',
+      );
+      expect(
+        t.text,
+        contains('until I have picked it'),
+        reason:
+            'the existing rule covers invention; this one covers presumption, '
+            'and they are different failures',
+      );
+    });
+
     test('only settled keys are asked for, never guesses', () {
       final InterviewTurn t = engine.nextTurn(blank);
       expect(t.text, contains('only the keys this round actually settled'));
@@ -317,6 +378,26 @@ file+=renders/final/ | the numbered final image set
       // It must carry the actual brief, or there is nothing to attack.
       expect(t.text, contains('## 05 / RUBRIC'));
       expect(t.text, contains('```json'));
+    });
+
+    test('a judgement call is put back the same way a round is', () {
+      final MissionSpec spec = referenceSkylineSpec();
+      final CompiledPrompt compiled = const PromptCompiler().compile(spec);
+      final InterviewTurn t = engine.redTeamTurn(spec, compiled);
+
+      expect(
+        t.note,
+        allOf(
+          contains('numbered options'),
+          contains('recommended with a'),
+          contains('until I have picked it'),
+        ),
+        reason:
+            'a red-team finding is worth as little as an interview question '
+            'if resolving it means starting a fresh discussion — and the '
+            'presumption guard matters more here, where the model has just '
+            'written out a fix it believes in',
+      );
     });
   });
 

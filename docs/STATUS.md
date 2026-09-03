@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that made saving the default route._
+_Last updated: the commit that gave every question a recommendation._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -73,8 +73,18 @@ capsule that is exactly right; everywhere else it takes the choice away. So
 and `Send` sits beside it. Copying in parts survives one level down, because it
 is the only route that depends on nothing at all.
 
-Found while checking that: **every second tap of `Copy for Claude` on a short
-document copied nothing.** The stepper cycles back to part one once it has sent
+Then, on the interview itself: **a question with four options and nothing to
+choose between them is four unknowns to weigh.** Every question the model asks
+now carries a line per option on what choosing it would mean, one option marked
+recommended with a reason specific to this mission, and permission to say it has
+no basis for a preference. The guard that came with it is that a recommendation
+may not be treated as an answer — with a recommended value already written out,
+the model is one step from putting it in the patch block unasked, which would
+walk straight past the readiness gate. There is no blanket "take all your
+recommendations" shortcut, deliberately.
+
+Found while checking the copy button: **every second tap of `Copy for Claude` on
+a short document copied nothing.** The stepper cycles back to part one once it has sent
 them all, and that handler was reused for the single-part case, so the second
 tap reset instead of copying — silently, with the label unchanged to say so.
 
@@ -86,8 +96,8 @@ tap reset instead of copying — silently, with the label unchanged to say so.
   sixteen numbered artifacts, six critics and every failure condition.
 - **The interview and readiness gate.** Staged discussion, patches accumulating
   across rounds, compilation refused while anything required is unresolved. The
-  prompt asks for numbered options so a reply can be a list of numbers, and for
-  one JSON block so bringing it back is one tap.
+  prompt asks for numbered options with one recommended, so a reply can be a
+  list of numbers, and for one JSON block so bringing it back is one tap.
 - **Handing over a long document.** That the covering note and the artifact
   separate cleanly and both survive into the copy fallback; that a task id is
   made safe before it becomes a file name; that the red-team instruction fits
@@ -124,7 +134,7 @@ tap reset instead of copying — silently, with the label unchanged to say so.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-263 tests: 135 in `mp_core`, 71 in `mp_runner`, 57 in the app.
+267 tests: 139 in `mp_core`, 71 in `mp_runner`, 57 in the app.
 
 ### Not yet proven
 
@@ -175,18 +185,26 @@ phone predates the updater. Then, in this order:
    that was the right trade. Whether Claude reads an attached `.md` as well as
    pasted text is the other open question; if it prefers `.txt` that is a
    one-line change.
-4. **Whether the shorter rounds still land.** From round two on, the copied
+4. **Whether the recommendations are worth reading.** One that restates the
+   option, or that would fit any mission, is worse than none — it means the
+   prompt is not pushing hard enough on grounding them in what is settled. The
+   early stages are where the model knows least about your intent and so where
+   an invented preference is most likely; watch whether it ever says it has no
+   basis, because a model that recommends confidently in every round is not
+   being honest in all of them. And watch for anything landing in the JSON
+   block that you did not pick — that is the failure this change risks.
+5. **Whether the shorter rounds still land.** From round two on, the copied
    message is about a third the size. The thing to watch is whether the model
    keeps offering numbered options and keeps ending on the json block without
    being told at length each time — the reminder survives as one sentence, and
    if that turns out not to be enough it needs to grow back.
-5. **The updater, from the menu.** With this build installed, the *next* CI
+6. **The updater, from the menu.** With this build installed, the *next* CI
    build should surface a mark on the menu by itself. Download, install, and
    watch for the permission bounce — the first install is the one that asks.
-6. **That it installs over the top without an uninstall**, keeping the saved
+7. **That it installs over the top without an uninstall**, keeping the saved
    missions. This is the first real test of the committed signing key, and the
    updater is worthless without it.
-7. Whether the flow still feels guided now that the reply is a code block.
+8. Whether the flow still feels guided now that the reply is a code block.
 
 Windows separately: the Run destination either finds the Claude Code CLI or says
 clearly that it cannot.
