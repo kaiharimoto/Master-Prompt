@@ -173,6 +173,22 @@ jobs:
         with:
           path: artifacts
 
+      # Assets carry their build number so a downloaded file is identifiable
+      # later, which means a new build adds files rather than replacing them.
+      # Without this the page accumulates every build and you have to work out
+      # which APK is newest — the exact guessing the release notes promise you
+      # will not have to do.
+      - name: Remove the previous build's assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ids=$(gh api "repos/${{ github.repository }}/releases/tags/dev" \
+                  --jq '.assets[].id' 2>/dev/null || true)
+          for id in $ids; do
+            echo "removing asset $id"
+            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" || true
+          done
+
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
