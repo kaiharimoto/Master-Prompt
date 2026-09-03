@@ -166,6 +166,29 @@ void main() {
     );
   });
 
+  test('an installed build is swept out of the cache', () async {
+    await updater.runCheck();
+    await updater.download();
+    final File apk = updater.file!;
+
+    // What the next launch sees once the install has actually gone through.
+    final Updater after = Updater(
+      transport: transport,
+      platform: UpdatePlatform.android,
+      currentBuild: '57',
+    );
+    addTearDown(after.dispose);
+    await after.runCheck();
+
+    expect(
+      apk.existsSync(),
+      isFalse,
+      reason:
+          'otherwise fifty-odd megabytes of a build already running sits in '
+          'the cache until some later update happens to overwrite it',
+    );
+  });
+
   test('a failed check reports why and stays usable', () async {
     transport.fetchError = const SocketException('nope');
 

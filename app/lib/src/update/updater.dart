@@ -168,10 +168,15 @@ class Updater extends ChangeNotifier {
 
   Future<void> _adoptExistingDownload() async {
     _file = null;
-    final ReleaseAsset? a = _check?.asset;
-    if (a == null || !(_check?.isUpdate ?? false)) return;
     try {
       final Directory dir = await _transport.workspace();
+      final ReleaseAsset? a = _check?.asset;
+      if (a == null || !(_check?.isUpdate ?? false)) {
+        // Nothing is waiting, so anything in the cache is a build that has
+        // already been installed — fifty megabytes of it, on a phone.
+        await _sweep(dir, keep: '');
+        return;
+      }
       final File f = File('${dir.path}${Platform.pathSeparator}${a.name}');
       if (await f.exists() && (a.bytes <= 0 || await f.length() == a.bytes)) {
         _file = f;
