@@ -6,6 +6,8 @@
 library;
 
 export 'src/compile/compiled_prompt.dart';
+export 'src/compile/brief_document.dart';
+export 'src/compile/brief_diff.dart';
 export 'src/compile/prompt_compiler.dart';
 export 'src/spec/mission_spec.dart';
 export 'src/spec/spec_field.dart';

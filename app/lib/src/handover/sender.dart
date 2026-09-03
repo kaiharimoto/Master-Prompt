@@ -93,6 +93,21 @@ class HandoverSender {
     }
   }
 
+  /// Writes arbitrary bytes out under [name], for a document that is not
+  /// text — the exported PDF is the only one so far.
+  Future<SaveOutcome> saveBytes(Uint8List bytes, String name) async {
+    try {
+      final Directory dir = await _transport.workspace();
+      final String safe = HandoverSplitter.safeFileName(name);
+      final File f = File('${dir.path}${Platform.pathSeparator}$safe');
+      await f.parent.create(recursive: true);
+      await f.writeAsBytes(bytes, flush: true);
+      return await _transport.save(f, safe);
+    } catch (_) {
+      return SaveOutcome.failed;
+    }
+  }
+
   /// Stages the file.
   ///
   /// It carries the covering note as well as the document, even though sharing

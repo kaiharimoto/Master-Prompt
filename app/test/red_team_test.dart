@@ -171,6 +171,54 @@ void main() {
     expect(compiled.body, contains('single opaque solid'));
   });
 
+  testWidgets('accepting sets a baseline the preview can mark against', (
+    WidgetTester tester,
+  ) async {
+    expect(project.briefBaseline, isNull);
+    await pasteReply(tester);
+    await tapVisible(tester, find.text('Accept and put them in the brief'));
+
+    expect(
+      project.briefBaseline,
+      isNotNull,
+      reason:
+          'without the brief as it stood before the round there is nothing to '
+          'diff against, and the preview cannot say what moved',
+    );
+    final BriefDiff d = BriefDiff.between(
+      project.briefBaseline!,
+      const PromptCompiler().compile(project.spec).body,
+    );
+    expect(d.isEmpty, isFalse);
+    expect(
+      BriefDocument.parse(const PromptCompiler().compile(project.spec).body)
+          .blocks
+          .where(d.marks)
+          .any((BriefBlock b) => b.plain.contains('survives a crop')),
+      isTrue,
+      reason: 'the block carrying the accepted fix is the one marked',
+    );
+  });
+
+  testWidgets('the preview opens on the brief and marks the round', (
+    WidgetTester tester,
+  ) async {
+    await pasteReply(tester);
+    await tapVisible(tester, find.text('Accept and put them in the brief'));
+    await tapVisible(tester, find.textContaining('Read the brief'));
+
+    expect(
+      find.text('What the last round changed'),
+      findsOneWidget,
+      reason: 'the marks are the reason to open it after a round',
+    );
+    expect(
+      find.textContaining('survives a crop'),
+      findsWidgets,
+      reason: 'and the brief itself has to be readable, not a payload',
+    );
+  });
+
   testWidgets('discarding leaves the mission alone', (
     WidgetTester tester,
   ) async {

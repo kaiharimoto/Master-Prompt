@@ -7,6 +7,7 @@ import '../store/app_store.dart';
 import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../widgets/exchange.dart';
+import 'brief_preview.dart';
 
 /// The compiled brief: what it says, what is missing from it, and the
 /// adversarial pass over it before anything runs.
@@ -75,6 +76,7 @@ class _PromptScreenState extends State<PromptScreen> {
     // confirmProposals is what makes a replaced value count. Without it the
     // fix is in the spec but not through the gate, which is indistinguishable
     // from nothing having happened.
+    p.briefBaseline = _compile(TransportProfile.cli).body;
     p.spec = r.spec.confirmProposals();
     await widget.store.save(p);
     Diagnostics.instance.log('Accepted ${r.applied.length} red-team fixes.');
@@ -192,6 +194,25 @@ class _PromptScreenState extends State<PromptScreen> {
                 ],
 
                 _SectionIndex(compiled: cli),
+                const SizedBox(height: MpSpace.md),
+
+                MpButton(
+                  label: p.briefBaseline == null
+                      ? 'Read the brief'
+                      : 'Read the brief — see what changed',
+                  icon: Icons.menu_book_outlined,
+                  kind: MpButtonKind.primary,
+                  expand: true,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (BuildContext context) => _PreviewRoute(
+                        store: widget.store,
+                        project: p,
+                        body: cli.body,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: MpSpace.md),
 
                 MpOutbound(
@@ -462,6 +483,60 @@ class _RedTeamReview extends StatelessWidget {
             onPressed: onDiscard,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The reading view, with the chrome it needs and nothing else.
+class _PreviewRoute extends StatefulWidget {
+  const _PreviewRoute({
+    required this.store,
+    required this.project,
+    required this.body,
+  });
+
+  final AppStore store;
+  final Project project;
+  final String body;
+
+  @override
+  State<_PreviewRoute> createState() => _PreviewRouteState();
+}
+
+class _PreviewRouteState extends State<_PreviewRoute> {
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final Project p = widget.project;
+
+    return Scaffold(
+      backgroundColor: c.canvas,
+      appBar: AppBar(
+        backgroundColor: c.canvas,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: Text(p.title, style: MpType.heading.copyWith(color: c.ink)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: c.line),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: BriefPreview(
+          body: widget.body,
+          title: p.title,
+          fileStem: '${p.spec.taskId}-brief',
+          baseline: p.briefBaseline,
+          onDismissMarks: p.briefBaseline == null
+              ? null
+              : () async {
+                  p.briefBaseline = null;
+                  await widget.store.save(p);
+                  if (mounted) setState(() {});
+                },
+        ),
       ),
     );
   }

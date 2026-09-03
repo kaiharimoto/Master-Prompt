@@ -7,6 +7,7 @@ class Project {
     required this.id,
     required this.spec,
     this.transcript = const <TranscriptEntry>[],
+    this.briefBaseline,
     this.compiled,
     this.lastState,
     this.producedArtifacts = const <String>[],
@@ -18,6 +19,14 @@ class Project {
 
   /// Everything sent and received, so a project can be picked up cold.
   List<TranscriptEntry> transcript;
+
+  /// The compiled brief as it stood before the most recent accepted round.
+  ///
+  /// Stored rather than recomputed from a previous spec on purpose: the
+  /// compiler is deterministic for a given build, but a change to it between
+  /// builds would make every line of an old spec look different, and the
+  /// preview would open covered in marks that nothing had actually caused.
+  String? briefBaseline;
 
   /// True once a reply has been brought back for this mission.
   ///
@@ -46,6 +55,7 @@ class Project {
     'id': id,
     'spec': spec.toJson(),
     'transcript': transcript.map((TranscriptEntry e) => e.toJson()).toList(),
+    if (briefBaseline != null) 'briefBaseline': briefBaseline,
     'lastState': lastState?.toJson(),
     'producedArtifacts': producedArtifacts,
     'updatedAt': (updatedAt ?? DateTime.now().toUtc()).toIso8601String(),
@@ -67,6 +77,7 @@ class Project {
           in (j['producedArtifacts'] as List<Object?>? ?? const <Object?>[]))
         '$a',
     ],
+    briefBaseline: j['briefBaseline'] as String?,
     updatedAt: DateTime.tryParse('${j['updatedAt']}'),
   );
 }

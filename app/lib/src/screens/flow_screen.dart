@@ -130,6 +130,10 @@ class _FlowScreenState extends State<FlowScreen> {
     // One act for the whole round. The proposed/confirmed distinction survives,
     // because an invented requirement still cannot reach an unattended run
     // without a person having seen it — it just no longer costs a tap per field.
+    // What the brief said before this round, so the preview can mark what the
+    // round changed. Compiled from the outgoing spec while it is still the
+    // current one.
+    p.briefBaseline = const PromptCompiler().compile(p.spec).body;
     p.spec = r.spec.confirmProposals();
     await widget.store.save(p);
     widget.flow.accepted();

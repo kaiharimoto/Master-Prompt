@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that gave the red-team pass an accept step._
+_Last updated: the commit that made the brief readable and exportable._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -72,6 +72,18 @@ capsule that is exactly right; everywhere else it takes the choice away. So
 `Save the file` leads, writing straight into Downloads on Android 10 and up,
 and `Send` sits beside it. Copying in parts survives one level down, because it
 is the only route that depends on nothing at all.
+
+Then: **the brief was only ever a payload, never a document.** Every screen
+showed it as a monospace block with a copy button under it. It now has a
+reading view — set in the app's own type scale, tables and fenced blocks laid
+out properly, a section index — and exports as a PDF with Inter embedded, for
+reading away from the phone or handing to someone.
+
+**And a round's changes are marked in it.** The compiler is deterministic, so
+diffing the brief as it stood before an accepted round against the brief now is
+an exact account of what that round did: changed passages carry a rule in the
+margin, on screen and in the PDF, with a clean copy for sharing. The marks are
+for the person reading. Nothing about them reaches the model.
 
 Then, from applying a red-team pass with eighty fixes in it and asking a
 question with no good answer — *how do I know it actually reached the brief?*
@@ -151,7 +163,7 @@ tap reset instead of copying — silently, with the label unchanged to say so.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-271 tests: 139 in `mp_core`, 71 in `mp_runner`, 61 in the app.
+290 tests: 151 in `mp_core`, 71 in `mp_runner`, 68 in the app.
 
 ### Not yet proven
 
@@ -202,7 +214,12 @@ phone predates the updater. Then, in this order:
    that was the right trade. Whether Claude reads an attached `.md` as well as
    pasted text is the other open question; if it prefers `.txt` that is a
    one-line change.
-4. **Whether the recommendations are worth reading.** One that restates the
+4. **The reading view and the PDF.** Whether the brief is actually pleasant to
+   read at twenty thousand characters on a phone, whether the tables survive
+   the width, and whether the marks after a round land on the right passages
+   and are few enough to be worth looking at. The PDF is generated on-device
+   and saved to Downloads like any other export.
+5. **Whether the recommendations are worth reading.** One that restates the
    option, or that would fit any mission, is worse than none — it means the
    prompt is not pushing hard enough on grounding them in what is settled. The
    early stages are where the model knows least about your intent and so where
@@ -210,18 +227,18 @@ phone predates the updater. Then, in this order:
    basis, because a model that recommends confidently in every round is not
    being honest in all of them. And watch for anything landing in the JSON
    block that you did not pick — that is the failure this change risks.
-5. **Whether the shorter rounds still land.** From round two on, the copied
+6. **Whether the shorter rounds still land.** From round two on, the copied
    message is about a third the size. The thing to watch is whether the model
    keeps offering numbered options and keeps ending on the json block without
    being told at length each time — the reminder survives as one sentence, and
    if that turns out not to be enough it needs to grow back.
-6. **The updater, from the menu.** With this build installed, the *next* CI
+7. **The updater, from the menu.** With this build installed, the *next* CI
    build should surface a mark on the menu by itself. Download, install, and
    watch for the permission bounce — the first install is the one that asks.
-7. **That it installs over the top without an uninstall**, keeping the saved
+8. **That it installs over the top without an uninstall**, keeping the saved
    missions. This is the first real test of the committed signing key, and the
    updater is worthless without it.
-8. Whether the flow still feels guided now that the reply is a code block.
+9. Whether the flow still feels guided now that the reply is a code block.
 
 Windows separately: the Run destination either finds the Claude Code CLI or says
 clearly that it cannot.
@@ -242,6 +259,10 @@ clearly that it cannot.
   none, which nobody noticed because the tests for each only fed it what it
   already accepted. Where two things read the same kind of mangled input, they
   need the same tolerance and a test that proves it.
+- **A negative margin is not available on `Container`** — it asserts. Pulling a
+  change bar into the gutter needs every block to carry the same gutter and
+  only the marked one to colour it, which keeps the text on one left edge
+  anyway.
 - **An accept step is not a UI detail, it is where the invariant is enforced.**
   The proposed/confirmed rule lives in `mp_core` and is thoroughly tested there,
   and it still failed in practice, because one of the two screens that take a

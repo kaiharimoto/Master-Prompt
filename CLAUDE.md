@@ -108,6 +108,24 @@ be tested on a Linux runner. The APK is shared through a `FileProvider` scoped
 to `cache/updates/` only; a `file://` URI has been rejected since Android N, and
 a provider over the whole of internal storage would expose every saved mission.
 
+**The preview reads the compiled brief; it does not re-render the spec.**
+`BriefDocument.parse` is a reader over the artifact itself, so anything on
+screen or in the exported PDF is something the agent will read. A preview
+driven from the spec would be a second implementation free to drift from the
+thing being previewed. `BriefPdf` sets the same blocks, so the two cannot
+disagree — one reader, two ways of setting it.
+
+**Change marks come from diffing two compilations, not from the patch.** The
+compiler is deterministic, so `BriefDiff.between(before, after)` is an exact
+account of a round. `Project.briefBaseline` stores the compiled *body* rather
+than the previous spec: a compiler change between builds would make an old
+spec compile differently and cover the preview in marks nothing caused.
+
+**Code in the brief must stay ASCII.** The exported PDF sets it in Courier,
+which is built into every reader and carries no Unicode, so a middle dot inside
+a fence would vanish from the document silently. `brief_preview_test.dart`
+holds that as a contract rather than a coincidence.
+
 **The Windows binary can only be built on Windows.** It exists solely as a CI
 job on `windows-latest`. That is why the supervisor lives in a plain `dart:io`
 package: nearly all of it is provable on Linux first.
