@@ -69,6 +69,13 @@ android {
     }
 }
 
+dependencies {
+    // FileProvider, used to hand the downloaded APK to the package installer.
+    // Declared rather than relied on transitively through the Flutter
+    // embedding, so an embedding change cannot silently break the updater.
+    implementation("androidx.core:core-ktx:1.13.1")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

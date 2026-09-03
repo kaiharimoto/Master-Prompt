@@ -6,6 +6,7 @@ import '../app.dart';
 import '../flow/flow_controller.dart';
 import '../store/app_store.dart';
 import '../store/project.dart';
+import '../update/updater.dart';
 import 'destinations.dart';
 import 'flow_screen.dart';
 import 'progress_sheet.dart';
@@ -13,6 +14,7 @@ import 'prompt_screen.dart';
 import 'run_screen.dart';
 import 'settings_screen.dart';
 import 'transcript_screen.dart';
+import 'update_sheet.dart';
 
 /// The shell around the flow.
 ///
@@ -20,9 +22,13 @@ import 'transcript_screen.dart';
 /// and made the user choose between them before doing anything; the app now
 /// shows the one thing that is next, and everything else waits in a menu.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({required this.store, super.key});
+  const HomeScreen({required this.store, this.updater, super.key});
 
   final AppStore store;
+
+  /// Supplied by the app so the launch check and the menu share one state.
+  /// Optional so a test can render the shell without one.
+  final Updater? updater;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,10 +36,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FlowController _flow = FlowController();
+  late final Updater _updater = widget.updater ?? Updater();
 
   @override
   void dispose() {
     _flow.dispose();
+    if (widget.updater == null) _updater.dispose();
     super.dispose();
   }
 
@@ -42,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (d.needsMission && p == null) return;
 
     switch (d) {
+      case AppDestination.update:
+        UpdateSheet.show(context, _updater);
       case AppDestination.progress:
         showModalBottomSheet<void>(
           context: context,
@@ -65,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case AppDestination.transcript:
         _push(d.label, TranscriptScreen(project: p!));
       case AppDestination.settings:
-        _push(d.label, SettingsScreen(store: widget.store));
+        _push(d.label, SettingsScreen(store: widget.store, updater: _updater));
     }
   }
 
@@ -96,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: widget.store,
+      listenable: Listenable.merge(<Listenable>[widget.store, _updater]),
       builder: (BuildContext context, _) => _build(context),
     );
   }
@@ -125,7 +135,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ? Text('MASTER PROMPT', style: MpType.eyebrow.copyWith(color: c.ink))
           : _Progress(project: p),
       actions: <Widget>[
-        _Menu(enabled: p != null, onSelected: _open),
+        _Menu(
+          enabled: p != null,
+          hasUpdate: _updater.hasUpdate,
+          onSelected: _open,
+        ),
         const SizedBox(width: MpSpace.sm),
       ],
       bottom: PreferredSize(
@@ -158,7 +172,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           children: <Widget>[
                             Expanded(child: _Progress(project: p)),
-                            _Menu(enabled: true, onSelected: _open),
+                            _Menu(
+                              enabled: true,
+                              hasUpdate: _updater.hasUpdate,
+                              onSelected: _open,
+                            ),
                           ],
                         ),
                       ),
@@ -214,30 +232,74 @@ class _Progress extends StatelessWidget {
 }
 
 class _Menu extends StatelessWidget {
-  const _Menu({required this.enabled, required this.onSelected});
+  const _Menu({
+    required this.enabled,
+    required this.hasUpdate,
+    required this.onSelected,
+  });
 
   final bool enabled;
+
+  /// Adds the update entry and a mark on the icon. Both disappear again once
+  /// there is nothing waiting, so the mark always means the same thing.
+  final bool hasUpdate;
+
   final ValueChanged<AppDestination> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
+    final List<AppDestination> items = <AppDestination>[
+      if (hasUpdate) AppDestination.update,
+      ...AppDestination.standing,
+    ];
+
     return PopupMenuButton<AppDestination>(
-      icon: Icon(Icons.more_horiz, color: c.inkMuted, size: 24),
-      tooltip: 'More',
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Icon(Icons.more_horiz, color: c.inkMuted, size: 24),
+          if (hasUpdate)
+            Positioned(
+              right: -1,
+              top: -1,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: c.warning,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+      tooltip: hasUpdate ? 'More — an update is waiting' : 'More',
       color: c.surfaceRaised,
       position: PopupMenuPosition.under,
       onSelected: onSelected,
       itemBuilder: (BuildContext context) => <PopupMenuEntry<AppDestination>>[
-        for (final AppDestination d in AppDestination.values)
+        for (final AppDestination d in items)
           PopupMenuItem<AppDestination>(
             value: d,
             enabled: enabled || !d.needsMission,
             child: Row(
               children: <Widget>[
-                Icon(d.icon, size: 20, color: c.inkMuted),
+                Icon(
+                  d.icon,
+                  size: 20,
+                  color: d == AppDestination.update ? c.warning : c.inkMuted,
+                ),
                 const SizedBox(width: MpSpace.md),
-                Text(d.label, style: MpType.body.copyWith(color: c.ink)),
+                // A popup menu is 256 wide by default and its row is not
+                // free to grow, so a long label overflows rather than wraps.
+                Expanded(
+                  child: Text(
+                    d.label,
+                    style: MpType.body.copyWith(color: c.ink),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
           ),

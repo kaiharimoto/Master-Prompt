@@ -6,11 +6,15 @@ import '../store/app_store.dart';
 import '../store/build_info.dart';
 import '../store/diagnostics.dart';
 import '../store/settings.dart';
+import '../update/release.dart';
+import '../update/updater.dart';
+import 'update_sheet.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({required this.store, super.key});
+  const SettingsScreen({required this.store, required this.updater, super.key});
 
   final AppStore store;
+  final Updater updater;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +30,18 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const MpSectionHeader(number: '01', title: 'Appearance'),
+                const MpSectionHeader(
+                  number: '01',
+                  title: 'Updates',
+                  subtitle:
+                      'Builds are checked at launch and installed from here, '
+                      'so there is no reason to visit GitHub.',
+                ),
+                const SizedBox(height: MpSpace.md),
+                _UpdatePanel(updater: updater),
+
+                const SizedBox(height: MpSpace.xl),
+                const MpSectionHeader(number: '02', title: 'Appearance'),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(
                   child: Column(
@@ -61,7 +76,7 @@ class SettingsScreen extends StatelessWidget {
 
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
-                  number: '02',
+                  number: '03',
                   title: 'Model',
                   subtitle:
                       'The requested effort is degraded automatically if the '
@@ -126,7 +141,7 @@ class SettingsScreen extends StatelessWidget {
 
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
-                  number: '03',
+                  number: '04',
                   title: 'Desktop runner',
                   subtitle:
                       'Where the Claude Code CLI lives, and where it works.',
@@ -168,7 +183,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: MpSpace.xl),
-                const MpSectionHeader(number: '04', title: 'Autonomy'),
+                const MpSectionHeader(number: '05', title: 'Autonomy'),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(
                   accent: s.permissionMode == 'bypassPermissions'
@@ -239,7 +254,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
-                  number: '05',
+                  number: '06',
                   title: 'Report a problem',
                   subtitle:
                       'Copy this and paste it into the chat. It carries the '
@@ -347,6 +362,56 @@ class _DiagnosticsPanelState extends State<_DiagnosticsPanel> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The state of updating, in one line and one button.
+///
+/// Everything else about it lives in [UpdateSheet]; this only has to say
+/// whether anything is waiting and open that.
+class _UpdatePanel extends StatelessWidget {
+  const _UpdatePanel({required this.updater});
+
+  final Updater updater;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    return ListenableBuilder(
+      listenable: updater,
+      builder: (BuildContext context, _) {
+        final UpdateCheck? check = updater.check;
+        final bool waiting = updater.hasUpdate;
+        return MpPanel(
+          accent: waiting ? c.warning : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              MpField(
+                label: waiting ? 'A newer build is waiting' : 'Latest build',
+                child: Text(switch (check?.asset) {
+                  final ReleaseAsset a => a.label(BuildInfo.version),
+                  _ => updater.busy ? 'Checking…' : 'Not checked yet',
+                }, style: MpType.numeric.copyWith(color: c.ink)),
+              ),
+              const SizedBox(height: MpSpace.xs),
+              Text(
+                check?.detail ?? 'Opens the check when you ask for it.',
+                style: MpType.caption.copyWith(color: c.inkFaint),
+              ),
+              const SizedBox(height: MpSpace.md),
+              MpButton(
+                label: waiting ? 'Install the update' : 'Check for updates',
+                icon: waiting ? Icons.system_update_alt : Icons.refresh,
+                kind: waiting ? MpButtonKind.primary : MpButtonKind.secondary,
+                expand: true,
+                onPressed: () => UpdateSheet.show(context, updater),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

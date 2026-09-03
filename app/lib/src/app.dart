@@ -3,6 +3,7 @@ import 'package:mp_design/mp_design.dart';
 
 import 'screens/home.dart';
 import 'store/app_store.dart';
+import 'update/updater.dart';
 
 /// True where the app can drive the Claude Code CLI as a subprocess.
 ///
@@ -19,11 +20,16 @@ class MasterPromptApp extends StatefulWidget {
 
 class _MasterPromptAppState extends State<MasterPromptApp> {
   final AppStore _store = AppStore();
+  final Updater _updater = Updater();
 
   @override
   void initState() {
     super.initState();
     unawaitedLoad();
+    // Silent on purpose. Someone opening the app to write a brief should not
+    // be met by a network error; the menu grows a mark if there is anything
+    // to say and stays quiet if there is not.
+    _updater.checkQuietly();
   }
 
   void unawaitedLoad() {
@@ -32,6 +38,7 @@ class _MasterPromptAppState extends State<MasterPromptApp> {
 
   @override
   void dispose() {
+    _updater.dispose();
     _store.dispose();
     super.dispose();
   }
@@ -55,7 +62,7 @@ class _MasterPromptAppState extends State<MasterPromptApp> {
               child: child ?? const SizedBox.shrink(),
             );
           },
-          home: HomeScreen(store: _store),
+          home: HomeScreen(store: _store, updater: _updater),
         );
       },
     );

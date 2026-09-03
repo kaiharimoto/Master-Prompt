@@ -74,6 +74,15 @@ it still lays out its contents and still announces them to a screen reader, so
 "hidden" is only true visually. Build the child conditionally inside an
 `AnimatedSize` instead.
 
+**Updating is the only part of the app with a native surface.** `MainActivity`
+carries one method channel, `masterprompt/updates`, and it does exactly one
+thing: hand a downloaded APK to the package installer. Everything else about
+updating — which build is newest, which asset belongs to this platform, whether
+a leftover download can be reused — is Dart, because none of the native part can
+be tested on a Linux runner. The APK is shared through a `FileProvider` scoped
+to `cache/updates/` only; a `file://` URI has been rejected since Android N, and
+a provider over the whole of internal storage would expose every saved mission.
+
 **The Windows binary can only be built on Windows.** It exists solely as a CI
 job on `windows-latest`. That is why the supervisor lives in a plain `dart:io`
 package: nearly all of it is provable on Linux first.
@@ -98,11 +107,18 @@ the menu.
   hallucinated requirement reaching an unattended run.
 - The compiler is pure and deterministic. Same spec, same bytes. That is what
   makes the prompt hash meaningful and spec edits diffable.
-- Wire formats between the app and the model (`mpstate`, `mpspec`) are
-  line-oriented `key=value`, never JSON. They travel through a chat UI and a
-  clipboard, which mangles JSON all-or-nothing; a line grammar degrades field by
-  field and a human can repair it by eye.
-- A paste is never discarded. Every parse outcome keeps the raw text.
+- Wire formats between the app and the model are read by a **ladder**, not by
+  one grammar. The interview now *asks* for a single fenced `json` block,
+  because the Claude app puts a copy button on a code block and one tap beating
+  a text selection on a phone is worth more than anything else about the format.
+  The parser still accepts the older line-oriented `key=value` grammar, fenced
+  or bare, and JSON with trailing commas, smart quotes or no fence at all —
+  every one of those is something a real paste turned out to be. `mpstate`
+  stays line-oriented: it is written *by* the model mid-run, where a truncated
+  JSON object would lose the whole heartbeat and a truncated line grammar loses
+  one field.
+- A paste is never discarded. Every parse outcome keeps the raw text, and a
+  parse that finds nothing returns a `diagnostic` saying what it saw instead.
 - Tests assert behaviour and say why in the `reason:`, rather than restating the
   assertion.
 

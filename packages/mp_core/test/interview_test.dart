@@ -109,7 +109,7 @@ void main() {
       expect(t.stage, InterviewStage.seed);
       expect(t.text, contains('two to four'));
       expect(t.text, contains('not how to build it'));
-      expect(t.text, contains('```mpspec'));
+      expect(t.text, contains('```json'));
       expect(t.gaps, isNotEmpty);
     });
 
@@ -150,9 +150,34 @@ void main() {
           definingStory: const SpecField<String>.empty().confirm('d'),
         ),
       );
-      expect(shape.text, contains('region+='));
-      expect(shape.text, contains('family+='));
-      expect(shape.text, isNot(contains('rubric+=')));
+      expect(shape.text, contains('"regions"'));
+      expect(shape.text, contains('"families"'));
+      expect(shape.text, isNot(contains('"rubric"')));
+    });
+
+    test('the reply is engineered to be copied with one tap', () {
+      // The Claude app's code-block copy button copies the block's contents.
+      // For that to be the right thing, the block must be a code block and it
+      // must be the last thing in the message.
+      final InterviewTurn t = engine.nextTurn(blank);
+      expect(t.text, contains('exactly one'));
+      expect(t.text, contains('fenced `json` code block'));
+      expect(t.text, contains('nothing at all after it'));
+    });
+
+    test(
+      'questions come with numbered options that can be answered by number',
+      () {
+        final InterviewTurn t = engine.nextTurn(blank);
+        expect(t.text, contains('numbered options'));
+        expect(t.text, contains('answer with just numbers'));
+      },
+    );
+
+    test('only settled keys are asked for, never guesses', () {
+      final InterviewTurn t = engine.nextTurn(blank);
+      expect(t.text, contains('only the keys this round actually settled'));
+      expect(t.text, contains('Do not include a key you are guessing at'));
     });
 
     test('a complete spec yields a ready summary, not another question', () {
@@ -291,7 +316,7 @@ file+=renders/final/ | the numbered final image set
       expect(t.text, contains('Do not praise the brief'));
       // It must carry the actual brief, or there is nothing to attack.
       expect(t.text, contains('## 05 / RUBRIC'));
-      expect(t.text, contains('```mpspec'));
+      expect(t.text, contains('```json'));
     });
   });
 
@@ -364,6 +389,8 @@ file+=renders/final/ | the numbered final image set
       }
       p.writeln('```');
 
+      // Written in the line grammar on purpose: the reworked prompt asks for
+      // JSON, but replies written the old way must keep working.
       final SpecPatchResult r = patcher.parse(p.toString(), blank);
       expect(r.rejected, isEmpty, reason: 'rejected: ${r.rejected}');
 

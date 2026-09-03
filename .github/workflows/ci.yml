@@ -215,6 +215,9 @@ jobs:
             builds install straight over this one and keep your saved missions,
             because every build is signed with the same key.
 
+            After that you should not need this page: the app checks here at
+            launch and offers the newer build from its own menu.
+
             **Windows** — download the `.zip`, extract it anywhere, and run
             `master_prompt.exe`. SmartScreen will warn that the publisher is
             unknown, because the binary is unsigned: choose *More info* then

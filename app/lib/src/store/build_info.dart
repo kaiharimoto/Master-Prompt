@@ -10,6 +10,10 @@ abstract final class BuildInfo {
   /// Marketing version, kept in step with `pubspec.yaml`.
   static const String version = '0.1.0';
 
+  /// Where the builds come from. Named once so the diagnostics link, the
+  /// update feed and the release page cannot drift apart.
+  static const String repo = 'kaiharimoto/Master-Prompt';
+
   /// The CI run number. `local` when built on a developer machine.
   static const String build = String.fromEnvironment(
     'MP_BUILD',
@@ -39,7 +43,9 @@ abstract final class BuildInfo {
   static String get osVersion => Platform.operatingSystemVersion;
 
   /// The exact commit, so a report can be tied to a diff.
-  static String get commitUrl => sha.isEmpty
-      ? ''
-      : 'https://github.com/kaiharimoto/Master-Prompt/commit/$sha';
+  static String get commitUrl =>
+      sha.isEmpty ? '' : 'https://github.com/$repo/commit/$sha';
+
+  /// The rolling prerelease everyone installs from.
+  static const String releasePage = 'https://github.com/$repo/releases/tag/dev';
 }

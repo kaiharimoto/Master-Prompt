@@ -81,10 +81,14 @@ class InterviewEngine {
       ..writeln(
         'Ask me **two to four** focused questions about the items above. Ask '
         'about what the thing should be, not how to build it — implementation '
-        'comes later and deciding it now would anchor the whole brief. Where '
-        'you have a well-reasoned suggestion, propose it and ask me to confirm '
-        'rather than asking an open question; a concrete proposal is easier to '
-        'react to than a blank page.',
+        'comes later and deciding it now would anchor the whole brief.',
+      )
+      ..writeln()
+      ..writeln(
+        '**For each question, offer two to four concrete numbered options**, '
+        'each one a real answer I could take as written, plus the option of '
+        'telling you something else. A specific proposal is far easier to react '
+        'to than a blank page, and it means I can answer with just numbers.',
       )
       ..writeln()
       ..writeln(
@@ -92,9 +96,19 @@ class InterviewEngine {
         'brief yet.',
       )
       ..writeln()
+      ..writeln('## How to hand the answers back')
+      ..writeln()
       ..writeln(
-        'Once I have answered, and only then, end your reply with a patch block '
-        'recording what we settled:',
+        'Once I have answered, and only then, **end your reply with exactly one '
+        'fenced `json` code block, and put nothing at all after it.** I copy '
+        'that block with one tap, so it must be the last thing in the message '
+        'and it must be a code block.',
+      )
+      ..writeln()
+      ..writeln(
+        'Include only the keys this round actually settled. Write full '
+        'sentences in the values — they go into the brief verbatim. Do not '
+        'include a key you are guessing at; leave it out and ask me next round.',
       )
       ..writeln();
     _patchFormat(b, stage);
@@ -151,9 +165,9 @@ class InterviewEngine {
       )
       ..writeln()
       ..writeln(
-        'Then end with a patch block containing only the fixes you would make. '
-        'Where a fix is a judgement call I should make, ask instead of '
-        'guessing.',
+        'Then end your reply with exactly one fenced `json` block containing '
+        'only the fixes you would make, and nothing after it. Where a fix is a '
+        'judgement call I should make, ask instead of guessing.',
       )
       ..writeln();
     _patchFormat(b, InterviewStage.ready);
@@ -228,69 +242,99 @@ class InterviewEngine {
     }
   }
 
-  /// The patch grammar. Line-oriented rather than JSON, because this text
-  /// travels through a chat UI and a clipboard.
+  /// The shape the answers come back in.
+  ///
+  /// JSON, and self-delimiting on purpose. Tapping copy on a fenced code block
+  /// in a chat app copies the block's *contents*, not the backticks — so a
+  /// format that depends on its fence to be found is broken on the very path
+  /// the user is meant to take. An object can be located by its braces alone.
   void _patchFormat(StringBuffer b, InterviewStage stage) {
-    b
-      ..writeln('```mpspec')
-      ..writeln('# one per line. `=` sets a value, `+=` adds to a list.')
-      ..writeln('# fields within a line are separated by |');
+    b.writeln('```json');
     switch (stage) {
       case InterviewStage.seed:
       case InterviewStage.intent:
         b
-          ..writeln('mission=one paragraph on what is being built')
-          ..writeln('story=the through-line someone should experience')
-          ..writeln('scale=concrete extent, in real units')
-          ..writeln('audience=who judges it and by what standard');
+          ..writeln('{')
+          ..writeln('  "mission": "one paragraph on what is being built",')
+          ..writeln('  "story": "the through-line someone should experience",')
+          ..writeln('  "scale": "concrete extent, in real units",')
+          ..writeln('  "audience": "who judges it and by what standard"')
+          ..writeln('}');
       case InterviewStage.shape:
         b
-          ..writeln('region+=Name | what it is for | a requirement | another')
-          ..writeln('relationship+=a rule the parts must obey')
-          ..writeln(
-            'family+=Name | description | min=30 | vary=how they differ',
-          );
+          ..writeln('{')
+          ..writeln('  "regions": [')
+          ..writeln('    {"name": "...", "purpose": "what it is for",')
+          ..writeln('     "requirements": ["...", "..."]}')
+          ..writeln('  ],')
+          ..writeln('  "relationships": ["a rule the parts must obey"],')
+          ..writeln('  "families": [')
+          ..writeln('    {"name": "...", "description": "...", "min": 30,')
+          ..writeln('     "vary": "how instances must differ"}')
+          ..writeln('  ]')
+          ..writeln('}');
       case InterviewStage.quality:
         b
-          ..writeln('avoid+=an interpretation to steer away from')
-          ..writeln('palette+=a colour, tone, or stylistic anchor')
-          ..writeln('material+=a surface or substance rule')
-          ..writeln('atmosphere=the light, mood, or tone')
-          ..writeln('detail=how close an inspection it must survive')
-          ..writeln('storytelling+=evidence of real use');
+          ..writeln('{')
+          ..writeln('  "avoid": ["an interpretation to steer away from"],')
+          ..writeln('  "palette": ["a colour, tone or stylistic anchor"],')
+          ..writeln('  "materials": ["a surface or substance rule"],')
+          ..writeln('  "atmosphere": "the light, mood or tone",')
+          ..writeln('  "detail": "how close an inspection it must survive",')
+          ..writeln('  "storytelling": ["evidence of real use"]')
+          ..writeln('}');
       case InterviewStage.evidence:
         b
-          ..writeln(
-            'evidence+=01 | filename.png | Name | what it proves | min=1920x1080',
-          )
-          ..writeln(
-            'evidence+=03 | hero.png | Hero view | what it proves | hero | min=2560x1440',
-          );
+          ..writeln('{')
+          ..writeln('  "evidence": [')
+          ..writeln('    {"ordinal": 1, "file": "01_arrival.png",')
+          ..writeln('     "name": "...", "proves": "what it demonstrates",')
+          ..writeln('     "min": "1920x1080"},')
+          ..writeln('    {"ordinal": 3, "file": "03_hero.png", "name": "Hero",')
+          ..writeln('     "proves": "...", "hero": true, "min": "2560x1440"}')
+          ..writeln('  ]')
+          ..writeln('}');
       case InterviewStage.runtime:
         b
-          ..writeln('compute=the machine and environment')
-          ..writeln('tool=the tool the work is done with')
-          ..writeln('harness=subagents, parallelism, anything orchestrating')
-          ..writeln('budget=how many tokens')
-          ..writeln('wallclock=how long')
-          ..writeln('step+=01 | Name | what happens in this step');
+          ..writeln('{')
+          ..writeln('  "compute": "the machine and environment",')
+          ..writeln('  "tool": "the tool the work is done with",')
+          ..writeln('  "harness": "subagents, parallelism, orchestration",')
+          ..writeln('  "budget": "how many tokens",')
+          ..writeln('  "wallclock": "how long",')
+          ..writeln('  "steps": [{"ordinal": 1, "name": "...",')
+          ..writeln('             "instruction": "what happens in this step"}]')
+          ..writeln('}');
       case InterviewStage.rubric:
         b
-          ..writeln('rubric+=Category | 20 | what is judged | min=17')
-          ..writeln('total=100')
-          ..writeln('exit=90');
+          ..writeln('{')
+          ..writeln('  "rubric": [')
+          ..writeln('    {"name": "...", "weight": 20, "criteria": "...",')
+          ..writeln('     "min": 17}')
+          ..writeln('  ],')
+          ..writeln('  "total": 100,')
+          ..writeln('  "exit": 90')
+          ..writeln('}');
       case InterviewStage.review:
         b
-          ..writeln('cycles=4')
-          ..writeln('critic+=Name | the one thing this critic judges');
+          ..writeln('{')
+          ..writeln('  "cycles": 4,')
+          ..writeln('  "critics": [')
+          ..writeln('    {"name": "...", "judges": "the one thing it judges"}')
+          ..writeln('  ]')
+          ..writeln('}');
       case InterviewStage.acceptance:
       case InterviewStage.ready:
         b
-          ..writeln('failure+=what makes the result unacceptable')
-          ..writeln('coldstart=how to reopen it from nothing and verify')
-          ..writeln('check+=something that must be true at the end')
-          ..writeln('dir=project_directory_name')
-          ..writeln('file+=path/ | what lives here');
+          ..writeln('{')
+          ..writeln('  "failures": ["what makes the result unacceptable"],')
+          ..writeln(
+            '  "coldstart": "how to reopen it from nothing and verify",',
+          )
+          ..writeln('  "checks": ["something that must be true at the end"],')
+          ..writeln('  "dir": "project_directory_name",')
+          ..writeln('  "files": {"renders/final/": "what lives here"}')
+          ..writeln('}');
     }
     b.writeln('```');
   }
