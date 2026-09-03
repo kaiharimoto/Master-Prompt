@@ -1,5 +1,7 @@
 import 'package:meta/meta.dart';
 
+import 'handover.dart';
+
 import '../compile/compiled_prompt.dart';
 import '../spec/mission_spec.dart';
 import '../spec/spec_types.dart';
@@ -51,31 +53,14 @@ class ResumeCapsule {
 
   /// Split into numbered parts for a chat app that caps paste length.
   ///
-  /// Each part is self-labelling so the assistant knows to wait rather than
-  /// acting on half a capsule.
-  List<String> chunk({int maxCharacters = 12000}) {
-    if (text.length <= maxCharacters) return <String>[text];
-
-    final List<String> parts = <String>[];
-    final List<String> lines = text.split('\n');
-    StringBuffer current = StringBuffer();
-    for (final String line in lines) {
-      if (current.length + line.length + 1 > maxCharacters &&
-          current.isNotEmpty) {
-        parts.add(current.toString().trimRight());
-        current = StringBuffer();
-      }
-      current.writeln(line);
-    }
-    if (current.isNotEmpty) parts.add(current.toString().trimRight());
-
-    return <String>[
-      for (int i = 0; i < parts.length; i++)
-        'MISSION CAPSULE — part ${i + 1} of ${parts.length} for `$taskId`.\n'
-            '${i + 1 < parts.length ? 'Do not act yet. Reply only with "part ${i + 1} received" and wait for the next part.' : 'This is the final part. Now continue the mission from the state below.'}\n\n'
-            '${parts[i]}',
-    ];
-  }
+  /// This had its own line-based splitter, written before the brief and the
+  /// red-team pass turned out to overflow too. Two implementations of one idea
+  /// meant the careful one was on the capsule, which rarely overflows, and the
+  /// thing that actually got cut off on a phone had none. It delegates now, so
+  /// there is one set of seams and one wording for every long handover.
+  List<String> chunk({int maxCharacters = 12000}) => HandoverSplitter(
+    limit: maxCharacters,
+  ).plan(text).parts.map((HandoverPart p) => p.text).toList(growable: false);
 }
 
 /// Builds [ResumeCapsule]s from a spec, its compiled prompt, and the last known

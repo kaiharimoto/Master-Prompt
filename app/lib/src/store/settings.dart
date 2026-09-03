@@ -12,6 +12,7 @@ class AppSettings {
     this.workingDirectory,
     this.stepDownOnOpusLimit = false,
     this.standaloneTurns = false,
+    this.pasteLimit = 8000,
   });
 
   final ThemeMode themeMode;
@@ -41,6 +42,14 @@ class AppSettings {
   /// in full either way.
   final bool standaloneTurns;
 
+  /// Characters that fit in one message in the chat app.
+  ///
+  /// Anything longer is copied in numbered parts. There is no published figure
+  /// for the real ceiling and it is not something the app can probe, so the
+  /// default is set well under a size that was seen being cut off, and this is
+  /// adjustable by the only person who can measure it.
+  final int pasteLimit;
+
   AppSettings copyWith({
     ThemeMode? themeMode,
     String? claudePath,
@@ -50,6 +59,7 @@ class AppSettings {
     String? workingDirectory,
     bool? stepDownOnOpusLimit,
     bool? standaloneTurns,
+    int? pasteLimit,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
     claudePath: claudePath ?? this.claudePath,
@@ -59,6 +69,7 @@ class AppSettings {
     workingDirectory: workingDirectory ?? this.workingDirectory,
     stepDownOnOpusLimit: stepDownOnOpusLimit ?? this.stepDownOnOpusLimit,
     standaloneTurns: standaloneTurns ?? this.standaloneTurns,
+    pasteLimit: pasteLimit ?? this.pasteLimit,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -70,6 +81,7 @@ class AppSettings {
     'workingDirectory': workingDirectory,
     'stepDownOnOpusLimit': stepDownOnOpusLimit,
     'standaloneTurns': standaloneTurns,
+    'pasteLimit': pasteLimit,
   };
 
   static AppSettings fromJson(Map<String, Object?> j) => AppSettings(
@@ -84,5 +96,6 @@ class AppSettings {
     workingDirectory: j['workingDirectory'] as String?,
     stepDownOnOpusLimit: j['stepDownOnOpusLimit'] as bool? ?? false,
     standaloneTurns: j['standaloneTurns'] as bool? ?? false,
+    pasteLimit: (j['pasteLimit'] as num?)?.toInt() ?? 8000,
   );
 }

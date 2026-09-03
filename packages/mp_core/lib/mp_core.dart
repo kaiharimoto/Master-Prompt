@@ -19,3 +19,4 @@ export 'src/interview/interview_stage.dart';
 export 'src/interview/readiness.dart';
 export 'src/interview/spec_patch.dart';
 export 'src/continuity/bundle.dart';
+export 'src/continuity/handover.dart';

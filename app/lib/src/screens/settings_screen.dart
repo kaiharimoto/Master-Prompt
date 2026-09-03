@@ -45,8 +45,51 @@ class SettingsScreen extends StatelessWidget {
                   number: '02',
                   title: 'The interview',
                   subtitle:
-                      'How much each copied message carries. The first round '
-                      'of a mission is always sent in full.',
+                      'How much each copied message carries, and how much of '
+                      'it fits in one paste.',
+                ),
+                const SizedBox(height: MpSpace.md),
+                MpPanel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      MpField(
+                        label: 'Paste size',
+                        child: SegmentedButton<int>(
+                          showSelectedIcon: false,
+                          segments: const <ButtonSegment<int>>[
+                            ButtonSegment<int>(
+                              value: 4000,
+                              label: Text('Small'),
+                            ),
+                            ButtonSegment<int>(
+                              value: 8000,
+                              label: Text('Standard'),
+                            ),
+                            ButtonSegment<int>(
+                              value: 16000,
+                              label: Text('Large'),
+                            ),
+                          ],
+                          selected: <int>{s.pasteLimit},
+                          onSelectionChanged: (Set<int> v) => store
+                              .updateSettings(s.copyWith(pasteLimit: v.first)),
+                        ),
+                      ),
+                      const SizedBox(height: MpSpace.xs),
+                      Text(
+                        'How much fits in one message in your chat app, in '
+                        'characters: ${s.pasteLimit}. The brief and the '
+                        'red-team pass are longer than this, so they are '
+                        'copied in numbered parts. Raise it if your chat '
+                        'takes more; lower it if a paste arrives cut off.',
+                        style: MpType.caption.copyWith(color: c.inkMuted),
+                      ),
+                      const SizedBox(height: MpSpace.md),
+                      const MpRule(),
+                      const SizedBox(height: MpSpace.sm),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(

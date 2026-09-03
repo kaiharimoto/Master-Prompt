@@ -159,15 +159,33 @@ void main() {
       final List<String> parts = c.chunk(maxCharacters: 3000);
       expect(parts.length, greaterThan(1));
       for (int i = 0; i < parts.length; i++) {
-        expect(parts[i], contains('part ${i + 1} of ${parts.length}'));
+        expect(
+          parts[i].toLowerCase(),
+          contains('part ${i + 1} of ${parts.length}'),
+          reason: 'a part that does not say where it sits cannot be ordered',
+        );
+        expect(
+          parts[i].length,
+          lessThanOrEqualTo(3000),
+          reason: 'the limit is the whole point of splitting',
+        );
       }
       // Every part but the last must tell the assistant to wait, or it will
       // start acting on half a mission.
       for (int i = 0; i < parts.length - 1; i++) {
-        expect(parts[i], contains('Do not act yet'));
+        expect(
+          parts[i],
+          contains('`ok`'),
+          reason:
+              'the wording is now shared with every other long handover — one '
+              'splitter, one set of seams, one thing for the model to learn',
+        );
       }
-      expect(parts.last, contains('This is the final part'));
-      expect(parts.last, contains('continue the mission'));
+      expect(
+        parts.last,
+        contains('Go ahead'),
+        reason: 'something has to release it, or it waits forever',
+      );
     });
   });
 

@@ -141,6 +141,7 @@ class _PromptScreenState extends State<PromptScreen> {
                       'The copy-paste variant: no tool access, and a state '
                       'heartbeat required on every reply.',
                   text: paste.body,
+                  limit: widget.store.settings.pasteLimit,
                 ),
                 const SizedBox(height: MpSpace.sm),
                 Row(
@@ -190,6 +191,7 @@ class _PromptScreenState extends State<PromptScreen> {
                         'Hunts ambiguities, unmeasurable criteria, coverage '
                         'holes and cheap escapes.',
                     text: _engine.redTeamTurn(p.spec, cli).text,
+                    limit: widget.store.settings.pasteLimit,
                   ),
                   const SizedBox(height: MpSpace.md),
                   MpInbound(

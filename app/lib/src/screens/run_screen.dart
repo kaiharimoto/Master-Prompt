@@ -151,6 +151,7 @@ class _RunScreenState extends State<RunScreen> {
                     subtitle:
                         'Start a new Claude conversation and paste this first.',
                     text: compiled.body,
+                    limit: widget.store.settings.pasteLimit,
                   ),
 
                 const SizedBox(height: MpSpace.md),
@@ -197,6 +198,7 @@ class _RunScreenState extends State<RunScreen> {
                       compiled: compiled,
                       producedArtifacts: p.producedArtifacts,
                     ),
+                    limit: widget.store.settings.pasteLimit,
                   ),
                 const SizedBox(height: MpSpace.xxl),
               ],
@@ -297,14 +299,14 @@ class _StatePanel extends StatelessWidget {
 }
 
 class _Capsule extends StatelessWidget {
-  const _Capsule({required this.capsule});
+  const _Capsule({required this.capsule, required this.limit});
 
   final ResumeCapsule capsule;
+  final int limit;
 
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
-    final List<String> parts = capsule.chunk();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -320,19 +322,16 @@ class _Capsule extends StatelessWidget {
           ),
           const SizedBox(height: MpSpace.sm),
         ],
-        for (int i = 0; i < parts.length; i++) ...<Widget>[
-          MpOutbound(
-            title: parts.length == 1
-                ? 'Resume capsule'
-                : 'Resume capsule — part ${i + 1} of ${parts.length}',
-            subtitle: parts.length == 1
-                ? 'Paste into a brand-new Claude conversation.'
-                : 'Paste these in order, waiting for the acknowledgement '
-                      'between each.',
-            text: parts[i],
-          ),
-          const SizedBox(height: MpSpace.sm),
-        ],
+        // One panel that steps, rather than a panel per part. Stacking four
+        // of these was the dense-dashboard habit the redesign removed
+        // everywhere else.
+        MpOutbound(
+          title: 'Resume capsule',
+          subtitle: 'Paste into a brand-new Claude conversation.',
+          text: capsule.text,
+          limit: limit,
+        ),
+        const SizedBox(height: MpSpace.sm),
       ],
     );
   }

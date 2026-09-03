@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that stopped re-sending the preamble every round._
+_Last updated: the commit that split long handovers into pastable parts._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -42,6 +42,20 @@ for anyone starting a fresh chat each round, and the message preview keeps a
 "Copy for a new chat" for the case that actually matters: a session limit
 ending the chat mid-interview.
 
+Then, from trying to red-team a brief: **the message was too long to paste and
+the chat app cut it off silently.** The red-team pass on the reference mission
+is 21,899 characters, because it carries the whole compiled brief inside it.
+Every long handover now goes through one `HandoverSplitter`, which cuts at
+section headings where it can, never through a fenced block, and labels each
+part so the model replies `ok` rather than answering the first third. Paste size
+is a setting, since nothing in the app can probe the real ceiling.
+
+The same bug was sitting unhit in two other places: the paste-variant brief is
+20,994 characters, so **starting a run on a phone would have handed the agent
+half a spec**, and the resume capsule had its own separate line-based splitter —
+so the careful mechanism guarded the thing that rarely overflows while the two
+that do had none. The capsule delegates now.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -52,6 +66,12 @@ ending the chat mid-interview.
   across rounds, compilation refused while anything required is unresolved. The
   prompt asks for numbered options so a reply can be a list of numbers, and for
   one JSON block so bringing it back is one tap.
+- **Splitting a long handover.** That every part fits the limit across four
+  different limits, that nothing is lost between the parts, that cuts land on
+  section headings, that a fenced block is never left open and a fence longer
+  than a part is closed and reopened in kind — and, against the real reference
+  mission, that the red-team pass and the paste brief both overflow and both
+  split cleanly.
 - **The two turn styles.** That a continuing turn keeps the round, its gaps and
   its schema and drops everything the chat already holds; that the standalone
   turn is what a caller gets without asking, since it is the one that is merely
@@ -75,7 +95,7 @@ ending the chat mid-interview.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-235 tests: 118 in `mp_core`, 71 in `mp_runner`, 46 in the app.
+251 tests: 129 in `mp_core`, 71 in `mp_runner`, 51 in the app.
 
 ### Not yet proven
 
@@ -116,18 +136,24 @@ phone predates the updater. Then, in this order:
 1. **A full round with the new prompt.** The reply should end in one `json`
    block; copy it with the block's own button, paste, and Apply should report
    what it settled rather than nothing.
-2. **Whether the shorter rounds still land.** From round two on, the copied
+2. **The red-team pass, in parts.** It comes as four pastes at the standard
+   size. Claude should reply `ok` to the first three and only attack on the
+   fourth. If it starts analysing early, the holding instruction needs to be
+   firmer; if a part still arrives cut off, drop paste size to Small in
+   Settings and say so, because that would mean the real ceiling is under
+   8,000 characters.
+3. **Whether the shorter rounds still land.** From round two on, the copied
    message is about a third the size. The thing to watch is whether the model
    keeps offering numbered options and keeps ending on the json block without
    being told at length each time — the reminder survives as one sentence, and
    if that turns out not to be enough it needs to grow back.
-3. **The updater, from the menu.** With this build installed, the *next* CI
+4. **The updater, from the menu.** With this build installed, the *next* CI
    build should surface a mark on the menu by itself. Download, install, and
    watch for the permission bounce — the first install is the one that asks.
-4. **That it installs over the top without an uninstall**, keeping the saved
+5. **That it installs over the top without an uninstall**, keeping the saved
    missions. This is the first real test of the committed signing key, and the
    updater is worthless without it.
-5. Whether the flow still feels guided now that the reply is a code block.
+6. Whether the flow still feels guided now that the reply is a code block.
 
 Windows separately: the Run destination either finds the Claude Code CLI or says
 clearly that it cannot.
@@ -148,6 +174,12 @@ clearly that it cannot.
   none, which nobody noticed because the tests for each only fed it what it
   already accepted. Where two things read the same kind of mangled input, they
   need the same tolerance and a test that proves it.
+- **Two implementations of one idea meant the wrong one was load-bearing.**
+  The resume capsule had careful paste-splitting; the brief and the red-team
+  pass, which are longer and overflow first, had none. This is the second time
+  the same shape of bug has surfaced — the first was two paste parsers with
+  different tolerances. Where two things solve the same problem, one of them is
+  being maintained and the other is being trusted.
 - A `Row` in a `PopupMenuItem` has no room to grow: the menu is 256 wide, so a
   long label overflows rather than wrapping. Found because the test font makes
   every glyph a full em square, which is a good reason to trust the overflow
