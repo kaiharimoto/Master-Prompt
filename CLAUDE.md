@@ -74,16 +74,26 @@ it still lays out its contents and still announces them to a screen reader, so
 "hidden" is only true visually. Build the child conditionally inside an
 `AnimatedSize` instead.
 
-**A chat app cuts an oversized paste off without saying so.** The compiled
-brief is around 20k characters and the red-team pass carries the brief inside
-it, so both overflow. `HandoverSplitter` is the one answer to that for every
-long message: it cuts at a section heading if one is in reach, then a paragraph
-break, then a line ending, never through a fenced block, and labels each part so
-the model waits instead of answering the first third. `ResumeCapsule.chunk()`
-had its own line-based splitter and now delegates — two implementations meant
-the careful one guarded the capsule, which rarely overflows, while the thing
-that actually got cut off had none. The limit is a setting, because nothing can
-probe the real ceiling and only the person holding the phone can find it.
+**A chat app cuts an oversized paste off without saying so, and splitting it
+is not the answer.** The compiled brief is around 20k characters and the
+red-team pass carries the brief inside it, so both overflow. Cutting them into
+labelled parts made each paste correct and the process no better — the two
+together came to eight trips through the app switcher. **A file has no length
+limit, so an oversized document leaves as an attachment.** `Handover` carries a
+short `note` (the covering instruction, which always fits in a message) and a
+`document` (the artifact, which becomes the file); `MpOutbound` offers Send to
+Claude, then Save as a file, then copying in parts as the route that depends on
+nothing. `HandoverSplitter` still cuts at a section heading if one is in reach,
+then a paragraph break, then a line ending, never through a fenced block, and
+`ResumeCapsule.chunk()` delegates to it. The paste limit is a setting, because
+nothing can probe the real ceiling and only the person holding the phone can
+find it.
+
+**The native surface is one channel, `masterprompt/platform`.** It does three
+things and no more: hand an APK to the package installer, put a file into the
+share sheet, and copy one out through the Storage Access Framework. Which file,
+what it is called and what is in it are all Dart. None of it can be covered by
+a test on a Linux runner, which is the reason it is kept this thin.
 
 **Updating is the only part of the app with a native surface.** `MainActivity`
 carries one method channel, `masterprompt/updates`, and it does exactly one

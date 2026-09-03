@@ -34,11 +34,25 @@ class InterviewTurn {
     required this.text,
     required this.gaps,
     this.style = TurnStyle.standalone,
-  });
+    this.document = '',
+    String? note,
+  }) : note = note ?? text;
 
   final InterviewStage stage;
 
   final TurnStyle style;
+
+  /// The long artifact this turn is about, when it has one.
+  ///
+  /// The red-team pass is an instruction plus the whole compiled brief, and
+  /// the two leave the app by different routes: the instruction fits in a chat
+  /// message, the brief does not. Separating them here is what lets the brief
+  /// travel as an attachment instead of as four pasted fragments. Empty for
+  /// every interview turn, which carries no attachment.
+  final String document;
+
+  /// Everything but [document] — what goes in the message itself.
+  final String note;
 
   /// The text the user copies into the chat, or the CLI sends directly.
   final String text;
@@ -249,6 +263,10 @@ class InterviewEngine {
       )
       ..writeln();
     _patchFormat(b, InterviewStage.ready);
+    final String note = b.toString().trimRight();
+
+    // `text` stays the instruction and the brief together, because that is
+    // what the copy fallback pastes and what every existing caller reads.
     b
       ..writeln()
       ..writeln('---')
@@ -259,6 +277,8 @@ class InterviewEngine {
       stage: InterviewStage.ready,
       text: b.toString(),
       gaps: const <ReadinessGap>[],
+      note: note,
+      document: compiled.body,
     );
   }
 

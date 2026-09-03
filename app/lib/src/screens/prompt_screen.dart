@@ -140,7 +140,12 @@ class _PromptScreenState extends State<PromptScreen> {
                   subtitle:
                       'The copy-paste variant: no tool access, and a state '
                       'heartbeat required on every reply.',
-                  text: paste.body,
+                  document: paste.body,
+                  note:
+                      'The mission brief is attached. Read all of it, then '
+                      'begin. Follow it exactly, including the state block on '
+                      'every reply.',
+                  fileName: '${p.spec.taskId}-brief.md',
                   limit: widget.store.settings.pasteLimit,
                 ),
                 const SizedBox(height: MpSpace.sm),
@@ -185,13 +190,26 @@ class _PromptScreenState extends State<PromptScreen> {
                     onPressed: () => setState(() => _redTeaming = true),
                   )
                 else ...<Widget>[
-                  MpOutbound(
-                    title: 'Red-team prompt',
-                    subtitle:
-                        'Hunts ambiguities, unmeasurable criteria, coverage '
-                        'holes and cheap escapes.',
-                    text: _engine.redTeamTurn(p.spec, cli).text,
-                    limit: widget.store.settings.pasteLimit,
+                  Builder(
+                    builder: (BuildContext context) {
+                      final InterviewTurn red = _engine.redTeamTurn(
+                        p.spec,
+                        cli,
+                      );
+                      return MpOutbound(
+                        title: 'Red-team prompt',
+                        subtitle:
+                            'Hunts ambiguities, unmeasurable criteria, '
+                            'coverage holes and cheap escapes.',
+                        // The instruction fits in a message; the brief it
+                        // attacks does not. Separating them is what makes this
+                        // one tap rather than four.
+                        document: red.document,
+                        note: red.note,
+                        fileName: '${p.spec.taskId}-red-team.md',
+                        limit: widget.store.settings.pasteLimit,
+                      );
+                    },
                   ),
                   const SizedBox(height: MpSpace.md),
                   MpInbound(

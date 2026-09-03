@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that split long handovers into pastable parts._
+_Last updated: the commit that made a long handover leave as a file._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -56,6 +56,20 @@ half a spec**, and the resume capsule had its own separate line-based splitter �
 so the careful mechanism guarded the thing that rarely overflows while the two
 that do had none. The capsule delegates now.
 
+Then, from actually using it: **splitting was the wrong fix.** Each part was
+correct and the process was no better — the brief and the red-team pass
+together came to eight trips through the app switcher, which is not a way to
+send a document. Trimming cannot help either; the bulk is genuinely mission
+content (`07 / BRIEF` is 6,322 characters, `08 / DELIVERABLES` 3,890), so
+dropping every piece of fixed scaffolding still leaves ~19,000.
+
+**A file has no length limit.** An oversized handover now leaves as an
+attachment: `Send to Claude` opens the share sheet with the document attached
+and only the covering instruction in the message, and `Save as a file` writes it
+out through the system picker for anyone whose share sheet does not offer
+Claude. Copying in parts survives one level down, because it is the only route
+that depends on nothing at all.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -66,6 +80,13 @@ that do had none. The capsule delegates now.
   across rounds, compilation refused while anything required is unresolved. The
   prompt asks for numbered options so a reply can be a list of numbers, and for
   one JSON block so bringing it back is one tap.
+- **Handing over a long document.** That the covering note and the artifact
+  separate cleanly and both survive into the copy fallback; that a task id is
+  made safe before it becomes a file name; that the red-team instruction fits
+  in a message on its own while the brief it attacks does not. In the app: that
+  a document which fits keeps its plain one-tap copy, that an oversized one
+  offers Send with Save beside it, that Save alone is offered where there is no
+  share sheet, and that a failed share points at the route that cannot fail.
 - **Splitting a long handover.** That every part fits the limit across four
   different limits, that nothing is lost between the parts, that cuts land on
   section headings, that a fenced block is never left open and a fence longer
@@ -95,7 +116,7 @@ that do had none. The capsule delegates now.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-251 tests: 129 in `mp_core`, 71 in `mp_runner`, 51 in the app.
+258 tests: 134 in `mp_core`, 71 in `mp_runner`, 53 in the app.
 
 ### Not yet proven
 
@@ -136,24 +157,27 @@ phone predates the updater. Then, in this order:
 1. **A full round with the new prompt.** The reply should end in one `json`
    block; copy it with the block's own button, paste, and Apply should report
    what it settled rather than nothing.
-2. **The red-team pass, in parts.** It comes as four pastes at the standard
-   size. Claude should reply `ok` to the first three and only attack on the
-   fourth. If it starts analysing early, the holding instruction needs to be
-   firmer; if a part still arrives cut off, drop paste size to Small in
-   Settings and say so, because that would mean the real ceiling is under
-   8,000 characters.
-3. **Whether the shorter rounds still land.** From round two on, the copied
+2. **Does Claude appear in the share sheet?** This is the whole question, and
+   nothing off-device can answer it. Tap **Send to Claude** on the red-team
+   pass. If Claude is listed and opens with the file attached and the
+   instruction already written, this is finished in one tap.
+3. **If it is not listed** — tap **Save**, pick a folder, and attach the file
+   in the Claude app by hand. Two taps and a picker, but nothing to count and
+   nothing cut off. Whether Claude reads an attached `.md` as well as pasted
+   text is the follow-up question; if it prefers `.txt` that is a one-line
+   change.
+4. **Whether the shorter rounds still land.** From round two on, the copied
    message is about a third the size. The thing to watch is whether the model
    keeps offering numbered options and keeps ending on the json block without
    being told at length each time — the reminder survives as one sentence, and
    if that turns out not to be enough it needs to grow back.
-4. **The updater, from the menu.** With this build installed, the *next* CI
+5. **The updater, from the menu.** With this build installed, the *next* CI
    build should surface a mark on the menu by itself. Download, install, and
    watch for the permission bounce — the first install is the one that asks.
-5. **That it installs over the top without an uninstall**, keeping the saved
+6. **That it installs over the top without an uninstall**, keeping the saved
    missions. This is the first real test of the committed signing key, and the
    updater is worthless without it.
-6. Whether the flow still feels guided now that the reply is a code block.
+7. Whether the flow still feels guided now that the reply is a code block.
 
 Windows separately: the Run destination either finds the Claude Code CLI or says
 clearly that it cannot.
@@ -174,6 +198,14 @@ clearly that it cannot.
   none, which nobody noticed because the tests for each only fed it what it
   already accepted. Where two things read the same kind of mangled input, they
   need the same tolerance and a test that proves it.
+- **A correct fix to the wrong problem is still the wrong fix.** Splitting the
+  oversized handover was carefully done — good seams, no lost text, no broken
+  fences — and it did not help, because the cost was never the parts, it was
+  the app switches. The measurement to take first was how many times the user
+  has to move between apps, not how many characters fit in one.
+- **A toast sits exactly where the next button is.** Confirming each copied
+  part covered the control needed for the next one, seven times out of eight.
+  Found by a widget test whose tap kept landing on the snackbar.
 - **Two implementations of one idea meant the wrong one was load-bearing.**
   The resume capsule had careful paste-splitting; the brief and the red-team
   pass, which are longer and overflow first, had none. This is the second time

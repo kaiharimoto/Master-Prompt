@@ -160,6 +160,64 @@ void main() {
     });
   });
 
+  group('the covering note and the document travel separately', () {
+    test('the note leads, and both survive into the parts', () {
+      final Handover h = HandoverSplitter(limit: 3000).plan(
+        paragraphs(200),
+        note: 'Attack the attached brief.',
+        fileName: 'x.md',
+      );
+
+      expect(h.parts.first.text, contains('Attack the attached brief.'));
+      expect(
+        rejoin(h),
+        contains('Attack the attached brief.'),
+        reason:
+            'the copy fallback has no attachment to put the document in, so '
+            'it has to carry both, in the order the model should read them',
+      );
+      expect(h.document, isNot(contains('Attack the attached brief.')));
+      expect(
+        h.note,
+        'Attack the attached brief.',
+        reason: 'this half is what goes in the chat message',
+      );
+    });
+
+    test('whole is what a single send puts on the clipboard', () {
+      final Handover h = const HandoverSplitter().plan(
+        'The brief.',
+        note: 'Read this.',
+      );
+
+      expect(h.whole, 'Read this.\n\nThe brief.');
+      expect(h.isSplit, isFalse);
+    });
+
+    test('a document with no note is unchanged', () {
+      final Handover h = const HandoverSplitter().plan('Just the brief.');
+
+      expect(h.whole, 'Just the brief.');
+      expect(h.note, isEmpty);
+    });
+
+    test('a task id is made safe to write to disk', () {
+      expect(
+        HandoverSplitter.safeFileName('skyline/bar v2-brief.md'),
+        'skyline-bar-v2-brief.md',
+        reason:
+            'a task id is whatever the user typed, and a slash in it would be '
+            'read as a path and write the attachment somewhere else entirely',
+      );
+      expect(HandoverSplitter.safeFileName('...'), 'handover.md');
+      expect(
+        HandoverSplitter.safeFileName('a' * 300).length,
+        lessThanOrEqualTo(96),
+        reason: 'filesystems reject a name past 255 bytes',
+      );
+    });
+  });
+
   group('the two handovers that actually overflow', () {
     test('the red-team pass on the reference mission', () {
       final MissionSpec spec = referenceSkylineSpec();
@@ -183,6 +241,38 @@ void main() {
         rejoin(h),
         contains('Red-team this mission brief'),
         reason: 'the instruction has to survive into part one',
+      );
+    });
+
+    test('the red-team instruction fits in a message on its own', () {
+      final MissionSpec spec = referenceSkylineSpec();
+      final CompiledPrompt cli = const PromptCompiler().compile(spec);
+      final InterviewTurn red = const InterviewEngine().redTeamTurn(spec, cli);
+
+      expect(
+        red.note.length,
+        lessThan(HandoverSplitter.defaultLimit),
+        reason:
+            'this is what makes it one tap: the instruction goes in the chat '
+            'message and the brief goes in the attachment, so neither has to '
+            'be cut',
+      );
+      expect(
+        red.document,
+        cli.body,
+        reason: 'the attachment is the brief verbatim, not a summary of it',
+      );
+      expect(
+        red.note,
+        isNot(contains(cli.body)),
+        reason: 'or the split has bought nothing',
+      );
+      expect(
+        red.text,
+        allOf(contains(red.note), contains(cli.body)),
+        reason:
+            'text stays both together, because that is what the copy fallback '
+            'pastes and what every existing caller already reads',
       );
     });
 

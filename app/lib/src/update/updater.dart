@@ -293,7 +293,9 @@ class Updater extends ChangeNotifier {
 class _RealTransport implements UpdateTransport {
   const _RealTransport();
 
-  static const MethodChannel _channel = MethodChannel('masterprompt/updates');
+  // Renamed from `masterprompt/updates` when sharing and saving joined it:
+  // the channel is the app's whole native surface now, not only the updater.
+  static const MethodChannel _channel = MethodChannel('masterprompt/platform');
 
   @override
   Future<Object?> fetch(Uri url) async {

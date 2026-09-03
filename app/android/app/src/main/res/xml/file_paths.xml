@@ -3,10 +3,11 @@
   The one directory the app shares outward.
 
   `getTemporaryDirectory()` on Android is the cache directory, which is where
-  the updater writes the APK it downloads. Nothing else is exposed: a provider
-  that shared the whole of internal storage would hand every saved mission to
-  any app holding the URI.
+  the updater writes the APK it downloads and where a brief is written before
+  it is shared. Nothing else is exposed: a provider that shared the whole of
+  internal storage would hand every saved mission to any app holding the URI.
 -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <cache-path name="handover" path="handover/" />
 </paths>

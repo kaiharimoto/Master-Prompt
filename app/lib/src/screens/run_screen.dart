@@ -149,8 +149,13 @@ class _RunScreenState extends State<RunScreen> {
                   MpOutbound(
                     title: 'Mission brief',
                     subtitle:
-                        'Start a new Claude conversation and paste this first.',
-                    text: compiled.body,
+                        'Start a new Claude conversation and send this first.',
+                    document: compiled.body,
+                    note:
+                        'The mission brief is attached. Read all of it, then '
+                        'begin. Follow it exactly, including the state block '
+                        'on every reply.',
+                    fileName: '${p.spec.taskId}-brief.md',
                     limit: widget.store.settings.pasteLimit,
                   ),
 
@@ -327,8 +332,13 @@ class _Capsule extends StatelessWidget {
         // everywhere else.
         MpOutbound(
           title: 'Resume capsule',
-          subtitle: 'Paste into a brand-new Claude conversation.',
-          text: capsule.text,
+          subtitle: 'Into a brand-new Claude conversation.',
+          document: capsule.text,
+          note:
+              'This is a mission that was interrupted partway through. The '
+              'capsule is attached: read it and continue from exactly where '
+              'it says, without redoing finished work.',
+          fileName: '${capsule.taskId}-resume.md',
           limit: limit,
         ),
         const SizedBox(height: MpSpace.sm),

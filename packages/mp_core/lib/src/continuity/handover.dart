@@ -21,11 +21,35 @@ class HandoverPart {
   int get estimatedTokens => (text.length / 3.6).ceil();
 }
 
-/// A message and the parts it has to be sent in.
+/// A message, the file it can travel as, and the parts it falls back to.
+///
+/// The two halves matter because they leave by different routes. A chat input
+/// has a length limit; an attachment does not. So the short covering
+/// instruction goes in the message and the long artifact goes in the file, and
+/// the whole handover becomes one gesture instead of eight.
 @immutable
 class Handover {
-  const Handover({required this.parts, required this.sourceLength});
+  const Handover({
+    required this.parts,
+    required this.sourceLength,
+    this.note = '',
+    this.document = '',
+    this.fileName = 'handover.md',
+  });
 
+  /// The covering message: what to do with the attachment. Short by
+  /// construction — the red-team instruction is about 1,500 characters.
+  final String note;
+
+  /// The artifact itself, which becomes the attached file.
+  final String document;
+
+  /// What the attachment is called. Carries the task id so an attachment in a
+  /// chat is identifiable weeks later.
+  final String fileName;
+
+  /// [note] and [document] together, cut into pastable pieces. The fallback
+  /// for when nothing on the device will take a file.
   final List<HandoverPart> parts;
 
   /// Length of the original text, before any headers were added.
@@ -36,6 +60,13 @@ class Handover {
 
   /// The whole thing, for the case where it fits.
   HandoverPart get only => parts.first;
+
+  /// What goes on the clipboard or in a file when it is sent in one piece.
+  String get whole => note.isEmpty
+      ? document
+      : document.isEmpty
+      ? note
+      : '$note\n\n$document';
 }
 
 /// Cuts a message into parts small enough to survive a chat's input field.
@@ -69,25 +100,39 @@ class HandoverSplitter {
   /// count in the hundreds. Asserted by test rather than trusted.
   static const int headerBudget = 320;
 
-  Handover plan(String body) {
-    final String text = body.trimRight();
-    if (text.length <= limit) {
-      return Handover(
-        parts: <HandoverPart>[HandoverPart(index: 1, of: 1, text: text)],
-        sourceLength: text.length,
-      );
-    }
+  /// Plans a handover of [document], introduced by [note].
+  ///
+  /// [note] belongs in the chat message and [document] in the attachment, but
+  /// the parts this returns are the two concatenated and then cut — the copy
+  /// fallback has no attachment to put anything in.
+  Handover plan(
+    String document, {
+    String note = '',
+    String fileName = 'handover.md',
+  }) {
+    final String doc = document.trimRight();
+    final String head = note.trim();
+    final String text = head.isEmpty
+        ? doc
+        : doc.isEmpty
+        ? head
+        : '$head\n\n$doc';
+
+    Handover whole() => Handover(
+      parts: <HandoverPart>[HandoverPart(index: 1, of: 1, text: text)],
+      sourceLength: text.length,
+      note: head,
+      document: doc,
+      fileName: safeFileName(fileName),
+    );
+
+    if (text.length <= limit) return whole();
 
     final int room = limit - headerBudget;
-    if (room <= 0) {
-      // A limit this small cannot carry a header and content both. Rather than
-      // emit parts that are all header, send it whole and let the user see it
-      // is oversized.
-      return Handover(
-        parts: <HandoverPart>[HandoverPart(index: 1, of: 1, text: text)],
-        sourceLength: text.length,
-      );
-    }
+    // A limit this small cannot carry a header and content both. Rather than
+    // emit parts that are all header, send it whole and let the user see it
+    // is oversized.
+    if (room <= 0) return whole();
 
     final List<_Fence> fences = _fences(text);
     final List<String> chunks = <String>[];
@@ -127,7 +172,26 @@ class HandoverSplitter {
           ),
       ],
       sourceLength: text.length,
+      note: head,
+      document: doc,
+      fileName: safeFileName(fileName),
     );
+  }
+
+  /// Makes a name a filesystem and content-provider will both accept.
+  ///
+  /// Task ids come from the interview and are whatever the user typed, so they
+  /// can carry spaces, slashes and quotes. A slash in particular would be read
+  /// as a path and write the attachment somewhere unintended.
+  static String safeFileName(String name) {
+    final String cleaned = name
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-')
+        .replaceAll(RegExp('-+'), '-')
+        .replaceAll(RegExp(r'^[-.]+'), '');
+    if (cleaned.isEmpty) return 'handover.md';
+    return cleaned.length > 96
+        ? cleaned.substring(cleaned.length - 96)
+        : cleaned;
   }
 
   /// What each part says about itself.
