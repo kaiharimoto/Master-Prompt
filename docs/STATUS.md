@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that gave every question a recommendation._
+_Last updated: the commit that gave the red-team pass an accept step._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -73,6 +73,23 @@ capsule that is exactly right; everywhere else it takes the choice away. So
 and `Send` sits beside it. Copying in parts survives one level down, because it
 is the only route that depends on nothing at all.
 
+Then, from applying a red-team pass with eighty fixes in it and asking a
+question with no good answer — *how do I know it actually reached the brief?*
+**Partly it had and partly it had not, and the screen could not tell you
+which.** A value the pass replaced arrives as `proposed`, and
+`confirmProposals()` is called in exactly one place in the app: the interview's
+Accept beat. The red-team screen wrote the patch straight in and never
+confirmed anything, so list additions took effect immediately while every
+replaced value sat outside the readiness gate — reported as "applied" and
+counting for nothing. Worse, a replaced value could flip the gate shut, and the
+Brief screen answers that by replacing itself with the not-ready notice, taking
+the red-team panel with it.
+
+It now holds the parsed result, names every fix rather than counting them, and
+changes nothing until accepted — the same three beats the interview has. The
+not-ready state offers to accept outstanding proposals, so a mission already
+stranded by the old behaviour has a way out.
+
 Then, on the interview itself: **a question with four options and nothing to
 choose between them is four unknowns to weigh.** Every question the model asks
 now carries a line per option on what choosing it would mean, one option marked
@@ -134,7 +151,7 @@ tap reset instead of copying — silently, with the label unchanged to say so.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-267 tests: 139 in `mp_core`, 71 in `mp_runner`, 57 in the app.
+271 tests: 139 in `mp_core`, 71 in `mp_runner`, 61 in the app.
 
 ### Not yet proven
 
@@ -225,6 +242,16 @@ clearly that it cannot.
   none, which nobody noticed because the tests for each only fed it what it
   already accepted. Where two things read the same kind of mangled input, they
   need the same tolerance and a test that proves it.
+- **An accept step is not a UI detail, it is where the invariant is enforced.**
+  The proposed/confirmed rule lives in `mp_core` and is thoroughly tested there,
+  and it still failed in practice, because one of the two screens that take a
+  patch never called the thing that promotes it. A rule enforced by a type is
+  only enforced where something calls it.
+- **`MpPanel` with an accent wraps its child in `IntrinsicHeight`**, which
+  cannot measure a lazy viewport — a `ListView` inside an accented panel throws
+  on layout. This is the second time that accent bar has caused a layout crash.
+  The review panel renders a plain column instead, which is better anyway: a
+  scroll area inside a scrolling page is miserable on a phone.
 - **A `sed`-style replace that does not match is silent.** Two edits this
   session were no-ops because `dart format` had reflowed the lines being
   matched, and both were caught only by a failing test rather than by the edit

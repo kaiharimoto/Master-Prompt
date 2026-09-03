@@ -129,7 +129,16 @@ the menu.
 
 - A value the model proposed is `proposed`, never `confirmed`. Only a confirmed
   or explicitly waived field satisfies the readiness gate. This is what stops a
-  hallucinated requirement reaching an unattended run.
+  hallucinated requirement reaching an unattended run. **Every screen that takes
+  a patch therefore needs its own accept step** — `confirmProposals()` is the
+  only thing that makes a replaced value count, and a screen that writes the
+  patch in without calling it reports "applied" for changes that are outside the
+  gate. The red-team pass did exactly that for a while. It now holds the result
+  and applies nothing until accepted, which also stops a proposed value flipping
+  the gate shut and replacing the screen with the not-ready notice.
+- **What changed is named, not counted.** Every `applied` line carries its
+  value, truncated — thirty lines reading "Failure condition recorded." tell you
+  no more than the number thirty did.
 - The compiler is pure and deterministic. Same spec, same bytes. That is what
   makes the prompt hash meaningful and spec edits diffable.
 - Wire formats between the app and the model are read by a **ladder**, not by

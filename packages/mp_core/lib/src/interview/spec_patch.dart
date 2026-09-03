@@ -619,16 +619,16 @@ class SpecPatchParser {
       switch (key) {
         case 'mission':
           out = out.copyWith(missionStatement: _proposed(value));
-          applied.add('Mission statement set.');
+          applied.add(_said('Mission statement', value));
         case 'story':
           out = out.copyWith(definingStory: _proposed(value));
-          applied.add('Defining story set.');
+          applied.add(_said('Defining story', value));
         case 'scale':
           out = out.copyWith(scale: _proposed(value));
-          applied.add('Scale set.');
+          applied.add(_said('Scale', value));
         case 'audience':
           out = out.copyWith(audience: _proposed(value));
-          applied.add('Audience set.');
+          applied.add(_said('Judged by', value));
         case 'title':
           out = out.copyWith(title: value);
           applied.add('Title set to "$value".');
@@ -648,7 +648,7 @@ class SpecPatchParser {
 
         case 'relationship':
           relationships.add(value);
-          applied.add('Relationship recorded.');
+          applied.add(_said('Relationship', value));
 
         case 'family':
           families.add(
@@ -737,43 +737,43 @@ class SpecPatchParser {
 
         case 'failure':
           failures.add(FailureCondition(text: value));
-          applied.add('Failure condition recorded.');
+          applied.add(_said('Failure condition', value));
 
         case 'avoid':
           avoid.add(value);
           applied.add('Anti-goal: $value');
         case 'palette':
           palette.add(value);
-          applied.add('Palette entry recorded.');
+          applied.add(_said('Palette', value));
         case 'material':
           materials.add(value);
-          applied.add('Material entry recorded.');
+          applied.add(_said('Material', value));
         case 'atmosphere':
           q = _quality(q, atmosphere: value);
-          applied.add('Atmosphere set.');
+          applied.add(_said('Atmosphere', value));
         case 'detail':
           q = _quality(q, detailStandard: value);
-          applied.add('Detail standard set.');
+          applied.add(_said('Detail standard', value));
         case 'evidence_of_use':
         case 'storytelling':
           storytelling.add(value);
-          applied.add('Evidence-of-use detail recorded.');
+          applied.add(_said('Evidence of use', value));
 
         case 'compute':
           rt = _runtime(rt, compute: value);
-          applied.add('Compute environment set.');
+          applied.add(_said('Compute', value));
         case 'tool':
           rt = _runtime(rt, primaryTool: value);
-          applied.add('Primary tool set.');
+          applied.add(_said('Primary tool', value));
         case 'harness':
           rt = _runtime(rt, harness: value);
-          applied.add('Harness set.');
+          applied.add(_said('Harness', value));
         case 'budget':
           rt = _runtime(rt, tokenBudget: value);
           applied.add('Budget set to $value.');
         case 'wallclock':
           rt = _runtime(rt, wallClock: value);
-          applied.add('Wall-clock budget set.');
+          applied.add(_said('Wall clock', value));
 
         case 'coldstart':
           val = ValidationPlan(
@@ -781,10 +781,10 @@ class SpecPatchParser {
             checks: val.checks,
             reportContract: val.reportContract,
           );
-          applied.add('Cold-start procedure set.');
+          applied.add(_said('Cold start', value));
         case 'check':
           checks.add(value);
-          applied.add('Validation check recorded.');
+          applied.add(_said('Validation check', value));
 
         case 'dir':
           del = DeliverablePlan(
@@ -978,6 +978,18 @@ class _Directive {
 }
 
 /// A located block and whatever surrounded it.
+/// One line of "what changed", carrying the value rather than only its kind.
+///
+/// A red-team pass can propose eighty fixes at once, and thirty lines reading
+/// "Failure condition recorded." answer the question no better than the count
+/// did. Truncated, because these are read as a list and some values are a
+/// paragraph.
+String _said(String label, String value) {
+  final String v = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (v.isEmpty) return '$label set.';
+  return v.length <= 88 ? '$label: $v' : '$label: ${v.substring(0, 87)}…';
+}
+
 @immutable
 class _Found {
   const _Found({required this.body, required this.prose});
