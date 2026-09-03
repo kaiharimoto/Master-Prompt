@@ -119,6 +119,14 @@ the menu.
   one field.
 - A paste is never discarded. Every parse outcome keeps the raw text, and a
   parse that finds nothing returns a `diagnostic` saying what it saw instead.
+- **The interview assumes one continuing chat.** `nextTurn` takes a
+  `TurnStyle`: `standalone` carries the framing, everything settled and the
+  format rules; `continuing` carries only the round and its schema, roughly a
+  third the size. The default is `standalone`, because a standalone turn in a
+  running chat is merely wasteful while a continuing turn in a fresh chat is
+  unusable. The app sends `standalone` until a reply has come back
+  (`Project.hasAnsweredOnce`), and offers it again under the message preview,
+  because a session limit ending the chat is the case this app exists for.
 - Tests assert behaviour and say why in the `reason:`, rather than restating the
   assertion.
 

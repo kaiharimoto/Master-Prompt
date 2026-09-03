@@ -11,6 +11,7 @@ class AppSettings {
     this.permissionMode = 'bypassPermissions',
     this.workingDirectory,
     this.stepDownOnOpusLimit = false,
+    this.standaloneTurns = false,
   });
 
   final ThemeMode themeMode;
@@ -31,6 +32,15 @@ class AppSettings {
   /// silently changing which model does the work.
   final bool stepDownOnOpusLimit;
 
+  /// Write every round as if the chat had seen nothing before it.
+  ///
+  /// Off by default, because the interview is meant to happen in one
+  /// continuing chat: that chat already holds the framing, everything settled,
+  /// and the format rules — most of which it worked out itself. On for anyone
+  /// who starts a fresh chat each round. The first round of a mission is sent
+  /// in full either way.
+  final bool standaloneTurns;
+
   AppSettings copyWith({
     ThemeMode? themeMode,
     String? claudePath,
@@ -39,6 +49,7 @@ class AppSettings {
     String? permissionMode,
     String? workingDirectory,
     bool? stepDownOnOpusLimit,
+    bool? standaloneTurns,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
     claudePath: claudePath ?? this.claudePath,
@@ -47,6 +58,7 @@ class AppSettings {
     permissionMode: permissionMode ?? this.permissionMode,
     workingDirectory: workingDirectory ?? this.workingDirectory,
     stepDownOnOpusLimit: stepDownOnOpusLimit ?? this.stepDownOnOpusLimit,
+    standaloneTurns: standaloneTurns ?? this.standaloneTurns,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -57,6 +69,7 @@ class AppSettings {
     'permissionMode': permissionMode,
     'workingDirectory': workingDirectory,
     'stepDownOnOpusLimit': stepDownOnOpusLimit,
+    'standaloneTurns': standaloneTurns,
   };
 
   static AppSettings fromJson(Map<String, Object?> j) => AppSettings(
@@ -70,5 +83,6 @@ class AppSettings {
     permissionMode: '${j['permissionMode'] ?? 'bypassPermissions'}',
     workingDirectory: j['workingDirectory'] as String?,
     stepDownOnOpusLimit: j['stepDownOnOpusLimit'] as bool? ?? false,
+    standaloneTurns: j['standaloneTurns'] as bool? ?? false,
   );
 }

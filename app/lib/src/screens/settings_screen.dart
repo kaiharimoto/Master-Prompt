@@ -41,7 +41,37 @@ class SettingsScreen extends StatelessWidget {
                 _UpdatePanel(updater: updater),
 
                 const SizedBox(height: MpSpace.xl),
-                const MpSectionHeader(number: '02', title: 'Appearance'),
+                const MpSectionHeader(
+                  number: '02',
+                  title: 'The interview',
+                  subtitle:
+                      'How much each copied message carries. The first round '
+                      'of a mission is always sent in full.',
+                ),
+                const SizedBox(height: MpSpace.md),
+                MpPanel(
+                  child: SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: s.standaloneTurns,
+                    onChanged: (bool v) =>
+                        store.updateSettings(s.copyWith(standaloneTurns: v)),
+                    title: Text(
+                      'Every message stands alone',
+                      style: MpType.body.copyWith(color: c.ink),
+                    ),
+                    subtitle: Text(
+                      'Off by default: the interview is meant to run in one '
+                      'continuing chat, which already holds the framing and '
+                      'everything settled, so each round only carries what '
+                      'that round adds. Turn this on if you start a fresh '
+                      'chat every round.',
+                      style: MpType.caption.copyWith(color: c.inkMuted),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: MpSpace.xl),
+                const MpSectionHeader(number: '03', title: 'Appearance'),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(
                   child: Column(
@@ -76,7 +106,7 @@ class SettingsScreen extends StatelessWidget {
 
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
-                  number: '03',
+                  number: '04',
                   title: 'Model',
                   subtitle:
                       'The requested effort is degraded automatically if the '
@@ -141,7 +171,7 @@ class SettingsScreen extends StatelessWidget {
 
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
-                  number: '04',
+                  number: '05',
                   title: 'Desktop runner',
                   subtitle:
                       'Where the Claude Code CLI lives, and where it works.',
@@ -183,7 +213,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: MpSpace.xl),
-                const MpSectionHeader(number: '05', title: 'Autonomy'),
+                const MpSectionHeader(number: '06', title: 'Autonomy'),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(
                   accent: s.permissionMode == 'bypassPermissions'
@@ -254,7 +284,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
-                  number: '06',
+                  number: '07',
                   title: 'Report a problem',
                   subtitle:
                       'Copy this and paste it into the chat. It carries the '

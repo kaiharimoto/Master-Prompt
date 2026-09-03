@@ -19,6 +19,15 @@ class Project {
   /// Everything sent and received, so a project can be picked up cold.
   List<TranscriptEntry> transcript;
 
+  /// True once a reply has been brought back for this mission.
+  ///
+  /// Which is the only reliable sign that a chat is running and holds the
+  /// framing: the first round has been sent and answered in it. Before that,
+  /// nothing can be assumed known.
+  bool get hasAnsweredOnce => transcript.any(
+    (TranscriptEntry e) => e.direction == TranscriptDirection.received,
+  );
+
   CompiledPrompt? compiled;
 
   /// The most recent heartbeat parsed from a reply.

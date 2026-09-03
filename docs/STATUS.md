@@ -4,8 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that made the reply one JSON block and added the
-in-app updater._
+_Last updated: the commit that stopped re-sending the preamble every round._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -33,6 +32,16 @@ then install. On Android that hands the APK to the system package installer
 through a `FileProvider`; on Windows it downloads the zip and says plainly that
 a running executable cannot replace itself.
 
+Then, from using it in one continuing chat: **every round re-sent the preamble**
+— who the model was, everything already settled, and the format rules in full —
+to a chat that had worked most of it out itself. `nextTurn` now takes a
+`TurnStyle`. The first round of a mission is sent whole; every round after it
+carries only the round and its schema, about a third the size, and 70% smaller
+by the late stages where the settled list is longest. Settings holds a toggle
+for anyone starting a fresh chat each round, and the message preview keeps a
+"Copy for a new chat" for the case that actually matters: a session limit
+ending the chat mid-interview.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -43,6 +52,10 @@ a running executable cannot replace itself.
   across rounds, compilation refused while anything required is unresolved. The
   prompt asks for numbered options so a reply can be a list of numbers, and for
   one JSON block so bringing it back is one tap.
+- **The two turn styles.** That a continuing turn keeps the round, its gaps and
+  its schema and drops everything the chat already holds; that the standalone
+  turn is what a caller gets without asking, since it is the one that is merely
+  wasteful rather than broken when it lands in the wrong chat.
 - **The parser ladder.** JSON fenced, unfenced or alone; trailing commas, `//`
   comments and smart quotes; the old line grammar either way; braces inside
   values. Prose is rejected rather than half-applied, and a reply that settles
@@ -62,7 +75,7 @@ a running executable cannot replace itself.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-225 tests: 112 in `mp_core`, 71 in `mp_runner`, 42 in the app.
+235 tests: 118 in `mp_core`, 71 in `mp_runner`, 46 in the app.
 
 ### Not yet proven
 
@@ -103,13 +116,18 @@ phone predates the updater. Then, in this order:
 1. **A full round with the new prompt.** The reply should end in one `json`
    block; copy it with the block's own button, paste, and Apply should report
    what it settled rather than nothing.
-2. **The updater, from the menu.** With this build installed, the *next* CI
+2. **Whether the shorter rounds still land.** From round two on, the copied
+   message is about a third the size. The thing to watch is whether the model
+   keeps offering numbered options and keeps ending on the json block without
+   being told at length each time — the reminder survives as one sentence, and
+   if that turns out not to be enough it needs to grow back.
+3. **The updater, from the menu.** With this build installed, the *next* CI
    build should surface a mark on the menu by itself. Download, install, and
    watch for the permission bounce — the first install is the one that asks.
-3. **That it installs over the top without an uninstall**, keeping the saved
+4. **That it installs over the top without an uninstall**, keeping the saved
    missions. This is the first real test of the committed signing key, and the
    updater is worthless without it.
-4. Whether the flow still feels guided now that the reply is a code block.
+5. Whether the flow still feels guided now that the reply is a code block.
 
 Windows separately: the Run destination either finds the Claude Code CLI or says
 clearly that it cannot.

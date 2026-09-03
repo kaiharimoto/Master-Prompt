@@ -204,7 +204,17 @@ class _FlowScreenState extends State<FlowScreen> {
 
   Widget _ask(Project p, ReadinessReport report) {
     final MpColors c = MpTheme.colorsOf(context);
-    final InterviewTurn turn = _engine.nextTurn(p.spec);
+
+    // The interview happens in one continuing chat, and that chat already
+    // holds the framing, everything settled and the format rules — it worked
+    // most of it out itself. Once it has answered once, the round only carries
+    // what the round adds.
+    final bool continuing =
+        p.hasAnsweredOnce && !widget.store.settings.standaloneTurns;
+    final InterviewTurn turn = _engine.nextTurn(
+      p.spec,
+      style: continuing ? TurnStyle.continuing : TurnStyle.standalone,
+    );
     final List<ReadinessGap> gaps = turn.gaps;
 
     return MpFocal(
@@ -255,9 +265,33 @@ class _FlowScreenState extends State<FlowScreen> {
         MpDisclosure(
           label: 'Preview the message',
           trailingNote: '~${turn.estimatedTokens} tokens',
-          child: SelectableText(
-            turn.text,
-            style: MpType.mono.copyWith(color: c.inkMuted),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              SelectableText(
+                turn.text,
+                style: MpType.mono.copyWith(color: c.inkMuted),
+              ),
+              // A session limit ends the chat, and the whole app exists
+              // because that happens. Starting a fresh one needs the full
+              // version once, and hunting for a setting mid-recovery is the
+              // wrong place to put it.
+              if (continuing) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                Text(
+                  'Written for the chat you have been using. If that chat is '
+                  'gone, take the full version instead.',
+                  style: MpType.caption.copyWith(color: c.inkFaint),
+                ),
+                const SizedBox(height: MpSpace.sm),
+                MpButton(
+                  label: 'Copy for a new chat',
+                  icon: Icons.open_in_new,
+                  expand: true,
+                  onPressed: () => _handOff(_engine.nextTurn(p.spec).text),
+                ),
+              ],
+            ],
           ),
         ),
       ],

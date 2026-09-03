@@ -6,6 +6,26 @@ import '../spec/spec_types.dart';
 import 'interview_stage.dart';
 import 'readiness.dart';
 
+/// How much the turn assumes its reader already knows.
+///
+/// The interview is meant to happen in one continuing chat, and that chat has
+/// already been told who it is, what has been settled, and what shape the
+/// answers come back in — it settled most of it itself. Re-sending all of that
+/// every round costs tokens on a plan with limits, and buries the one thing the
+/// round is actually about under three screens of preamble the user has already
+/// read.
+enum TurnStyle {
+  /// Written for a reader that has seen nothing: the framing, everything
+  /// settled so far, and the format rules in full. The first round of a
+  /// mission, and any round after the chat has had to be restarted.
+  standalone,
+
+  /// Written for the chat that has been answering all along. Only what this
+  /// round adds, plus the schema for it — everything else is already above it
+  /// in the conversation.
+  continuing,
+}
+
 /// A block of text to hand to the model, and what it is for.
 @immutable
 class InterviewTurn {
@@ -13,9 +33,12 @@ class InterviewTurn {
     required this.stage,
     required this.text,
     required this.gaps,
+    this.style = TurnStyle.standalone,
   });
 
   final InterviewStage stage;
+
+  final TurnStyle style;
 
   /// The text the user copies into the chat, or the CLI sends directly.
   final String text;
@@ -44,7 +67,14 @@ class InterviewEngine {
   ReadinessReport assess(MissionSpec spec) => gate.evaluate(spec);
 
   /// The next turn to put to the model.
-  InterviewTurn nextTurn(MissionSpec spec) {
+  ///
+  /// [style] decides how much of it is preamble. The default is the safe one:
+  /// a turn that stands on its own is correct in a chat that has seen it all
+  /// before, whereas a continuing turn dropped into a fresh chat is not.
+  InterviewTurn nextTurn(
+    MissionSpec spec, {
+    TurnStyle style = TurnStyle.standalone,
+  }) {
     final ReadinessReport report = gate.evaluate(spec);
     final InterviewStage stage = report.currentStage;
     final List<ReadinessGap> stageGaps = report.gaps
@@ -56,6 +86,16 @@ class InterviewEngine {
         stage: stage,
         text: _readyText(spec),
         gaps: const <ReadinessGap>[],
+        style: style,
+      );
+    }
+
+    if (style == TurnStyle.continuing) {
+      return InterviewTurn(
+        stage: stage,
+        text: _continuingText(stage, stageGaps),
+        gaps: stageGaps,
+        style: style,
       );
     }
 
@@ -113,7 +153,45 @@ class InterviewEngine {
       ..writeln();
     _patchFormat(b, stage);
 
-    return InterviewTurn(stage: stage, text: b.toString(), gaps: stageGaps);
+    return InterviewTurn(
+      stage: stage,
+      text: b.toString(),
+      gaps: stageGaps,
+      style: style,
+    );
+  }
+
+  /// The same round, for a chat that has been answering all along.
+  ///
+  /// Everything the standalone turn opens with — who the model is, what the
+  /// mission is, everything settled so far, and the rules for handing answers
+  /// back — that chat has already read, and mostly wrote. What is left is the
+  /// subject of this round and the shape of this round's answer.
+  ///
+  /// The two rules survive as one sentence rather than two paragraphs. They are
+  /// kept at all because format drift over nine rounds is real, and the cost of
+  /// it is a reply the app cannot read; the schema below carries the rest.
+  String _continuingText(InterviewStage stage, List<ReadinessGap> gaps) {
+    final StringBuffer b = StringBuffer()
+      ..writeln('## Next: ${stage.title}')
+      ..writeln()
+      ..writeln(stage.purpose)
+      ..writeln()
+      ..writeln('Still unsettled:')
+      ..writeln();
+    for (final ReadinessGap g in gaps) {
+      b.writeln('- **${g.label}** — ${g.why}');
+    }
+    b
+      ..writeln()
+      ..writeln(
+        'Same as before: two to four questions on these, each with numbered '
+        'options I can answer by number, and then end your reply with one '
+        'fenced `json` block and nothing after it.',
+      )
+      ..writeln();
+    _patchFormat(b, stage);
+    return b.toString();
   }
 
   /// A turn that attacks the compiled prompt the way an unattended run would.

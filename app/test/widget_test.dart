@@ -236,6 +236,131 @@ void main() {
     });
   });
 
+  group('the message written for a chat already running', () {
+    /// The text of the most recent copy.
+    String copied() =>
+        (clipboard
+                    .lastWhere(
+                      (MethodCall c) => c.method == 'Clipboard.setData',
+                    )
+                    .arguments
+                as Map<Object?, Object?>)['text']!
+            .toString();
+
+    Future<void> completeARound(WidgetTester tester) async {
+      await tester.tap(find.text('Copy for Claude'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, shapeReply);
+      await tester.tap(find.text('Apply reply'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Accept and continue'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the first round carries everything', (
+      WidgetTester tester,
+    ) async {
+      await seed(tester, store, 'A rooftop bar');
+      await tester.tap(find.text('Copy for Claude'));
+      await tester.pumpAndSettle();
+
+      expect(
+        copied(),
+        contains('You are helping me specify'),
+        reason:
+            'the chat has seen nothing, so this message is the only thing '
+            'establishing what the conversation is for',
+      );
+    });
+
+    testWidgets('later rounds drop what the chat already holds', (
+      WidgetTester tester,
+    ) async {
+      await seed(tester, store, 'A rooftop bar');
+      await completeARound(tester);
+
+      clipboard.clear();
+      await tester.tap(find.text('Copy for Claude'));
+      await tester.pumpAndSettle();
+      final String second = copied();
+
+      expect(
+        second,
+        isNot(contains('You are helping me specify')),
+        reason: 'it was told that one round ago, in the same chat',
+      );
+      expect(
+        second,
+        isNot(contains('The mission so far')),
+        reason:
+            're-listing what the chat itself settled is the redundancy this '
+            'is here to remove, and it grows every round',
+      );
+      expect(
+        second,
+        contains('```json'),
+        reason:
+            'the schema is per-stage, so it is the one part of the format '
+            'that genuinely changes and cannot be assumed',
+      );
+    });
+
+    testWidgets('the full version stays one tap away for a new chat', (
+      WidgetTester tester,
+    ) async {
+      await seed(tester, store, 'A rooftop bar');
+      await completeARound(tester);
+
+      expect(
+        find.text('Copy for a new chat'),
+        findsNothing,
+        reason: 'a recovery path is not something to show until looked for',
+      );
+
+      await tester.tap(find.text('Preview the message'));
+      await tester.pumpAndSettle();
+
+      // Cleared so the assertion cannot be satisfied by the full message this
+      // mission's first round already put on the clipboard — a missed tap
+      // would otherwise pass.
+      clipboard.clear();
+      await tester.ensureVisible(find.text('Copy for a new chat'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy for a new chat'));
+      await tester.pumpAndSettle();
+
+      expect(
+        copied(),
+        contains('You are helping me specify'),
+        reason:
+            'a session limit ends the chat, which is the case this whole app '
+            'exists for — the full version has to be reachable in the moment '
+            'rather than through a setting',
+      );
+    });
+
+    testWidgets('the setting makes every round self-contained', (
+      WidgetTester tester,
+    ) async {
+      await seed(tester, store, 'A rooftop bar');
+      await completeARound(tester);
+
+      await store.updateSettings(
+        store.settings.copyWith(standaloneTurns: true),
+      );
+      await tester.pumpAndSettle();
+      clipboard.clear();
+      await tester.tap(find.text('Copy for Claude'));
+      await tester.pumpAndSettle();
+
+      expect(
+        copied(),
+        contains('You are helping me specify'),
+        reason: 'for anyone who starts a fresh chat every round',
+      );
+    });
+  });
+
   group('nothing was removed, only deferred', () {
     testWidgets('disclosures start closed and open on tap', (
       WidgetTester tester,
