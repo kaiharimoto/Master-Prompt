@@ -108,9 +108,12 @@ class _MpOutboundState extends State<MpOutbound> {
     setState(() => _busy = true);
     try {
       _say(switch (await _sender.save(h)) {
-        SendOutcome.saved => 'Saved as ${h.fileName}. Attach it in Claude.',
-        SendOutcome.cancelled => 'Nothing saved.',
-        _ => 'Could not write the file.',
+        SaveOutcome.toDownloads =>
+          'Saved to Downloads as ${h.fileName}. Attach it in Claude.',
+        SaveOutcome.toChosenFolder =>
+          'Saved as ${h.fileName}. Attach it in Claude.',
+        SaveOutcome.cancelled => 'Nothing saved.',
+        SaveOutcome.failed => 'Could not write the file.',
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -118,10 +121,14 @@ class _MpOutboundState extends State<MpOutbound> {
   }
 
   Future<void> _copyPart(Handover h) async {
-    if (_at >= h.count) {
+    // Cycling back to the start belongs to the stepper. On a document with one
+    // part it meant every second tap of Copy copied nothing at all, silently,
+    // with the label unchanged to say so.
+    if (h.isSplit && _at >= h.count) {
       setState(() => _at = 0);
       return;
     }
+    if (!h.isSplit) _at = 0;
     final HandoverPart part = h.parts[_at];
     await Clipboard.setData(ClipboardData(text: part.text));
     if (!mounted) return;
@@ -233,9 +240,12 @@ class _MpOutboundState extends State<MpOutbound> {
     ],
   );
 
-  /// Too long to paste. The file routes come first and copying is demoted,
-  /// because eight trips through the app switcher is not a way to send a
-  /// document.
+  /// Too long to paste, so it leaves as a file.
+  ///
+  /// Saving leads and sharing is second. A share always opens a *new* chat —
+  /// the receiving app decides that, and an Android share intent carries no
+  /// way to name a conversation — so the one-tap route takes the choice away.
+  /// A saved file can be attached to whichever chat you want.
   Widget _oversized(MpColors c, Handover h) {
     final bool share = _sender.canShare;
     return Column(
@@ -245,21 +255,19 @@ class _MpOutboundState extends State<MpOutbound> {
           children: <Widget>[
             Expanded(
               child: MpButton(
-                label: share
-                    ? (_busy ? 'Working…' : 'Send to Claude')
-                    : (_busy ? 'Working…' : 'Save the file'),
-                icon: share ? Icons.ios_share : Icons.save_alt,
+                label: _busy ? 'Working…' : 'Save the file',
+                icon: Icons.save_alt,
                 kind: MpButtonKind.primary,
                 expand: true,
-                onPressed: _busy ? null : () => share ? _send(h) : _save(h),
+                onPressed: _busy ? null : () => _save(h),
               ),
             ),
             if (share) ...<Widget>[
               const SizedBox(width: MpSpace.sm),
               MpButton(
-                label: 'Save',
-                icon: Icons.save_alt,
-                onPressed: _busy ? null : () => _save(h),
+                label: 'Send',
+                icon: Icons.ios_share,
+                onPressed: _busy ? null : () => _send(h),
               ),
             ],
             if (widget.trailing != null) ...<Widget>[
@@ -271,9 +279,9 @@ class _MpOutboundState extends State<MpOutbound> {
         const SizedBox(height: MpSpace.sm),
         Text(
           share
-              ? 'Too long to paste, so it goes as a file. Pick Claude, and it '
-                    'opens with the document attached and the instruction '
-                    'already written.'
+              ? 'Too long to paste, so it goes as a file. Save it and attach '
+                    'it to whichever chat you want — sending it straight to '
+                    'Claude always opens a new one.'
               : 'Too long to paste, so it is written out as a file for you to '
                     'attach.',
           style: MpType.caption.copyWith(color: c.inkMuted),

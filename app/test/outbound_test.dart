@@ -9,8 +9,8 @@ import 'package:mp_design/mp_design.dart';
 
 /// Stands in for the share sheet, the save picker and the cache directory.
 ///
-/// None of those exist on a Linux runner, and the whole point of this change
-/// is which of them gets offered — so they are values here.
+/// None of those exist on a Linux runner, and the whole point of this panel is
+/// which of them gets offered — so they are values here.
 class FakeTransport implements HandoverTransport {
   FakeTransport(this.dir, {this.canShare = true});
 
@@ -20,7 +20,7 @@ class FakeTransport implements HandoverTransport {
   final bool canShare;
 
   bool shareSucceeds = true;
-  bool saveSucceeds = true;
+  SaveOutcome saveResult = SaveOutcome.toDownloads;
 
   final List<String> sharedText = <String>[];
   final List<String> sharedContent = <String>[];
@@ -37,9 +37,9 @@ class FakeTransport implements HandoverTransport {
   }
 
   @override
-  Future<bool> save(File file, String name) async {
+  Future<SaveOutcome> save(File file, String name) async {
     savedNames.add(name);
-    return saveSucceeds;
+    return saveResult;
   }
 }
 
@@ -70,8 +70,8 @@ Future<void> tapAsync(
   await tester.runAsync(() async {
     await tester.tap(target);
     // Polled rather than slept through. A fixed delay passes alone and fails
-    // in a loaded suite, which is worse than no test at all: it teaches you
-    // to ignore red.
+    // in a loaded suite, which is worse than no test at all: it teaches you to
+    // ignore red.
     final DateTime deadline = DateTime.now().add(const Duration(seconds: 5));
     while (!until() && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -132,186 +132,277 @@ void main() {
     );
   }
 
-  testWidgets('a document that fits keeps the plain one-tap copy', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(panel(document: 'short', note: 'Read this.'));
+  group('a document that fits in one message', () {
+    testWidgets('keeps the plain one-tap copy', (WidgetTester tester) async {
+      await tester.pumpWidget(panel(document: 'short', note: 'Read this.'));
 
-    expect(find.text('Copy for Claude'), findsOneWidget);
-    expect(
-      find.text('Send to Claude'),
-      findsNothing,
-      reason:
-          'a file for something that fits in a message is ceremony, and the '
-          'common case must not pay for the rare one',
-    );
-    expect(find.text('Copy it instead'), findsNothing);
+      expect(find.text('Copy for Claude'), findsOneWidget);
+      expect(
+        find.text('Save the file'),
+        findsNothing,
+        reason:
+            'a file for something that fits in a message is ceremony, and the '
+            'common case must not pay for the rare one',
+      );
+      expect(find.text('Copy it instead'), findsNothing);
 
-    await tapAsync(
-      tester,
-      find.text('Copy for Claude'),
-      until: () => copied.isNotEmpty,
-    );
-    expect(copied.single, 'Read this.\n\nshort');
-  });
-
-  testWidgets('an oversized one is sent as a file in one tap', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      panel(document: longBody(40), note: 'Attack the attached brief.'),
-    );
-
-    expect(find.text('Send to Claude'), findsOneWidget);
-    expect(
-      find.textContaining('Copy part'),
-      findsNothing,
-      reason:
-          'eight trips through the app switcher is what this change exists to '
-          'remove, so copying cannot be the offer that is on screen',
-    );
-
-    await tapAsync(
-      tester,
-      find.text('Send to Claude'),
-      until: () => transport.sharedText.isNotEmpty,
-    );
-
-    expect(
-      transport.sharedText.single,
-      'Attack the attached brief.',
-      reason: 'the instruction rides in the message, where it always fits',
-    );
-    expect(
-      transport.sharedContent.single,
-      contains('## 00 / SECTION'),
-      reason:
-          'and the document rides in the file, where length stops mattering',
-    );
-    expect(
-      transport.sharedContent.single,
-      contains('Attack the attached brief.'),
-      reason:
-          'the file carries the instruction too, so it is still sufficient '
-          'when it is the only thing that arrives',
-    );
-  });
-
-  testWidgets('save is offered beside it, and names the file', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(panel(document: longBody(40), note: 'Attack it.'));
-
-    await tapAsync(
-      tester,
-      find.text('Save'),
-      until: () => transport.savedNames.isNotEmpty,
-    );
-
-    expect(transport.savedNames.single, 'bar-brief.md');
-  });
-
-  testWidgets('without a share sheet, saving is the primary action', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      panel(document: longBody(40), note: 'Attack it.', canShare: false),
-    );
-
-    expect(find.text('Send to Claude'), findsNothing);
-    expect(
-      find.text('Save the file'),
-      findsOneWidget,
-      reason:
-          'this is the floor: it depends on no app registering for anything, '
-          'which is why it is built rather than deferred',
-    );
-
-    await tapAsync(
-      tester,
-      find.text('Save the file'),
-      until: () => transport.savedNames.isNotEmpty,
-    );
-    expect(transport.savedNames, hasLength(1));
-  });
-
-  testWidgets('copying in parts survives, one level down', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(panel(document: longBody(40), note: 'Attack it.'));
-
-    expect(
-      find.textContaining('Copy part'),
-      findsNothing,
-      reason: 'nothing is shown until it is looked for',
-    );
-
-    await tester.tap(find.text('Copy it instead'));
-    await tester.pumpAndSettle();
-
-    int guard = 0;
-    while (find.textContaining('Copy part ').evaluate().isNotEmpty &&
-        guard++ < 30) {
-      final int before = copied.length;
       await tapAsync(
         tester,
-        find.textContaining('Copy part '),
-        until: () => copied.length > before,
+        find.text('Copy for Claude'),
+        until: () => copied.isNotEmpty,
       );
-    }
+      expect(copied.single, 'Read this.\n\nshort');
+    });
 
-    expect(copied.length, greaterThan(1));
-    for (int i = 0; i < copied.length; i++) {
-      expect(copied[i], contains('Part ${i + 1} of ${copied.length}'));
-    }
-    expect(find.text('Start over'), findsOneWidget);
+    testWidgets('copies again on the second tap', (WidgetTester tester) async {
+      await tester.pumpWidget(panel(document: 'short', note: 'Read this.'));
+
+      await tapAsync(
+        tester,
+        find.text('Copy for Claude'),
+        until: () => copied.isNotEmpty,
+      );
+      await tapAsync(
+        tester,
+        find.text('Copy for Claude'),
+        until: () => copied.length > 1,
+      );
+
+      expect(
+        copied,
+        hasLength(2),
+        reason:
+            'the stepper cycles back to part one once it has sent them all, '
+            'and reusing that for a document with a single part meant every '
+            'second tap copied nothing at all — silently, with the label '
+            'unchanged to say so',
+      );
+    });
   });
 
-  testWidgets('a failed share points at the route that cannot fail', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(panel(document: longBody(40), note: 'Attack it.'));
-    transport.shareSucceeds = false;
+  group('a document too long to paste', () {
+    testWidgets('leads with saving, not sharing', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        panel(document: longBody(40), note: 'Attack this brief.'),
+      );
 
-    await tapAsync(
-      tester,
-      find.text('Send to Claude'),
-      until: () => transport.sharedText.isNotEmpty,
-    );
+      expect(
+        find.text('Save the file'),
+        findsOneWidget,
+        reason:
+            'a share always opens a new chat and nothing on this side can name '
+            'one, so the route that leaves the choice to the user leads',
+      );
+      expect(find.text('Send'), findsOneWidget);
+      expect(
+        find.textContaining('always opens a new one'),
+        findsOneWidget,
+        reason: 'or the demotion looks arbitrary',
+      );
+      expect(
+        find.textContaining('Copy part'),
+        findsNothing,
+        reason:
+            'eight trips through the app switcher is what this change exists '
+            'to remove, so copying cannot be the offer on screen',
+      );
+    });
 
-    expect(
-      find.textContaining('Save the file instead'),
-      findsOneWidget,
-      reason:
-          'a share sheet that will not open is exactly when the user needs to '
-          'be told the other route exists',
-    );
-  });
+    testWidgets('says where the file went', (WidgetTester tester) async {
+      await tester.pumpWidget(panel(document: longBody(40)));
 
-  testWidgets('a regenerated document restarts the part sequence', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(panel(document: longBody(40)));
-    await tester.tap(find.text('Copy it instead'));
-    await tester.pumpAndSettle();
-    await tapAsync(
-      tester,
-      find.textContaining('Copy part 1 of'),
-      until: () => copied.isNotEmpty,
-    );
-    expect(find.textContaining('Copy part 2 of'), findsOneWidget);
+      await tapAsync(
+        tester,
+        find.text('Save the file'),
+        until: () => transport.savedNames.isNotEmpty,
+      );
 
-    // The disclosure stays open across the rebuild, as it should — the user
-    // opened it and nothing they did closed it.
-    await tester.pumpWidget(panel(document: longBody(50)));
-    await tester.pumpAndSettle();
+      expect(transport.savedNames.single, 'bar-brief.md');
+      expect(
+        find.textContaining('Saved to Downloads'),
+        findsOneWidget,
+        reason:
+            'the user has to go and find the file afterwards, so the message '
+            'has to name the folder',
+      );
+    });
 
-    expect(
-      find.textContaining('Copy part 1 of'),
-      findsOneWidget,
-      reason:
-          'carrying "you are on part two" across a different document sends '
-          'the wrong two thousand characters, and nothing would say so',
-    );
+    testWidgets('a picked folder is reported differently', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(panel(document: longBody(40)));
+      transport.saveResult = SaveOutcome.toChosenFolder;
+
+      await tapAsync(
+        tester,
+        find.text('Save the file'),
+        until: () => transport.savedNames.isNotEmpty,
+      );
+
+      expect(find.textContaining('Saved to Downloads'), findsNothing);
+      expect(
+        find.textContaining('Saved as bar-brief.md'),
+        findsOneWidget,
+        reason:
+            'below Android 10 it goes through the picker instead, and sending '
+            'someone to Downloads would be sending them to the wrong folder',
+      );
+    });
+
+    testWidgets('backing out of the picker is not a failure', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(panel(document: longBody(40)));
+      transport.saveResult = SaveOutcome.cancelled;
+
+      await tapAsync(
+        tester,
+        find.text('Save the file'),
+        until: () => transport.savedNames.isNotEmpty,
+      );
+
+      expect(find.text('Nothing saved.'), findsOneWidget);
+    });
+
+    testWidgets('sharing still carries both halves', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        panel(document: longBody(40), note: 'Attack this brief.'),
+      );
+
+      await tapAsync(
+        tester,
+        find.text('Send'),
+        until: () => transport.sharedText.isNotEmpty,
+      );
+
+      expect(
+        transport.sharedText.single,
+        'Attack this brief.',
+        reason: 'the instruction rides in the message, where it always fits',
+      );
+      expect(
+        transport.sharedContent.single,
+        contains('## 00 / SECTION'),
+        reason:
+            'and the document rides in the file, where length stops '
+            'mattering',
+      );
+      expect(
+        transport.sharedContent.single,
+        contains('Attack this brief.'),
+        reason:
+            'the file carries the instruction too, so it is still sufficient '
+            'when it is the only thing that arrives',
+      );
+    });
+
+    testWidgets('a failed share points at the route that cannot fail', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        panel(document: longBody(40), note: 'Attack it.'),
+      );
+      transport.shareSucceeds = false;
+
+      await tapAsync(
+        tester,
+        find.text('Send'),
+        until: () => transport.sharedText.isNotEmpty,
+      );
+
+      expect(
+        find.textContaining('Save the file instead'),
+        findsOneWidget,
+        reason:
+            'a share sheet that will not open is exactly when the user needs '
+            'to be told the other route exists',
+      );
+    });
+
+    testWidgets('without a share sheet, saving is the only file route', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        panel(document: longBody(40), note: 'Attack it.', canShare: false),
+      );
+
+      expect(find.text('Send'), findsNothing);
+      expect(
+        find.text('Save the file'),
+        findsOneWidget,
+        reason:
+            'this is the floor: it depends on no app registering for anything',
+      );
+
+      await tapAsync(
+        tester,
+        find.text('Save the file'),
+        until: () => transport.savedNames.isNotEmpty,
+      );
+      expect(transport.savedNames, hasLength(1));
+    });
+
+    testWidgets('copying in parts survives, one level down', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        panel(document: longBody(40), note: 'Attack it.'),
+      );
+
+      expect(
+        find.textContaining('Copy part'),
+        findsNothing,
+        reason: 'nothing is shown until it is looked for',
+      );
+
+      await tester.tap(find.text('Copy it instead'));
+      await tester.pumpAndSettle();
+
+      int guard = 0;
+      while (find.textContaining('Copy part ').evaluate().isNotEmpty &&
+          guard++ < 30) {
+        final int before = copied.length;
+        await tapAsync(
+          tester,
+          find.textContaining('Copy part '),
+          until: () => copied.length > before,
+        );
+      }
+
+      expect(copied.length, greaterThan(1));
+      for (int i = 0; i < copied.length; i++) {
+        expect(copied[i], contains('Part ${i + 1} of ${copied.length}'));
+      }
+      expect(find.text('Start over'), findsOneWidget);
+    });
+
+    testWidgets('a regenerated document restarts the part sequence', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(panel(document: longBody(40)));
+      await tester.tap(find.text('Copy it instead'));
+      await tester.pumpAndSettle();
+      await tapAsync(
+        tester,
+        find.textContaining('Copy part 1 of'),
+        until: () => copied.isNotEmpty,
+      );
+      expect(find.textContaining('Copy part 2 of'), findsOneWidget);
+
+      // The disclosure stays open across the rebuild, as it should — the user
+      // opened it and nothing they did closed it.
+      await tester.pumpWidget(panel(document: longBody(50)));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Copy part 1 of'),
+        findsOneWidget,
+        reason:
+            'carrying "you are on part two" across a different document sends '
+            'the wrong two thousand characters, and nothing would say so',
+      );
+    });
   });
 }

@@ -152,7 +152,7 @@ class _RunScreenState extends State<RunScreen> {
                         'Start a new Claude conversation and send this first.',
                     document: compiled.body,
                     note:
-                        'The mission brief is attached. Read all of it, then '
+                        'This is a mission brief. Read all of it, then '
                         'begin. Follow it exactly, including the state block '
                         'on every reply.',
                     fileName: '${p.spec.taskId}-brief.md',
@@ -335,9 +335,9 @@ class _Capsule extends StatelessWidget {
           subtitle: 'Into a brand-new Claude conversation.',
           document: capsule.text,
           note:
-              'This is a mission that was interrupted partway through. The '
-              'capsule is attached: read it and continue from exactly where '
-              'it says, without redoing finished work.',
+              'This is a mission that was interrupted partway through. '
+              'Read the capsule and continue from exactly where it says, '
+              'without redoing finished work.',
           fileName: '${capsule.taskId}-resume.md',
           limit: limit,
         ),

@@ -4,19 +4,32 @@ import 'package:flutter/services.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// What became of an attempt to hand a document over.
+/// What became of an attempt to share a document.
 enum SendOutcome {
   /// The share sheet opened. What the user picks from it is their business.
   shared,
 
-  /// Written to wherever the user chose.
-  saved,
-
-  /// The user backed out of the picker. An ordinary outcome, not a failure.
-  cancelled,
-
   /// Nothing on this platform can do it.
   unsupported,
+
+  /// It should have worked and did not.
+  failed,
+}
+
+/// Where a saved document went.
+///
+/// The destination is part of the outcome because the user has to go and find
+/// the file afterwards, and "Downloads" and "wherever you just chose" are
+/// different instructions.
+enum SaveOutcome {
+  /// Straight into the shared Downloads folder, with no dialog.
+  toDownloads,
+
+  /// Into whatever folder the user picked.
+  toChosenFolder,
+
+  /// They backed out of the picker. An ordinary outcome, not a failure.
+  cancelled,
 
   /// It should have worked and did not.
   failed,
@@ -33,9 +46,9 @@ abstract interface class HandoverTransport {
   /// Offers [file] to the share sheet with [text] as the message beside it.
   Future<bool> share(File file, String text);
 
-  /// Copies [file] to somewhere the user picks, or to a known folder on a
-  /// desktop. False when they cancelled.
-  Future<bool> save(File file, String name);
+  /// Writes [file] out for the user to attach by hand, reporting where it
+  /// went.
+  Future<SaveOutcome> save(File file, String name);
 }
 
 /// Gets a long document into a chat without pasting it.
@@ -67,14 +80,16 @@ class HandoverSender {
   }
 
   /// Writes the document out for the user to attach themselves.
-  Future<SendOutcome> save(Handover h) async {
+  ///
+  /// The default route, because a share always opens a *new* conversation —
+  /// the receiving app decides that, and an Android share intent carries no
+  /// way to name a chat. A file can be attached to whichever one you like.
+  Future<SaveOutcome> save(Handover h) async {
     try {
       final File f = await _write(h);
-      return await _transport.save(f, h.fileName)
-          ? SendOutcome.saved
-          : SendOutcome.cancelled;
+      return await _transport.save(f, h.fileName);
     } catch (_) {
-      return SendOutcome.failed;
+      return SaveOutcome.failed;
     }
   }
 
@@ -122,20 +137,24 @@ class _RealTransport implements HandoverTransport {
   }
 
   @override
-  Future<bool> save(File file, String name) async {
+  Future<SaveOutcome> save(File file, String name) async {
     if (Platform.isAndroid) {
-      return await _channel.invokeMethod<bool>('save', <String, Object?>{
-            'path': file.path,
-            'name': name,
-          }) ??
-          false;
+      return switch (await _channel.invokeMethod<String>(
+        'save',
+        <String, Object?>{'path': file.path, 'name': name},
+      )) {
+        'downloads' => SaveOutcome.toDownloads,
+        'chosen' => SaveOutcome.toChosenFolder,
+        'cancelled' => SaveOutcome.cancelled,
+        _ => SaveOutcome.failed,
+      };
     }
 
     // A desktop has no picker to offer from here and no paste limit to work
     // around either, so the file simply lands in Downloads and Explorer is
     // pointed at it.
     final Directory? downloads = await getDownloadsDirectory();
-    if (downloads == null) return false;
+    if (downloads == null) return SaveOutcome.failed;
     final File out = File('${downloads.path}${Platform.pathSeparator}$name');
     await out.writeAsString(await file.readAsString(), flush: true);
     if (Platform.isWindows) {
@@ -145,6 +164,6 @@ class _RealTransport implements HandoverTransport {
         // Revealing it is a courtesy; the file is written either way.
       }
     }
-    return true;
+    return SaveOutcome.toDownloads;
   }
 }

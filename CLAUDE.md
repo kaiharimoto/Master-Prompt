@@ -81,9 +81,12 @@ labelled parts made each paste correct and the process no better — the two
 together came to eight trips through the app switcher. **A file has no length
 limit, so an oversized document leaves as an attachment.** `Handover` carries a
 short `note` (the covering instruction, which always fits in a message) and a
-`document` (the artifact, which becomes the file); `MpOutbound` offers Send to
-Claude, then Save as a file, then copying in parts as the route that depends on
-nothing. `HandoverSplitter` still cuts at a section heading if one is in reach,
+`document` (the artifact, which becomes the file); `MpOutbound` offers Save the file
+first, then Send, then copying in parts. **Saving leads because a share always
+opens a new chat** — the receiving app decides that and an Android share intent
+carries no way to name a conversation, so the one-tap route takes the choice
+away. A saved file can be attached wherever you like, and goes straight to
+Downloads on Android 10 and up. `HandoverSplitter` still cuts at a section heading if one is in reach,
 then a paragraph break, then a line ending, never through a fenced block, and
 `ResumeCapsule.chunk()` delegates to it. The paste limit is a setting, because
 nothing can probe the real ceiling and only the person holding the phone can
@@ -91,7 +94,8 @@ find it.
 
 **The native surface is one channel, `masterprompt/platform`.** It does three
 things and no more: hand an APK to the package installer, put a file into the
-share sheet, and copy one out through the Storage Access Framework. Which file,
+share sheet, and write one out — into `MediaStore.Downloads` on API 29+, and
+through the Storage Access Framework below that or whenever the insert throws. Which file,
 what it is called and what is in it are all Dart. None of it can be covered by
 a test on a Linux runner, which is the reason it is kept this thin.
 

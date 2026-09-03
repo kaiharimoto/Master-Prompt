@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that made a long handover leave as a file._
+_Last updated: the commit that made saving the default route._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -64,11 +64,19 @@ content (`07 / BRIEF` is 6,322 characters, `08 / DELIVERABLES` 3,890), so
 dropping every piece of fixed scaffolding still leaves ~19,000.
 
 **A file has no length limit.** An oversized handover now leaves as an
-attachment: `Send to Claude` opens the share sheet with the document attached
-and only the covering instruction in the message, and `Save as a file` writes it
-out through the system picker for anyone whose share sheet does not offer
-Claude. Copying in parts survives one level down, because it is the only route
-that depends on nothing at all.
+attachment: the document goes in the file and only the covering instruction in
+the message. Sharing works — confirmed on the device — but **it always opens a
+new chat**, because the receiving app decides that and an Android share intent
+carries no way to name a conversation. For the mission brief and the resume
+capsule that is exactly right; everywhere else it takes the choice away. So
+`Save the file` leads, writing straight into Downloads on Android 10 and up,
+and `Send` sits beside it. Copying in parts survives one level down, because it
+is the only route that depends on nothing at all.
+
+Found while checking that: **every second tap of `Copy for Claude` on a short
+document copied nothing.** The stepper cycles back to part one once it has sent
+them all, and that handler was reused for the single-part case, so the second
+tap reset instead of copying — silently, with the label unchanged to say so.
 
 ### Works, and is verified
 
@@ -116,7 +124,7 @@ that depends on nothing at all.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-258 tests: 134 in `mp_core`, 71 in `mp_runner`, 53 in the app.
+263 tests: 135 in `mp_core`, 71 in `mp_runner`, 57 in the app.
 
 ### Not yet proven
 
@@ -157,15 +165,16 @@ phone predates the updater. Then, in this order:
 1. **A full round with the new prompt.** The reply should end in one `json`
    block; copy it with the block's own button, paste, and Apply should report
    what it settled rather than nothing.
-2. **Does Claude appear in the share sheet?** This is the whole question, and
-   nothing off-device can answer it. Tap **Send to Claude** on the red-team
-   pass. If Claude is listed and opens with the file attached and the
-   instruction already written, this is finished in one tap.
-3. **If it is not listed** — tap **Save**, pick a folder, and attach the file
-   in the Claude app by hand. Two taps and a picker, but nothing to count and
-   nothing cut off. Whether Claude reads an attached `.md` as well as pasted
-   text is the follow-up question; if it prefers `.txt` that is a one-line
-   change.
+2. **Save on the red-team pass.** Expect no dialog at all and a message naming
+   Downloads, then attach the file in Claude in whichever chat you want. The
+   MediaStore write is new untestable native code; if a picker appears instead,
+   the insert was refused and it fell through, which still works but is worth
+   reporting.
+3. **Whether Claude's attach picker opens on Downloads.** Straight-to-Downloads
+   trades a dialog for a little navigation, and only the device says whether
+   that was the right trade. Whether Claude reads an attached `.md` as well as
+   pasted text is the other open question; if it prefers `.txt` that is a
+   one-line change.
 4. **Whether the shorter rounds still land.** From round two on, the copied
    message is about a third the size. The thing to watch is whether the model
    keeps offering numbered options and keeps ending on the json block without
@@ -198,6 +207,10 @@ clearly that it cannot.
   none, which nobody noticed because the tests for each only fed it what it
   already accepted. Where two things read the same kind of mangled input, they
   need the same tolerance and a test that proves it.
+- **A `sed`-style replace that does not match is silent.** Two edits this
+  session were no-ops because `dart format` had reflowed the lines being
+  matched, and both were caught only by a failing test rather than by the edit
+  reporting anything. Replace by position, or check the result.
 - **A correct fix to the wrong problem is still the wrong fix.** Splitting the
   oversized handover was carefully done — good seams, no lost text, no broken
   fences — and it did not help, because the cost was never the parts, it was

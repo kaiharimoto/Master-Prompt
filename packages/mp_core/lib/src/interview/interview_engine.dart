@@ -218,10 +218,10 @@ class InterviewEngine {
       ..writeln('# Red-team this mission brief')
       ..writeln()
       ..writeln(
-        'Below is a brief that is about to be handed to an autonomous agent. '
-        'It will run for hours with no human available. It cannot ask '
-        'questions. If something is ambiguous, it will guess, and nobody will '
-        'find out until the run finishes.',
+        'You have been given a brief that is about to be handed to an '
+        'autonomous agent. It will run for hours with no human available. It '
+        'cannot ask questions. If something is ambiguous, it will guess, and '
+        'nobody will find out until the run finishes.',
       )
       ..writeln()
       ..writeln('Attack it. Specifically, find:')

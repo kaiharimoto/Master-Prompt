@@ -1,9 +1,12 @@
 package com.masterprompt.master_prompt
 
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -37,6 +40,8 @@ class MainActivity : FlutterActivity() {
                             call.argument<String>("text").orEmpty(),
                         )
                     )
+                    // Answers with one of "downloads", "chosen", "cancelled"
+                    // or "failed", matching the `SaveOutcome` Dart switches on.
                     "save" -> save(
                         call.argument<String>("path"),
                         call.argument<String>("name").orEmpty(),
@@ -122,24 +127,40 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Copies [path] to wherever the user picks, under the name [name].
+     * Writes [path] out under the name [name], for the user to attach by hand.
      *
-     * Through the Storage Access Framework rather than MediaStore or a direct
-     * write: it needs no storage permission on any API level, and the user
-     * chooses the destination, so the file lands somewhere they can find it
-     * again from the Claude app's own attachment picker. That is the whole
-     * point of this path — it works whether or not anything registered for the
-     * share sheet.
+     * This is the default route, not the fallback: a share always opens a new
+     * conversation — the receiving app decides that and an `ACTION_SEND` intent
+     * carries no way to say otherwise — so a file is the only way to put a
+     * brief into a chat that already exists.
+     *
+     * Straight into Downloads where that is possible, because a dialog on every
+     * send is exactly the kind of step this whole thread of work has been
+     * removing. Returns which route it took: "Saved to Downloads" and "Saved as
+     * *name*" are different things to tell someone who now has to find the file.
      */
     private fun save(path: String?, name: String, result: MethodChannel.Result) {
         val file = path?.let { File(it) }
         if (file == null || !file.exists()) {
-            result.success(false)
+            result.success("failed")
             return
         }
+        val title = name.ifEmpty { file.name }
+
+        // Since Android 10 an app may write into the shared Downloads
+        // collection with no permission at all. Below that it would need
+        // WRITE_EXTERNAL_STORAGE, which is far too much to ask for one file, so
+        // those devices get the picker instead.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            toDownloads(file, title)
+        ) {
+            result.success("downloads")
+            return
+        }
+
         // Only one save can be in flight, and a stale pending result would
         // strand the Dart side waiting forever.
-        pendingSave?.success(false)
+        pendingSave?.success("cancelled")
         pendingSave = result
         pendingSaveSource = file
 
@@ -148,13 +169,48 @@ class MainActivity : FlutterActivity() {
                 Intent(Intent.ACTION_CREATE_DOCUMENT)
                     .addCategory(Intent.CATEGORY_OPENABLE)
                     .setType("text/plain")
-                    .putExtra(Intent.EXTRA_TITLE, name.ifEmpty { file.name }),
+                    .putExtra(Intent.EXTRA_TITLE, title),
                 SAVE_REQUEST,
             )
         } catch (e: Exception) {
             pendingSave = null
             pendingSaveSource = null
-            result.success(false)
+            result.success("failed")
+        }
+    }
+
+    /**
+     * Copies [file] into the shared Downloads collection. False if anything
+     * refuses, so the caller can fall through to the picker rather than the
+     * user being told it simply did not work.
+     */
+    private fun toDownloads(file: File, title: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, title)
+                put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val collection = MediaStore.Downloads.getContentUri(
+                MediaStore.VOLUME_EXTERNAL_PRIMARY
+            )
+            val uri = contentResolver.insert(collection, values) ?: return false
+            contentResolver.openOutputStream(uri)?.use { out ->
+                file.inputStream().use { it.copyTo(out) }
+            } ?: return false
+            // Left pending until the bytes are there, so nothing can open a
+            // half-written brief.
+            contentResolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                null,
+                null,
+            )
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -172,16 +228,21 @@ class MainActivity : FlutterActivity() {
         if (result == null) return
         if (resultCode != Activity.RESULT_OK || uri == null || source == null) {
             // Cancelling the picker is an ordinary outcome, not a failure.
-            result.success(false)
+            result.success("cancelled")
             return
         }
         result.success(
             try {
-                contentResolver.openOutputStream(uri)?.use { out ->
-                    source.inputStream().use { it.copyTo(out) }
-                } != null
+                if (contentResolver.openOutputStream(uri)?.use { out ->
+                        source.inputStream().use { it.copyTo(out) }
+                    } != null
+                ) {
+                    "chosen"
+                } else {
+                    "failed"
+                }
             } catch (e: Exception) {
-                false
+                "failed"
             }
         )
     }

@@ -142,7 +142,7 @@ class _PromptScreenState extends State<PromptScreen> {
                       'heartbeat required on every reply.',
                   document: paste.body,
                   note:
-                      'The mission brief is attached. Read all of it, then '
+                      'This is a mission brief. Read all of it, then '
                       'begin. Follow it exactly, including the state block on '
                       'every reply.',
                   fileName: '${p.spec.taskId}-brief.md',

@@ -244,6 +244,27 @@ void main() {
       );
     });
 
+    test('the note says nothing about where the document is', () {
+      final MissionSpec spec = referenceSkylineSpec();
+      final CompiledPrompt cli = const PromptCompiler().compile(spec);
+      final String note = const InterviewEngine()
+          .redTeamTurn(spec, cli)
+          .note
+          .toLowerCase();
+
+      for (final String word in <String>['below', 'attached', 'above']) {
+        expect(
+          note,
+          isNot(contains(word)),
+          reason:
+              'the same note is read in three places — as a chat message '
+              'beside an attachment, as the header inside a saved file, and '
+              'inline above the document in a pasted part. Any word that '
+              'points at a position is wrong in two of them.',
+        );
+      }
+    });
+
     test('the red-team instruction fits in a message on its own', () {
       final MissionSpec spec = referenceSkylineSpec();
       final CompiledPrompt cli = const PromptCompiler().compile(spec);
