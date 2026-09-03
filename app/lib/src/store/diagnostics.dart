@@ -67,7 +67,11 @@ class Diagnostics {
     };
   }
 
-  void _recordCrash(Object error, StackTrace? stack, {required String context}) {
+  void _recordCrash(
+    Object error,
+    StackTrace? stack, {
+    required String context,
+  }) {
     final String text =
         '${DateTime.now().toUtc().toIso8601String()}  [$context]  '
         '${BuildInfo.label}  ${BuildInfo.platform}\n$error\n$stack';
@@ -142,13 +146,17 @@ class Diagnostics {
         ..writeln('[mission]')
         ..writeln('taskId      ${project.spec.taskId}')
         ..writeln('title       ${project.spec.title}')
-        ..writeln('readiness   ${r.satisfied}/${r.totalRequired} '
-            '(${r.canCompile ? 'compilable' : '${r.blocking.length} blocking'})')
+        ..writeln(
+          'readiness   ${r.satisfied}/${r.totalRequired} '
+          '(${r.canCompile ? 'compilable' : '${r.blocking.length} blocking'})',
+        )
         ..writeln('stage       ${r.currentStage.name}')
         ..writeln('parts       ${project.spec.regions.length}')
         ..writeln('evidence    ${project.spec.evidence.length}')
-        ..writeln('rubric      ${project.spec.rubric.categories.length} '
-            'categories, exit ${project.spec.rubric.exitThreshold}')
+        ..writeln(
+          'rubric      ${project.spec.rubric.categories.length} '
+          'categories, exit ${project.spec.rubric.exitThreshold}',
+        )
         ..writeln('exchanges   ${project.transcript.length}');
       final MpState? s = project.lastState;
       if (s != null) {
@@ -186,6 +194,7 @@ class Diagnostics {
     return b.toString();
   }
 
-  static String _clip(String s, int max) =>
-      s.length <= max ? s : '${s.substring(0, max)}\n…(${s.length - max} more characters)';
+  static String _clip(String s, int max) => s.length <= max
+      ? s
+      : '${s.substring(0, max)}\n…(${s.length - max} more characters)';
 }

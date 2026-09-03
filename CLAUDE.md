@@ -65,9 +65,31 @@ Use a plain `test()` for storage, or `tester.runAsync()`.
 **`CrossAxisAlignment.stretch` in a Row demands a bounded height**, so it throws
 inside any scroll view. This broke every screen once via `MpPanel`.
 
+**Widget tests must not touch the filesystem.** Use `AppStore(inMemory: true)`.
+Real writes cannot complete in the tester's fake-async zone, so a test that
+persists either hangs or races depending on machine load.
+
+**`AnimatedCrossFade` builds both branches.** A collapsed disclosure built with
+it still lays out its contents and still announces them to a screen reader, so
+"hidden" is only true visually. Build the child conditionally inside an
+`AnimatedSize` instead.
+
 **The Windows binary can only be built on Windows.** It exists solely as a CI
 job on `windows-latest`. That is why the supervisor lives in a plain `dart:io`
 package: nearly all of it is provable on Linux first.
+
+## The interface
+
+One thing on screen at a time. The flow is a three-beat loop per stage — hand the
+question over, bring the answer back, accept what it settled — and it advances
+itself; `FlowController` holds only what the spec cannot know (whether this round
+has been handed over, whether a reply is waiting). Everything else is derived
+from `ReadinessGate`, so the interface cannot drift out of step with the mission.
+
+Nothing is deleted to make a screen calm, only deferred: the full readiness list
+lives behind **Progress**, the generated message behind a disclosure. If you find
+yourself adding a second panel to a flow screen, it belongs in a disclosure or
+the menu.
 
 ## Conventions
 

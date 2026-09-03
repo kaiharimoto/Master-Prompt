@@ -98,7 +98,13 @@ abstract final class MpSpace {
   static const double xxxl = 64;
 
   /// Comfortable measure for long prose. Beyond this, lines get hard to track.
-  static const double readingWidth = 720;
+  /// Narrower than before: the type is larger, so fewer characters fit before a
+  /// line becomes tiring to track back from.
+  static const double readingWidth = 620;
+
+  /// Minimum height of anything tappable. Comfortably above the 48dp floor,
+  /// because the primary action on a screen should be hard to miss.
+  static const double tapTarget = 56;
 }
 
 abstract final class MpRadius {
@@ -110,10 +116,14 @@ abstract final class MpRadius {
 
 /// Type scale, in Inter.
 ///
-/// Medium (500) is the working weight throughout — the request was
-/// "minimalistic medium weight", and Inter is the neo-grotesque that actually
-/// ships a real 500. Regular is reserved for long prose, where medium is too
-/// heavy to read at length.
+/// Sized for a phone held at arm's length rather than a desktop leaned into.
+/// The first build was set at 14px body with 11px secondary text, which read as
+/// a dashboard shrunk onto a handset; everything here is roughly a fifth larger
+/// with weight to match, so a screen carries less and says it more plainly.
+///
+/// Medium (500) is the working weight and the reason Inter was chosen — it is
+/// the neo-grotesque that actually ships a real 500. Regular is kept for long
+/// prose, where medium is tiring to read at length.
 abstract final class MpType {
   static const String family = 'Inter';
   static const String package = 'mp_design';
@@ -126,42 +136,62 @@ abstract final class MpType {
     letterSpacing: 0,
   );
 
-  /// Section numbers and eyebrow labels: `00 / RUNTIME`.
+  /// The one line a screen is actually about. Never more than a sentence.
+  static TextStyle get question => _base.copyWith(
+    fontSize: 30,
+    height: 1.16,
+    letterSpacing: -0.7,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextStyle get display => _base.copyWith(
+    fontSize: 26,
+    height: 1.2,
+    letterSpacing: -0.5,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextStyle get title => _base.copyWith(
+    fontSize: 21,
+    height: 1.25,
+    letterSpacing: -0.3,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextStyle get heading => _base.copyWith(
+    fontSize: 17,
+    height: 1.3,
+    letterSpacing: -0.1,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextStyle get body => _base.copyWith(fontSize: 17, height: 1.4);
+
+  /// Long-form reading: regular weight, looser leading.
+  static TextStyle get prose =>
+      _base.copyWith(fontSize: 16, fontWeight: FontWeight.w400, height: 1.6);
+
+  static TextStyle get label =>
+      _base.copyWith(fontSize: 14, height: 1.35, letterSpacing: 0.05);
+
+  static TextStyle get caption =>
+      _base.copyWith(fontSize: 13, height: 1.4, fontWeight: FontWeight.w400);
+
+  /// Step indicators and section marks. Tracked, because it is set in caps.
   static TextStyle get eyebrow => _base.copyWith(
-    fontSize: 11,
-    letterSpacing: 1.1,
+    fontSize: 12,
+    letterSpacing: 1.2,
     height: 1.2,
     fontWeight: FontWeight.w600,
   );
 
-  static TextStyle get display =>
-      _base.copyWith(fontSize: 28, height: 1.2, letterSpacing: -0.4);
-
-  static TextStyle get title =>
-      _base.copyWith(fontSize: 20, height: 1.25, letterSpacing: -0.2);
-
-  static TextStyle get heading =>
-      _base.copyWith(fontSize: 15, height: 1.3, letterSpacing: -0.1);
-
-  static TextStyle get body => _base.copyWith(fontSize: 14);
-
-  /// Long-form reading: regular weight, looser line height.
-  static TextStyle get prose =>
-      _base.copyWith(fontSize: 14, fontWeight: FontWeight.w400, height: 1.6);
-
-  static TextStyle get label =>
-      _base.copyWith(fontSize: 12, height: 1.3, letterSpacing: 0.1);
-
-  static TextStyle get caption =>
-      _base.copyWith(fontSize: 11, height: 1.35, fontWeight: FontWeight.w400);
-
   /// Counters and durations. Tabular figures so digits do not jitter as they
   /// tick — a countdown that shifts sideways every second is maddening.
   static TextStyle get numeric => _base.copyWith(
-    fontSize: 13,
+    fontSize: 16,
     fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
   );
 
   static TextStyle get mono =>
-      const TextStyle(fontFamily: 'monospace', fontSize: 12.5, height: 1.5);
+      const TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.5);
 }

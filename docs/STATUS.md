@@ -39,10 +39,12 @@ widget tests. The first real test is the first thing to do.
 
 ### Not yet proven
 
-- **Neither binary has been launched by a human.** Highest priority.
+- **The redesign has not been seen on a device.** Whether it actually feels
+  guided rather than dense is the open question, and only a phone can answer it.
 - **The Android signing config** has not yet produced an install-over-the-top.
   CI asserts the certificate fingerprint, which catches a broken config, but the
-  actual update behaviour on a device is unverified.
+  actual update behaviour on a device is unverified — the redesign build is the
+  first chance to confirm it.
 - **The desktop runner against a real `claude` binary.** Everything is proven
   against the fake CLI; the real one has never been driven from the app.
 - **The copy-paste loop with the real Claude app.** The formats are heavily
@@ -61,15 +63,27 @@ widget tests. The first real test is the first thing to do.
 
 ## Next
 
-The first smoke pass, in this order:
+Judging the redesign, in this order:
 
-1. Both apps launch and show the empty state.
-2. Create a mission — the readiness meter appears with blocking items listed.
-3. Copy the round-one prompt into the Claude app, answer it, paste the reply
-   back, and confirm the readiness meter moves.
-4. Windows only: the Run tab either finds the Claude Code CLI or says clearly
-   that it cannot.
-5. Whether the typography and spacing actually look right on a real screen.
+1. The app opens on one question, not a checklist.
+2. A full round: copy, paste into Claude, bring the reply back, accept — and
+   whether it feels like being carried rather than driving.
+3. Whether the type is large and heavy enough at arm's length.
+4. That everything from the old screens is still findable in the menu.
+5. **That this APK installs over the previous one without an uninstall.** This
+   is the first real test of the committed signing key.
 
-Then a second push, to confirm the APK installs over the first without an
-uninstall.
+Windows separately: the Run destination either finds the Claude Code CLI or says
+clearly that it cannot.
+
+### Lessons worth keeping
+
+- Real file I/O cannot complete inside `testWidgets`. The widget tests now run
+  against `AppStore(inMemory: true)`; persistence is tested separately outside
+  that zone. A test that races on machine load is worse than no test.
+- `AnimatedCrossFade` builds both branches, so a "collapsed" disclosure was
+  still laying out its contents and still announcing them to a screen reader.
+  Disclosures build lazily now.
+- `MpTheme.colorsOf` no longer asserts. Modal routes are built from the
+  Navigator, which can sit above wherever the theme was inserted, so asserting
+  there turned a layout detail into a crash in dialogs and sheets.

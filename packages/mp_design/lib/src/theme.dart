@@ -15,13 +15,23 @@ class MpTheme extends InheritedWidget {
   final MpColors colors;
   final bool isDark;
 
-  static MpTheme of(BuildContext context) {
-    final MpTheme? t = context.dependOnInheritedWidgetOfExactType<MpTheme>();
-    assert(t != null, 'No MpTheme found. Wrap the app in MpApp.');
-    return t!;
-  }
+  static MpTheme? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MpTheme>();
 
-  static MpColors colorsOf(BuildContext context) => of(context).colors;
+  /// The palette for this subtree.
+  ///
+  /// Falls back to deriving from the ambient [Theme] brightness rather than
+  /// asserting. Dialogs, bottom sheets and pushed routes are built from the
+  /// [Navigator], which can sit above wherever [MpTheme] was inserted — an
+  /// assertion there turns a layout detail into a crash in exactly the places
+  /// that are hardest to reach in a test.
+  static MpColors colorsOf(BuildContext context) {
+    final MpTheme? t = maybeOf(context);
+    if (t != null) return t.colors;
+    return Theme.of(context).brightness == Brightness.dark
+        ? MpColors.dark
+        : MpColors.light;
+  }
 
   @override
   bool updateShouldNotify(MpTheme oldWidget) =>

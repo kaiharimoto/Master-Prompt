@@ -21,9 +21,8 @@ abstract final class BuildInfo {
 
   static bool get isCiBuild => build != 'local';
 
-  static String get shortSha => sha.isEmpty
-      ? 'dev'
-      : sha.substring(0, sha.length < 7 ? sha.length : 7);
+  static String get shortSha =>
+      sha.isEmpty ? 'dev' : sha.substring(0, sha.length < 7 ? sha.length : 7);
 
   /// What the user sees and quotes back: `0.1.0+42 · a1b2c3d`.
   static String get label => '$version+$build · $shortSha';

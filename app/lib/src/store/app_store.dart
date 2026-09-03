@@ -15,7 +15,16 @@ import 'settings.dart';
 /// database on purpose: a mission that took hours of discussion to produce
 /// should be recoverable with a text editor if this app ever fails to start.
 class AppStore extends ChangeNotifier {
-  AppStore({Directory? root}) : _root = root;
+  AppStore({Directory? root, this.inMemory = false}) : _root = root;
+
+  /// Skip the filesystem entirely.
+  ///
+  /// Exists for widget tests. Real file I/O cannot complete inside the widget
+  /// tester's fake-async zone, so a test that persists either hangs or races
+  /// depending on machine load — and a flaky test about the interface is worse
+  /// than no test, because it teaches you to ignore red. Persistence has its
+  /// own tests, which run outside that zone.
+  final bool inMemory;
 
   Directory? _root;
   final List<Project> _projects = <Project>[];
@@ -45,6 +54,12 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    if (inMemory) {
+      _currentId ??= _projects.isEmpty ? null : _projects.first.id;
+      _loaded = true;
+      notifyListeners();
+      return;
+    }
     final Directory dir = await _dir();
     _projects.clear();
     for (final FileSystemEntity e in dir.listSync()) {
@@ -55,7 +70,9 @@ class AppStore extends ChangeNotifier {
         if (j is Map<String, Object?>) _projects.add(Project.fromJson(j));
       } on FormatException {
         // A corrupt file must not stop the rest of the projects loading.
-        Diagnostics.instance.log('Skipped an unreadable project file: ${e.path}');
+        Diagnostics.instance.log(
+          'Skipped an unreadable project file: ${e.path}',
+        );
         continue;
       }
     }
@@ -109,8 +126,21 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Step back to no mission, which is what puts the flow on its opening
+  /// question. Starting a mission now happens by answering that question, so
+  /// there is no such thing as an empty untitled project waiting to be filled.
+  void deselect() {
+    _currentId = null;
+    notifyListeners();
+  }
+
   Future<void> save(Project p) async {
     p.updatedAt = DateTime.now().toUtc();
+    // Reflect the change straight away. Waiting for the write means the screen
+    // sits on the previous state for the length of a disk round trip, which on
+    // a phone is long enough to feel like the tap was ignored.
+    notifyListeners();
+    if (inMemory) return;
     final Directory dir = await _dir();
     final File target = File('${dir.path}/${p.id}.json');
     final File temp = File('${target.path}.tmp');
@@ -127,14 +157,18 @@ class AppStore extends ChangeNotifier {
     if (_currentId == p.id) {
       _currentId = _projects.isEmpty ? null : _projects.first.id;
     }
-    final Directory dir = await _dir();
-    final File f = File('${dir.path}/${p.id}.json');
-    if (f.existsSync()) f.deleteSync();
+    if (!inMemory) {
+      final Directory dir = await _dir();
+      final File f = File('${dir.path}/${p.id}.json');
+      if (f.existsSync()) f.deleteSync();
+    }
     notifyListeners();
   }
 
   Future<void> updateSettings(AppSettings s) async {
     _settings = s;
+    notifyListeners();
+    if (inMemory) return;
     final Directory dir = await _dir();
     await File('${dir.path}/settings.json').writeAsString(
       const JsonEncoder.withIndent('  ').convert(s.toJson()),

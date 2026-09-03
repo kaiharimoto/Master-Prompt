@@ -325,7 +325,9 @@ class _DiagnosticsPanelState extends State<_DiagnosticsPanel> {
                     setState(() => _copied = true);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Diagnostics copied. Paste them in chat.'),
+                        content: Text(
+                          'Diagnostics copied. Paste them in chat.',
+                        ),
                       ),
                     );
                   },

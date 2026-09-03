@@ -144,6 +144,40 @@ class MissionSpec {
     updatedAt: updatedAt ?? DateTime.now().toUtc(),
   );
 
+  /// Promote everything the model proposed to confirmed, in one act.
+  ///
+  /// The distinction between proposed and confirmed is what stops a requirement
+  /// the model invented from reaching an unattended run with nobody having
+  /// agreed to it. That guarantee is worth keeping, but it does not have to
+  /// cost a tap per field: the user reviews what a round settled and accepts
+  /// the round.
+  ///
+  /// [FieldResolution.waived] and [FieldResolution.unresolved] are left alone —
+  /// a waiver is a decision already made, and an unresolved field has nothing
+  /// to confirm.
+  MissionSpec confirmProposals() {
+    SpecField<String> promote(SpecField<String> f) =>
+        f.resolution == FieldResolution.proposed && f.hasValue
+        ? f.confirm(f.value as String)
+        : f;
+
+    return copyWith(
+      missionStatement: promote(missionStatement),
+      definingStory: promote(definingStory),
+      scale: promote(scale),
+      audience: promote(audience),
+    );
+  }
+
+  /// How many fields are waiting to be accepted. Drives the review beat's
+  /// wording, and lets the UI skip the step entirely when nothing is pending.
+  int get proposedCount =>
+      <SpecField<String>>[missionStatement, definingStory, scale, audience]
+          .where(
+            (SpecField<String> f) => f.resolution == FieldResolution.proposed,
+          )
+          .length;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'schemaVersion': schemaVersion,
     'id': id,

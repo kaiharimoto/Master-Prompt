@@ -52,7 +52,9 @@ class DesktopRunner extends ChangeNotifier {
     _log.add(line);
     // Mirrored so a run that misbehaves is visible in a pasted report, not only
     // in the on-screen log the user would have to transcribe by hand.
-    Diagnostics.instance.log('run: ${line.length > 160 ? '${line.substring(0, 160)}…' : line}');
+    Diagnostics.instance.log(
+      'run: ${line.length > 160 ? '${line.substring(0, 160)}…' : line}',
+    );
     // A twelve-hour run produces a great deal of output; the UI keeps a window
     // of it and the full stream stays on disk.
     if (_log.length > 500) _log.removeRange(0, _log.length - 500);

@@ -54,6 +54,32 @@ enum InterviewStage {
     InterviewStage.ready => 'Ready',
   };
 
+  /// The single line the user is actually being asked, for the focal position
+  /// on screen.
+  ///
+  /// Deliberately plain. [purpose] explains the stage to someone who wants the
+  /// reasoning; this is what someone reads at arm's length and answers.
+  String get question => switch (this) {
+    InterviewStage.seed => 'What are you building?',
+    InterviewStage.intent => 'What makes it good?',
+    InterviewStage.shape => 'What parts must exist?',
+    InterviewStage.quality => 'What should it feel like?',
+    InterviewStage.evidence => "How will you know it's finished?",
+    InterviewStage.runtime => 'What is it being built with?',
+    InterviewStage.rubric => 'How should it score itself?',
+    InterviewStage.review => 'Who checks the work?',
+    InterviewStage.acceptance => 'What would make it unacceptable?',
+    InterviewStage.ready => 'Ready to build.',
+  };
+
+  /// 1-based position among the stages that are actually worked through, so the
+  /// step indicator can read "03 of 09" rather than exposing the enum index.
+  int get step => index + 1;
+
+  /// How many stages there are to walk. Excludes [ready], which is the
+  /// destination rather than a step.
+  static int get stepCount => InterviewStage.values.length - 1;
+
   /// What this stage is trying to settle, shown above the questions.
   String get purpose => switch (this) {
     InterviewStage.seed =>

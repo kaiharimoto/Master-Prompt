@@ -68,6 +68,15 @@ jobs:
           channel: stable
           cache: true
 
+      # mp_design was never analysed by any job: `flutter analyze` in app/ only
+      # covers the app package, so an error in the design system reached the
+      # device rather than CI.
+      - name: Analyse the design system
+        working-directory: packages/mp_design
+        run: |
+          flutter pub get
+          flutter analyze
+
       - name: Resolve, analyse, test
         working-directory: app
         run: |

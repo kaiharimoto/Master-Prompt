@@ -57,8 +57,11 @@ void main() {
     }
     final String r = Diagnostics.instance.report();
     expect(r, contains('event 299'));
-    expect(r, isNot(contains('event 5\n')),
-        reason: 'the buffer is bounded, so the oldest entries are dropped');
+    expect(
+      r,
+      isNot(contains('event 5\n')),
+      reason: 'the buffer is bounded, so the oldest entries are dropped',
+    );
     // Bounded, so a long session cannot produce an unpasteable report.
     expect(r.length, lessThan(40000));
   });
