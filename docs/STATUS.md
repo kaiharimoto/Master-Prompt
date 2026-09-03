@@ -62,7 +62,7 @@ a running executable cannot replace itself.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-223 tests: 112 in `mp_core`, 71 in `mp_runner`, 40 in the app.
+224 tests: 112 in `mp_core`, 71 in `mp_runner`, 41 in the app.
 
 ### Not yet proven
 

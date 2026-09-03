@@ -144,6 +144,60 @@ void main() {
       expect(r.asset!.build, 57);
     });
 
+    test('reads the shape CI actually publishes', () {
+      // Verbatim from the `dev` release after build 10, names and sizes
+      // included. The updater's whole contract with CI is these two file
+      // names, and nothing else in either repository would catch a change to
+      // them until an install failed on a device.
+      const String real = '''
+{
+  "tag_name": "dev",
+  "html_url": "https://github.com/kaiharimoto/Master-Prompt/releases/tag/dev",
+  "prerelease": true,
+  "assets": [
+    {
+      "name": "MasterPrompt-10-917d3bb.apk",
+      "size": 53073401,
+      "content_type": "application/vnd.android.package-archive",
+      "browser_download_url":
+          "https://github.com/kaiharimoto/Master-Prompt/releases/download/dev/MasterPrompt-10-917d3bb.apk"
+    },
+    {
+      "name": "MasterPrompt-windows-x64-10-917d3bb.zip",
+      "size": 12931257,
+      "content_type": "application/zip",
+      "browser_download_url":
+          "https://github.com/kaiharimoto/Master-Prompt/releases/download/dev/MasterPrompt-windows-x64-10-917d3bb.zip"
+    }
+  ]
+}
+''';
+
+      final UpdateCheck apk = readRelease(
+        jsonDecode(real),
+        currentBuild: '9',
+        platform: UpdatePlatform.android,
+      );
+      expect(apk.outcome, UpdateOutcome.available);
+      expect(apk.asset!.build, 10);
+      expect(apk.asset!.sha, '917d3bb');
+      expect(apk.asset!.size, '50.6 MB');
+
+      final UpdateCheck zip = readRelease(
+        jsonDecode(real),
+        currentBuild: '9',
+        platform: UpdatePlatform.windows,
+      );
+      expect(zip.asset!.name, 'MasterPrompt-windows-x64-10-917d3bb.zip');
+      expect(
+        zip.asset!.build,
+        10,
+        reason:
+            'the Windows name embeds the build after two hyphenated words, so '
+            'a pattern written for the APK would read 64 as the build number',
+      );
+    });
+
     test('reports an unreadable answer rather than throwing', () {
       expect(
         readRelease(
