@@ -131,3 +131,28 @@ Error: Claude Code cannot be launched inside another Claude Code session.
 It keys off the `CLAUDECODE` environment variable. The runner strips `CLAUDECODE` and
 `CLAUDE_CODE_ENTRYPOINT` from the child environment so Master Prompt can drive the CLI even when
 Master Prompt itself was launched from one.
+
+## 9. Finding the binary is its own problem
+
+Not a property of the CLI, but of the platforms it installs on, and it produced the same class of
+failure — a confident wrong answer where there should have been a question.
+
+**Windows cannot execute a `.cmd` directly.** `CreateProcess` refuses a batch file, so
+`Process.run(r'%APPDATA%\npm\claude.cmd', ['--version'])` throws `ProcessException`. An npm global
+install — the most likely install on Windows — was therefore reported as *not installed*.
+`CliLocator.needsShell` runs a `.cmd` or `.bat` with `runInShell: true`, on Windows only; a shell
+elsewhere would change quoting for no reason.
+
+**A fixed candidate list cannot cover the install methods.** The native installer, npm, Homebrew,
+winget and a manual copy on `PATH` are five different locations, and only the first three are
+enumerable. The search asks the operating system first — `where claude` on Windows, `which -a
+claude` elsewhere — and falls back to the hardcoded list.
+
+**Every candidate reports an outcome, not just a name.** `ProbeAttempt` carries one of `missing`,
+`notExecutable`, `notClaude` or `found`, with the detail. `ClaudeNotFound` carries the whole list.
+The person who has to act on the failure usually does not remember how they installed it, so the
+app tells them what it saw at each path rather than asking.
+
+**An explicit path is a directive, not a hint.** When one is set in Settings it is the only
+candidate. Falling back to the search would mean setting a wrong path, getting a working CLI from
+somewhere else, and never learning the setting was wrong.

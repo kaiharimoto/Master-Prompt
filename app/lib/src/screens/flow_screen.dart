@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:mp_design/mp_design.dart';
+import 'package:mp_runner/mp_runner.dart';
 
 import '../flow/flow_controller.dart';
 import '../store/app_store.dart';
+import '../store/claude_chat.dart';
 import '../store/diagnostics.dart';
 import '../store/project.dart';
 import 'destinations.dart';
@@ -19,12 +21,17 @@ class FlowScreen extends StatefulWidget {
   const FlowScreen({
     required this.store,
     required this.flow,
+    required this.chat,
     required this.onOpen,
     super.key,
   });
 
   final AppStore store;
   final FlowController flow;
+
+  /// The desktop conversation. Idle and invisible until the CLI is connected,
+  /// which is what keeps one screen serving both routes.
+  final ClaudeChat chat;
 
   /// Where the flow hands off to the menu destinations. Navigation lives in the
   /// shell rather than the store, so the store stays a plain data holder.
@@ -40,12 +47,19 @@ class _FlowScreenState extends State<FlowScreen> {
 
   final TextEditingController _seedField = TextEditingController();
   final TextEditingController _replyField = TextEditingController();
+  final TextEditingController _followUpField = TextEditingController();
   bool _busy = false;
+
+  /// Which route this round took. Both are available on a connected desktop,
+  /// and the waiting beat is a different screen for each: one is a paste box,
+  /// the other is what Claude just said.
+  bool _viaCli = false;
 
   @override
   void dispose() {
     _seedField.dispose();
     _replyField.dispose();
+    _followUpField.dispose();
     super.dispose();
   }
 
@@ -81,6 +95,7 @@ class _FlowScreenState extends State<FlowScreen> {
     // No confirmation toast. The screen changing to "Paste Claude's reply" says
     // the copy worked, and a banner over the next action is exactly the kind of
     // extra thing this redesign is removing.
+    setState(() => _viaCli = false);
     widget.flow.handedOff();
   }
 
@@ -89,22 +104,40 @@ class _FlowScreenState extends State<FlowScreen> {
     if (reply.isEmpty || _busy) return;
     setState(() => _busy = true);
     try {
-      final SpecPatchResult r = _patcher.parse(reply, p.spec);
-      Diagnostics.instance.log(
-        'Reply pasted (${reply.length} chars): '
-        '${r.found ? '${r.applied.length} applied' : 'no mpspec block'}.',
-      );
-      await widget.store.addTranscript(
-        p,
-        TranscriptEntry(
-          direction: TranscriptDirection.received,
-          text: reply,
-          at: DateTime.now().toUtc(),
-          note: r.found ? '${r.applied.length} changes' : 'no patch block',
-        ),
-      );
+      final bool advanced = await _read(p, reply, viaCli: false);
+      if (advanced) _replyField.clear();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
-      if (!r.found || !r.hasChanges) {
+  /// Reads one reply, whichever route brought it, and advances if it settled
+  /// anything.
+  ///
+  /// The same parser either way. A reply that arrived down a pipe has no more
+  /// authority than one that was pasted, and the proposed/confirmed gate still
+  /// stands between both of them and an unattended run.
+  Future<bool> _read(Project p, String reply, {required bool viaCli}) async {
+    final SpecPatchResult r = _patcher.parse(reply, p.spec);
+    Diagnostics.instance.log(
+      'Reply ${viaCli ? 'from the CLI' : 'pasted'} (${reply.length} chars): '
+      '${r.found ? '${r.applied.length} applied' : 'no mpspec block'}.',
+    );
+    await widget.store.addTranscript(
+      p,
+      TranscriptEntry(
+        direction: TranscriptDirection.received,
+        text: reply,
+        at: DateTime.now().toUtc(),
+        note: r.found ? '${r.applied.length} changes' : 'no patch block',
+      ),
+    );
+
+    if (!r.found || !r.hasChanges) {
+      // Down the CLI route the answer is already on screen with a box under
+      // it, so a round of questions is the conversation working rather than
+      // something that went wrong. Only the clipboard route needs telling.
+      if (!viaCli) {
         widget.flow.rejected(
           r.found
               ? 'That reply had a block, but nothing in it changed the mission. '
@@ -114,11 +147,46 @@ class _FlowScreenState extends State<FlowScreen> {
                     'questions, answer them in the same chat and bring its next '
                     'reply back.',
         );
+      }
+      return false;
+    }
+
+    widget.flow.received(r);
+    return true;
+  }
+
+  /// Sends a round straight into the CLI session.
+  Future<void> _askClaude(Project p, String prompt) async {
+    if (_busy || prompt.trim().isEmpty) return;
+    setState(() {
+      _busy = true;
+      _viaCli = true;
+    });
+    // Move to the waiting beat before the answer arrives, so the screen shows
+    // the question being worked on rather than staying on the button.
+    widget.flow.handedOff();
+    try {
+      await widget.store.addTranscript(
+        p,
+        TranscriptEntry(
+          direction: TranscriptDirection.sent,
+          text: prompt,
+          at: DateTime.now().toUtc(),
+          note: 'asked the CLI',
+        ),
+      );
+      final String? reply = await widget.chat.send(
+        prompt,
+        widget.store.settings,
+      );
+      if (reply == null) {
+        widget.flow.rejected(
+          widget.chat.error ?? 'The CLI answered with nothing.',
+        );
         return;
       }
-
-      widget.flow.received(r);
-      _replyField.clear();
+      await _read(p, reply, viaCli: true);
+      _followUpField.clear();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -208,13 +276,18 @@ class _FlowScreenState extends State<FlowScreen> {
 
   Widget _ask(Project p, ReadinessReport report) {
     final MpColors c = MpTheme.colorsOf(context);
+    final bool connected = widget.chat.available;
 
     // The interview happens in one continuing chat, and that chat already
     // holds the framing, everything settled and the format rules — it worked
     // most of it out itself. Once it has answered once, the round only carries
     // what the round adds.
-    final bool continuing =
-        p.hasAnsweredOnce && !widget.store.settings.standaloneTurns;
+    // The CLI route keeps its own session, so what the far end already knows
+    // is a fact about that session rather than about the transcript: a fresh
+    // session after clipboard rounds still has to be told everything.
+    final bool continuing = connected
+        ? widget.chat.hasExchange
+        : p.hasAnsweredOnce && !widget.store.settings.standaloneTurns;
     final InterviewTurn turn = _engine.nextTurn(
       p.spec,
       style: continuing ? TurnStyle.continuing : TurnStyle.standalone,
@@ -225,22 +298,49 @@ class _FlowScreenState extends State<FlowScreen> {
       key: const ValueKey<String>('beat-ask'),
       eyebrow: _stageEyebrow(report),
       question: report.currentStage.question,
-      supporting:
-          'Claude will ask you two to four questions about this. Answer them in '
-          'the chat, then bring its reply back here.',
-      primary: MpButton(
-        label: 'Copy for Claude',
-        icon: Icons.content_copy,
-        kind: MpButtonKind.primary,
-        expand: true,
-        onPressed: () => _handOff(turn.text),
-      ),
-      secondary: MpButton(
-        label: 'I already have a reply',
-        kind: MpButtonKind.quiet,
-        expand: true,
-        onPressed: widget.flow.handedOff,
-      ),
+      supporting: connected
+          ? 'Claude will ask you two to four questions about this. Answer them '
+                'here; nothing leaves the app.'
+          : 'Claude will ask you two to four questions about this. Answer them '
+                'in the chat, then bring its reply back here.',
+      primary: connected
+          ? MpButton(
+              label: _busy ? 'Asking Claude…' : 'Ask Claude',
+              icon: Icons.arrow_forward,
+              kind: MpButtonKind.primary,
+              expand: true,
+              onPressed: _busy ? null : () => _askClaude(p, turn.text),
+            )
+          : MpButton(
+              label: 'Copy for Claude',
+              icon: Icons.content_copy,
+              kind: MpButtonKind.primary,
+              expand: true,
+              onPressed: () => _handOff(turn.text),
+            ),
+      // The clipboard route survives on a connected desktop, one level down.
+      // The CLI can be missing, logged out or rate-limited, and none of those
+      // should leave the mission stranded.
+      secondary: connected
+          ? MpButton(
+              label: 'Copy for Claude instead',
+              icon: Icons.content_copy,
+              kind: MpButtonKind.quiet,
+              expand: true,
+              // The full version, always. A copy is leaving this session for
+              // somewhere else, and a continuing turn pasted into a chat that
+              // has seen none of it is unusable.
+              onPressed: () => _handOff(_engine.nextTurn(p.spec).text),
+            )
+          : MpButton(
+              label: 'I already have a reply',
+              kind: MpButtonKind.quiet,
+              expand: true,
+              onPressed: () {
+                setState(() => _viaCli = false);
+                widget.flow.handedOff();
+              },
+            ),
       disclosures: <Widget>[
         MpDisclosure(
           label: 'What this round settles',
@@ -303,6 +403,8 @@ class _FlowScreenState extends State<FlowScreen> {
   }
 
   Widget _awaiting(Project p, ReadinessReport report) {
+    if (_viaCli) return _conversing(p, report);
+
     final MpColors c = MpTheme.colorsOf(context);
     final String? problem = widget.flow.problem;
 
@@ -354,6 +456,148 @@ class _FlowScreenState extends State<FlowScreen> {
         expand: true,
         onPressed: widget.flow.reconsider,
       ),
+    );
+  }
+
+  /// The desktop waiting beat: what Claude just said, and a box to answer in.
+  ///
+  /// The clipboard route's version of this screen is a paste box, because
+  /// there the reply has to be carried by hand. Here the reply is already in,
+  /// so the screen is about reading it and answering — which is what makes a
+  /// recommendation arguable before it becomes a patch.
+  Widget _conversing(Project p, ReadinessReport report) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final String? problem = widget.flow.problem;
+    final String? reply = widget.chat.lastReply;
+    final bool busy = _busy || widget.chat.busy;
+
+    return MpFocal(
+      key: const ValueKey<String>('beat-chat'),
+      eyebrow: _stageEyebrow(report),
+      question: busy
+          ? 'Asking Claude…'
+          : reply == null
+          ? 'Waiting on Claude'
+          : 'Claude answered',
+      supporting: busy
+          ? 'A round takes about as long as it would in the chat app.'
+          : 'Answer below and it goes back into the same session. Anything it '
+                'settles arrives as a round to accept.',
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (reply != null)
+            MpPanel(
+              child: SelectableText(
+                reply,
+                style: MpType.prose.copyWith(color: c.ink),
+              ),
+            ),
+          if (problem != null) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            MpPanel(
+              accent: c.warning,
+              child: Text(
+                problem,
+                style: MpType.prose.copyWith(color: c.inkMuted),
+              ),
+            ),
+          ],
+          if (reply != null) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            TextField(
+              controller: _followUpField,
+              maxLines: 6,
+              minLines: 3,
+              enabled: !busy,
+              textCapitalization: TextCapitalization.sentences,
+              style: MpType.body.copyWith(color: c.ink),
+              decoration: const InputDecoration(
+                hintText: 'Answer its questions, or push back on one…',
+              ),
+            ),
+          ],
+        ],
+      ),
+      primary: MpButton(
+        label: busy ? 'Asking Claude…' : 'Send',
+        icon: Icons.arrow_forward,
+        kind: MpButtonKind.primary,
+        expand: true,
+        onPressed: busy
+            ? null
+            : () => _askClaude(p, _followUpField.text.trim()),
+      ),
+      secondary: MpButton(
+        label: 'Back to the question',
+        kind: MpButtonKind.quiet,
+        expand: true,
+        onPressed: busy
+            ? null
+            : () {
+                setState(() => _viaCli = false);
+                widget.flow.reconsider();
+              },
+      ),
+      disclosures: <Widget>[
+        MpDisclosure(
+          label: 'Paste a reply instead',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'For a reply that came from somewhere else — the chat app on '
+                'the phone, or a session this one could not reach.',
+                style: MpType.caption.copyWith(color: c.inkMuted),
+              ),
+              const SizedBox(height: MpSpace.sm),
+              TextField(
+                controller: _replyField,
+                maxLines: 6,
+                minLines: 3,
+                style: MpType.mono.copyWith(color: c.ink),
+                decoration: const InputDecoration(hintText: 'Paste here'),
+              ),
+              const SizedBox(height: MpSpace.sm),
+              MpButton(
+                label: 'Apply reply',
+                expand: true,
+                onPressed: busy ? null : () => _applyReply(p),
+              ),
+            ],
+          ),
+        ),
+        if (widget.chat.turns.length > 2)
+          MpDisclosure(
+            label: 'Everything said so far',
+            trailingNote: '${widget.chat.turns.length}',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final ChatTurn t in widget.chat.turns)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: MpSpace.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          t.fromUser ? 'You' : 'Claude',
+                          style: MpType.eyebrow.copyWith(color: c.inkFaint),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          t.text,
+                          style: MpType.caption.copyWith(color: c.inkMuted),
+                          maxLines: 6,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 

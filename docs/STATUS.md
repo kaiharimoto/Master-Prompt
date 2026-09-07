@@ -4,7 +4,7 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that made the brief readable and exportable._
+_Last updated: the commit that connected the CLI and put the interview in it._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -117,6 +117,54 @@ a short document copied nothing.** The stepper cycles back to part one once it h
 them all, and that handler was reused for the single-part case, so the second
 tap reset instead of copying — silently, with the label unchanged to say so.
 
+Then, from the PC: *"it's installed but it's not very intuitive or easy to
+figure out how to connect the Claude Code CLI"* — **half of the desktop was
+never built.** `mp_runner` drives the CLI for a *run*, and the Run screen shows
+it; but `flow_screen.dart` had no idea the CLI existed, so **the interview was
+copy-paste on Windows exactly as on the phone**, with a working CLI sitting a
+few inches away. The original brief asked for the opposite.
+
+Three things were wrong and each is fixed.
+
+**The CLI could not be found, and the failure said nothing.** On Windows,
+`CreateProcess` refuses a `.cmd`, so an npm install — `%APPDATA%\npm\claude.cmd`
+— threw `ProcessException`, which `probe` swallowed and reported as *not
+found*: the single most likely install was invisible. A `.cmd` or `.bat` now
+runs through a shell. The search also asks the operating system first (`where`
+on Windows, `which -a` elsewhere) before the hardcoded candidates, which is the
+only thing that can cover winget or a manual install. And every candidate now
+reports an outcome — not there, could not be run, ran but is not Claude Code,
+found — with the detail, so someone who does not remember how they installed it
+is told rather than asked.
+
+**Nothing said whether it was connected.** Settings had a bare text field
+hinting "Leave blank to search PATH", and the probe ran only on the Run screen,
+which is behind the overflow menu and refuses to appear until the brief
+compiles. Settings now opens on a Connection panel that probes on arrival and
+names the version, the path and which credential is in use, with a Test button
+and a disclosure listing every path it tried and what became of each. An
+explicit path is now a directive rather than a hint: it is used alone, so a
+wrong one is reported instead of being silently bypassed by a working CLI
+somewhere else.
+
+**And the interview now happens in the app.** `CliConversation` opens one
+session with a pinned id and resumes it on every turn after, which gives the
+desktop the *one continuing chat* property the clipboard route asks the user to
+maintain by hand. On a connected desktop the round's primary action is **Ask
+Claude**; the reply comes back on screen with a box under it, so a
+recommendation can be argued with before it becomes a patch, and a reply that
+settles something advances to the same Accept beat as a pasted one. It is the
+same `SpecPatchParser` and the same readiness gate — a reply that arrived down
+a pipe has no more authority than one that was pasted. Copy-paste survives one
+level down, because the CLI can be missing, logged out or rate-limited.
+
+Two decisions inside that are worth stating. An interview turn is sent with
+`permissionMode: 'default'`, never the user's run setting: `bypassPermissions`
+exists so an unattended build need not stop to ask, and a question about what
+to build needs no tools at all. And the turn runs in a directory of its own
+rather than the mission's working directory, so a `CLAUDE.md` sitting in the
+project the mission is *about* does not join the conversation uninvited.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -159,11 +207,30 @@ tap reset instead of copying — silently, with the label unchanged to say so.
 - **The supervisor.** Limit detection, the reset-time ladder, persisted resumes
   and the resume ladder, all driven against a fake CLI so the recovery paths are
   exercised without an API key or a five-hour wait.
+- **Finding the CLI.** That a `.cmd` is run through a shell on Windows and
+  nowhere else; that the search asks the operating system before guessing; that
+  an explicit path that fails does not quietly fall through to a working CLI
+  somewhere else; and that a total failure names every candidate with a reason
+  attached, which is the output to send when it still cannot be found.
+- **The desktop conversation.** That the first turn opens a session and every
+  turn after resumes it, that a pinned id never rides a plain `--resume`, that
+  the id the CLI reports wins over the one that was asked for, that an
+  interview turn is sent at `default` permissions rather than the run setting,
+  and that a plain-text build still yields a reply.
+- **The desktop interview, in the app.** That a connected CLI turns the round
+  into something it can send while keeping the clipboard route one level down;
+  that a reply of questions is shown with a box to answer in rather than the
+  clipboard route's "nothing settled" warning; that an answer goes back into
+  the same session; that a patch from the CLI still has to be accepted before
+  it counts; that a failed turn says so instead of looking like a quiet answer;
+  that the first round is written for a session that knows nothing and later
+  rounds are not; that a turn in flight cannot be sent twice; and that with no
+  CLI the desktop behaves exactly as the phone does.
 - **End to end, headlessly:** discussion patch → spec → gate → compile → write to
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-290 tests: 151 in `mp_core`, 71 in `mp_runner`, 68 in the app.
+313 tests: 151 in `mp_core`, 82 in `mp_runner`, 80 in the app.
 
 ### Not yet proven
 
@@ -180,8 +247,16 @@ tap reset instead of copying — silently, with the label unchanged to say so.
   actual update behaviour on a device is unverified. The updater makes this
   matter twice over: an install that will not go over the top loses the saved
   missions.
-- **The desktop runner against a real `claude` binary.** Everything is proven
-  against the fake CLI; the real one has never been driven from the app.
+- **Anything Windows-specific.** `where`, and running a `.cmd` through a shell,
+  cannot be exercised on the Linux runner; the tests cover the shape and the
+  decision, not the platform behaviour. The PC is the only place that answers
+  it — and the failure is now visible rather than silent, which is the point of
+  the per-candidate report.
+- **The desktop runner and the desktop interview against a real `claude`
+  binary.** Everything is proven against the fake CLI; the real one has never
+  been driven from the app. A `--print` turn also costs tokens per round where
+  copy-paste did not, though a continuing round is around a thousand
+  characters.
 - **The copy-paste loop with the real Claude app.** The formats are heavily
   tested against mangled input, but no reply from the actual app has been pasted
   back.
@@ -240,8 +315,19 @@ phone predates the updater. Then, in this order:
    updater is worthless without it.
 9. Whether the flow still feels guided now that the reply is a code block.
 
-Windows separately: the Run destination either finds the Claude Code CLI or says
-clearly that it cannot.
+**On the PC, which is the only place the real question is answered:**
+
+10. **Settings → Claude Code.** It should name the version, the path and the
+    credential, or list every path it tried and why each failed. That list is
+    the thing to send if it still cannot find it — it is written to say which
+    install method is actually on the machine.
+11. **A full interview round with no clipboard.** Ask Claude, read the reply,
+    push back on a recommendation that is wrong, accept. Watch whether the
+    round takes about as long as it would in the chat app, and whether the
+    reply is as good — a `--print` turn is the same model but not the same
+    surface.
+12. **That the run still works as it did**, since it now shares one connection
+    with Settings and the flow rather than probing separately.
 
 ### Lessons worth keeping
 
@@ -291,6 +377,23 @@ clearly that it cannot.
   the same shape of bug has surfaced — the first was two paste parsers with
   different tolerances. Where two things solve the same problem, one of them is
   being maintained and the other is being trusted.
+- **A platform check and a layout check are not the same question.** The app
+  has `isDesktop(context)`, which is a 900px width gate, and
+  `DesktopRunner.isSupported`, which is the platform. A CLI feature keyed off
+  the first would give a narrow window on a PC the phone experience and a
+  tablet a Run button it cannot use. Everything about the CLI keys off the
+  second.
+- **Half-built is worse than not built, because it looks finished.** The run
+  went through the CLI and the interview did not, and nothing on screen said
+  so — the desktop simply behaved like the phone, which reads as a missing
+  feature rather than a missing half. The tell was in the file: `flow_screen.dart`
+  contained no reference to `DesktopRunner` at all.
+- **A swallowed exception becomes a wrong answer, not a missing one.** `probe`
+  caught `ProcessException` and returned null, so "Windows cannot execute a
+  `.cmd`" was reported as "the CLI is not installed" — a confident,
+  actionable, wrong answer that sends the user to reinstall something they
+  already have. Catching an error and returning the same value as *absent*
+  erases the difference between the two.
 - A `Row` in a `PopupMenuItem` has no room to grow: the menu is 256 wide, so a
   long label overflows rather than wrapping. Found because the test font makes
   every glyph a full em square, which is a good reason to trust the overflow

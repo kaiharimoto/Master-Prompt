@@ -18,7 +18,12 @@ enum DesktopRunStatus { idle, locating, running, paused, finished, failed }
 /// project plus settings into a run, and the supervisor's event stream into
 /// something a widget can paint.
 class DesktopRunner extends ChangeNotifier {
-  DesktopRunner();
+  DesktopRunner({CliLocator locator = const CliLocator()}) : _locator = locator;
+
+  /// Injected so a widget test can have a connected CLI without one existing.
+  /// Probing is real process work, which cannot complete inside the tester's
+  /// fake-async zone at all.
+  final CliLocator _locator;
 
   static bool get isSupported =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -31,6 +36,14 @@ class DesktopRunner extends ChangeNotifier {
   String? _error;
   DateTime? _resumeAt;
   LimitKind? _limitKind;
+  List<ProbeAttempt> _attempts = const <ProbeAttempt>[];
+
+  /// Every candidate the last search tried, and what became of it.
+  ///
+  /// Shown whether or not the search succeeded: someone who does not know how
+  /// they installed the CLI is told rather than asked, and the path that
+  /// worked is worth seeing too.
+  List<ProbeAttempt> get attempts => List<ProbeAttempt>.unmodifiable(_attempts);
 
   DesktopRunStatus get status => _status;
   List<String> get log => List<String>.unmodifiable(_log);
@@ -66,10 +79,13 @@ class DesktopRunner extends ChangeNotifier {
     _status = DesktopRunStatus.locating;
     _error = null;
     notifyListeners();
+    final List<ProbeAttempt> log = <ProbeAttempt>[];
     try {
-      _install = await const CliLocator().locate(
+      _install = await _locator.locate(
         explicitPath: settings.claudePath,
+        attempts: log,
       );
+      _attempts = log;
       _say(
         'Found Claude Code ${_install!.version} at ${_install!.path} '
         '(${_install!.authMode.name}).',
@@ -81,7 +97,8 @@ class DesktopRunner extends ChangeNotifier {
       }
       _status = DesktopRunStatus.idle;
     } on ClaudeNotFound catch (e) {
-      _error = '${e.message}\n\nSearched:\n${e.searched.join('\n')}';
+      _attempts = e.attempts;
+      _error = e.message;
       _status = DesktopRunStatus.failed;
     }
     notifyListeners();

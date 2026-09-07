@@ -89,6 +89,8 @@ void main() {
     expect(ClaudeAuthMode.values, contains(ClaudeAuthMode.subscription));
     expect(locator.detectAuthMode(), isA<ClaudeAuthMode>());
   });
+
+  _windowsInstallHazards();
 }
 
 /// Searches nothing, so `locate` is guaranteed to fail.
@@ -97,4 +99,75 @@ class _EmptyPathLocator extends CliLocator {
 
   @override
   List<String> candidatePaths() => const <String>[];
+
+  // The search still asks the operating system first, and this locator exists
+  // to guarantee a failure, so that has to be silenced too.
+  @override
+  Future<List<String>> resolveOnPath() async => const <String>[];
+}
+
+void _windowsInstallHazards() {
+  group('finding a CLI nobody remembers installing', () {
+    test('a .cmd is run through a shell, on Windows only', () {
+      // CreateProcess refuses a batch file, so an npm install of Claude Code
+      // — %APPDATA%\npm\claude.cmd — threw ProcessException, which probe
+      // swallowed. It was reported as simply not found.
+      expect(
+        CliLocator.needsShell(r'C:\Users\k\AppData\Roaming\npm\claude.cmd'),
+        Platform.isWindows,
+        reason:
+            'the shell is a Windows workaround; using one elsewhere would '
+            'change quoting for no reason',
+      );
+      expect(CliLocator.needsShell('/usr/local/bin/claude'), isFalse);
+    });
+
+    test('every candidate reports an outcome, not just a name', () async {
+      final List<ProbeAttempt> log = <ProbeAttempt>[];
+      await expectLater(
+        const _EmptyPathLocator().locate(
+          explicitPath: '/nonexistent/claude',
+          attempts: log,
+        ),
+        throwsA(isA<ClaudeNotFound>()),
+      );
+
+      expect(log, hasLength(1));
+      expect(log.single.outcome, ProbeOutcome.missing);
+      expect(
+        log.single.describe,
+        'not there',
+        reason:
+            'someone who does not know how they installed it gets the answer '
+            'from the app rather than from guessing',
+      );
+    });
+
+    test(
+      'an explicit path that fails does not fall through to the search',
+      () async {
+        // There is a working CLI on PATH in this environment, so a fallback
+        // would quietly succeed and the wrong setting would never be noticed.
+        await expectLater(
+          const CliLocator().locate(explicitPath: '/nonexistent/claude'),
+          throwsA(
+            isA<ClaudeNotFound>().having(
+              (ClaudeNotFound e) => e.message,
+              'message',
+              contains('set in Settings'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('the search asks the operating system before guessing', () async {
+      final List<String> found = await const CliLocator().resolveOnPath();
+      // Nothing is asserted about the contents — a runner may or may not have
+      // a claude on PATH. What matters is that it answers rather than throws,
+      // because a fixed candidate list cannot cover winget or a manual
+      // install and this is the only thing that can.
+      expect(found, isA<List<String>>());
+    });
+  });
 }

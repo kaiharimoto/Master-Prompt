@@ -6,15 +6,26 @@ import '../store/app_store.dart';
 import '../store/build_info.dart';
 import '../store/diagnostics.dart';
 import '../store/settings.dart';
+import '../store/desktop_runner.dart';
 import '../update/release.dart';
 import '../update/updater.dart';
+import '../widgets/connection_panel.dart';
 import 'update_sheet.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({required this.store, required this.updater, super.key});
+  const SettingsScreen({
+    required this.store,
+    required this.updater,
+    required this.runner,
+    super.key,
+  });
 
   final AppStore store;
   final Updater updater;
+
+  /// Shared with the Run screen so a connection tested here is the one a run
+  /// uses, rather than two probes disagreeing.
+  final DesktopRunner runner;
 
   @override
   Widget build(BuildContext context) {
@@ -215,43 +226,38 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: MpSpace.xl),
                 const MpSectionHeader(
                   number: '05',
-                  title: 'Desktop runner',
+                  title: 'Claude Code',
                   subtitle:
-                      'Where the Claude Code CLI lives, and where it works.',
+                      'On a desktop the interview and the run both go through '
+                      'the CLI, so there is nothing to copy or paste.',
                 ),
                 const SizedBox(height: MpSpace.md),
+                ConnectionPanel(store: store, runner: runner),
+                const SizedBox(height: MpSpace.md),
                 MpPanel(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      MpField(
-                        label: 'CLI path',
-                        child: TextFormField(
-                          initialValue: s.claudePath ?? '',
-                          style: MpType.mono.copyWith(color: c.ink),
-                          decoration: const InputDecoration(
-                            hintText: 'Leave blank to search PATH',
-                          ),
-                          onFieldSubmitted: (String v) => store.updateSettings(
-                            s.copyWith(claudePath: v.trim()),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: MpSpace.md),
-                      MpField(
-                        label: 'Working directory',
-                        child: TextFormField(
+                  child: MpField(
+                    label: 'Working directory',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        TextFormField(
                           initialValue: s.workingDirectory ?? '',
                           style: MpType.mono.copyWith(color: c.ink),
                           decoration: const InputDecoration(
-                            hintText: r'C:\Projects\my-mission',
+                            hintText: 'Leave blank for a folder per mission',
                           ),
                           onFieldSubmitted: (String v) => store.updateSettings(
                             s.copyWith(workingDirectory: v.trim()),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: MpSpace.xs),
+                        Text(
+                          'Where a run works and where its brief is written. '
+                          'Left blank, each mission gets its own folder.',
+                          style: MpType.caption.copyWith(color: c.inkMuted),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 

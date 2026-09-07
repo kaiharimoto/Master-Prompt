@@ -18,10 +18,19 @@ import '../widgets/exchange.dart';
 /// mission is carried by hand — and the resume capsule is what makes that
 /// survivable when Claude cuts the conversation off.
 class RunScreen extends StatefulWidget {
-  const RunScreen({required this.store, required this.project, super.key});
+  const RunScreen({
+    required this.store,
+    required this.project,
+    this.runner,
+    super.key,
+  });
 
   final AppStore store;
   final Project project;
+
+  /// The shell's shared runner, so a connection tested in Settings is the one
+  /// that runs the mission. Optional so a test can render the screen alone.
+  final DesktopRunner? runner;
 
   @override
   State<RunScreen> createState() => _RunScreenState();
@@ -36,13 +45,13 @@ class _RunScreenState extends State<RunScreen> {
   Color? _noteTone;
   bool _showCapsule = false;
 
-  final DesktopRunner _runner = DesktopRunner();
+  late final DesktopRunner _runner = widget.runner ?? DesktopRunner();
 
   bool get _canRunLocally => DesktopRunner.isSupported;
 
   @override
   void dispose() {
-    _runner.dispose();
+    if (widget.runner == null) _runner.dispose();
     super.dispose();
   }
 

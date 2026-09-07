@@ -13,3 +13,4 @@ export 'src/supervisor/clock.dart';
 export 'src/supervisor/run_record.dart';
 export 'src/supervisor/run_supervisor.dart';
 export 'src/cli/cli_locator.dart';
+export 'src/cli/cli_conversation.dart';

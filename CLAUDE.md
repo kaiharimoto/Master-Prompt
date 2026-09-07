@@ -58,6 +58,27 @@ records what was verified against the shipped binary. The three that matter:
 also present. The binary rejects it outright. Encoded as an invariant in
 `LaunchPlanBuilder`.
 
+**Windows cannot execute a `.cmd` directly.** `CreateProcess` refuses one, so
+an npm install — `%APPDATA%\npm\claude.cmd`, the most likely install there —
+threw `ProcessException`, which `probe` caught and returned null for. It was
+reported as *not installed*: a confident, actionable, wrong answer.
+`CliLocator.needsShell` runs a `.cmd` or `.bat` through a shell, on Windows
+only. The locator also asks the operating system (`where` / `which -a`) before
+its hardcoded candidates, because a fixed list cannot cover winget or a manual
+install, and every candidate reports a `ProbeOutcome` with detail rather than
+just a name. **An explicit path in Settings is a directive, not a hint** — it is
+used alone, so a wrong one is reported rather than being silently bypassed by a
+working CLI elsewhere.
+
+**A platform check and a layout check are different questions.**
+`isDesktop(context)` is a 900px *layout* gate; `DesktopRunner.isSupported` is
+the platform. Everything about the CLI keys off the second, or a narrow window
+on a PC gets the phone experience and a tablet gets a Run button it cannot use.
+
+**There is one `DesktopRunner` for the whole app**, hoisted into
+`_HomeScreenState` and passed to Settings, the Run screen and the flow. Three
+probes would be free to disagree about whether Claude Code is installed.
+
 **File I/O never completes inside `testWidgets`.** The widget tester runs a
 fake-async zone, so an `await store.create(...)` in a test body hangs forever.
 Use a plain `test()` for storage, or `tester.runAsync()`.
@@ -91,6 +112,19 @@ then a paragraph break, then a line ending, never through a fenced block, and
 `ResumeCapsule.chunk()` delegates to it. The paste limit is a setting, because
 nothing can probe the real ceiling and only the person holding the phone can
 find it.
+
+**The desktop interview is a session, not a series of one-shots.**
+`CliConversation` opens the first turn with `LaunchIntent.fresh` and a pinned
+id, then resumes it on every turn after, which gives the desktop the same *one
+continuing chat* property `TurnStyle.continuing` assumes — without the user
+maintaining it. Two things inside it are deliberate and easy to undo by
+accident: an interview turn is sent with **`permissionMode: 'default'`, never
+the user's run setting** (`bypassPermissions` exists so an unattended build need
+not stop to ask; a question about what to build needs no tools at all), and the
+turn runs in a **directory of its own**, not the mission's working directory, so
+a `CLAUDE.md` in the project the mission is *about* does not join the
+conversation uninvited. The **session id the CLI reports wins** over the one
+that was pinned, because older builds cannot be given one at all.
 
 **The native surface is one channel, `masterprompt/platform`.** It does three
 things and no more: hand an APK to the package installer, put a file into the
@@ -142,6 +176,14 @@ Nothing is deleted to make a screen calm, only deferred: the full readiness list
 lives behind **Progress**, the generated message behind a disclosure. If you find
 yourself adding a second panel to a flow screen, it belongs in a disclosure or
 the menu.
+
+**The same three beats serve both routes.** On a connected desktop the ASK beat
+sends the round into the CLI session and the waiting beat becomes the reply plus
+a box to answer in; on a phone, or a desktop with no CLI, they are Copy and
+Paste. What comes back is read by the same `SpecPatchParser` and stopped by the
+same accept step either way — **a reply that arrived down a pipe has no more
+authority than one that was pasted.** Copy-paste is never removed, only demoted
+one level, because the CLI can be missing, logged out or rate-limited.
 
 ## Conventions
 

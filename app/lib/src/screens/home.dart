@@ -5,6 +5,8 @@ import 'package:mp_design/mp_design.dart';
 import '../app.dart';
 import '../flow/flow_controller.dart';
 import '../store/app_store.dart';
+import '../store/claude_chat.dart';
+import '../store/desktop_runner.dart';
 import '../store/project.dart';
 import '../update/updater.dart';
 import 'destinations.dart';
@@ -22,13 +24,24 @@ import 'update_sheet.dart';
 /// and made the user choose between them before doing anything; the app now
 /// shows the one thing that is next, and everything else waits in a menu.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({required this.store, this.updater, super.key});
+  const HomeScreen({
+    required this.store,
+    this.updater,
+    this.runner,
+    this.chat,
+    super.key,
+  });
 
   final AppStore store;
 
   /// Supplied by the app so the launch check and the menu share one state.
   /// Optional so a test can render the shell without one.
   final Updater? updater;
+
+  /// The CLI connection and the conversation held over it. Both optional, and
+  /// both injectable, because a widget test cannot run a real process at all.
+  final DesktopRunner? runner;
+  final ClaudeChat? chat;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -38,11 +51,27 @@ class _HomeScreenState extends State<HomeScreen> {
   final FlowController _flow = FlowController();
   late final Updater _updater = widget.updater ?? Updater();
 
+  /// One CLI connection for the whole app. Settings tests it, the Run screen
+  /// uses it, and the flow talks to it — three probes would be free to
+  /// disagree about whether Claude Code is installed.
+  late final DesktopRunner _runner = widget.runner ?? DesktopRunner();
+  late final ClaudeChat _chat = widget.chat ?? ClaudeChat(runner: _runner);
+
   @override
   void dispose() {
     _flow.dispose();
+    if (widget.runner == null) _runner.dispose();
+    if (widget.chat == null) _chat.dispose();
     if (widget.updater == null) _updater.dispose();
     super.dispose();
+  }
+
+  /// A different mission is a different conversation. Resuming the last one
+  /// would carry another mission's settled answers in as if they were this
+  /// one's.
+  void _newRound() {
+    _flow.reset();
+    _chat.reset();
   }
 
   void _open(AppDestination d) {
@@ -66,16 +95,26 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: MpTheme.colorsOf(context).surfaceRaised,
           showDragHandle: true,
           builder: (BuildContext context) =>
-              _MissionPicker(store: widget.store, onPicked: _flow.reset),
+              _MissionPicker(store: widget.store, onPicked: _newRound),
         );
       case AppDestination.brief:
         _push(d.label, PromptScreen(store: widget.store, project: p!));
       case AppDestination.run:
-        _push(d.label, RunScreen(store: widget.store, project: p!));
+        _push(
+          d.label,
+          RunScreen(store: widget.store, project: p!, runner: _runner),
+        );
       case AppDestination.transcript:
         _push(d.label, TranscriptScreen(project: p!));
       case AppDestination.settings:
-        _push(d.label, SettingsScreen(store: widget.store, updater: _updater));
+        _push(
+          d.label,
+          SettingsScreen(
+            store: widget.store,
+            updater: _updater,
+            runner: _runner,
+          ),
+        );
     }
   }
 
@@ -106,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[widget.store, _updater]),
+      listenable: Listenable.merge(<Listenable>[widget.store, _updater, _chat]),
       builder: (BuildContext context, _) => _build(context),
     );
   }
@@ -123,6 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final Widget flow = FlowScreen(
       store: widget.store,
       flow: _flow,
+      chat: _chat,
       onOpen: _open,
     );
 
@@ -156,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: <Widget>[
               // Switching missions is genuinely a desktop activity, so the rail
               // stays where there is room for it.
-              _Rail(store: widget.store, onNew: _flow.reset, onOpen: _open),
+              _Rail(store: widget.store, onNew: _newRound, onOpen: _open),
               const VerticalDivider(width: 1),
               Expanded(
                 child: Column(
