@@ -101,6 +101,30 @@ void main() {
     expect(find.text('New mission'), findsOneWidget);
   });
 
+  testWidgets('a secondary panel opens as a dialog, not a drag sheet', (
+    WidgetTester tester,
+  ) async {
+    await desktop(tester);
+    // Missions is one of the destinations that needs one to exist.
+    await tester.enterText(find.byType(TextField).first, 'A rooftop bar');
+    await tester.tap(find.text('Begin'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Missions'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(Dialog),
+      findsOneWidget,
+      reason:
+          'a bottom sheet is a thumb gesture from the bottom edge of a phone; '
+          'on a mouse-driven window it is a panel that slid in from off-screen',
+    );
+    expect(find.byType(BottomSheet), findsNothing);
+  });
+
   testWidgets('the opening question is still the one thing on screen', (
     WidgetTester tester,
   ) async {

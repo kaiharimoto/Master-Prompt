@@ -10,6 +10,7 @@ import '../store/desktop_runner.dart';
 import '../store/project.dart';
 import '../update/updater.dart';
 import 'destinations.dart';
+import 'present.dart';
 import 'flow_screen.dart';
 import 'progress_sheet.dart';
 import 'prompt_screen.dart';
@@ -82,18 +83,14 @@ class _HomeScreenState extends State<HomeScreen> {
       case AppDestination.update:
         UpdateSheet.show(context, _updater);
       case AppDestination.progress:
-        showModalBottomSheet<void>(
-          context: context,
-          backgroundColor: MpTheme.colorsOf(context).surfaceRaised,
-          showDragHandle: true,
-          isScrollControlled: true,
-          builder: (BuildContext context) => ProgressSheet(project: p!),
+        present(
+          context,
+          builder: (BuildContext context) =>
+              ProgressSheet(project: p!, draggable: !isDesktop(context)),
         );
       case AppDestination.missions:
-        showModalBottomSheet<void>(
-          context: context,
-          backgroundColor: MpTheme.colorsOf(context).surfaceRaised,
-          showDragHandle: true,
+        present(
+          context,
           builder: (BuildContext context) =>
               _MissionPicker(store: widget.store, onPicked: _newRound),
         );

@@ -515,6 +515,9 @@ class _FlowScreenState extends State<FlowScreen> {
 
     return MpFocal(
       key: const ValueKey<String>('beat-chat'),
+      // The one screen that is a conversation rather than a single question:
+      // a reply, any notices, and a box to write in all share the measure.
+      maxWidth: MpSpace.conversationWidth,
       eyebrow: _stageEyebrow(report),
       question: busy
           ? 'Asking Claude…'

@@ -282,6 +282,18 @@ seed field's `onSubmitted` had been dead code since it was written: with
 **And the window had no minimum size**, so it could be dragged below 900px and
 silently become the phone layout on the way past.
 
+Then the rest of the phone shape. **Progress, Missions and Update were modal
+bottom sheets on both platforms** — a thumb gesture from the bottom edge of a
+phone, which on a mouse-driven window is a panel that has slid in from
+off-screen and has to be dismissed by aiming above it. They are dialogs on a
+wide window now. The desktop conversation had the same 620px reading column as
+a single question, with a reply, its notices and a composer all sharing it, so
+that beat has a measure of its own. The run log was capped at 220px whatever the
+window height and could not be selected — it is the first thing anyone asks for
+when a run goes wrong. And **the working directory silently discarded whatever
+you typed unless you pressed Enter**, which meant the next run went somewhere
+else entirely with no indication.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -368,7 +380,7 @@ silently become the phone layout on the way past.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-349 tests: 151 in `mp_core`, 97 in `mp_runner`, 101 in the app.
+350 tests: 151 in `mp_core`, 97 in `mp_runner`, 102 in the app.
 
 ### Not yet proven
 

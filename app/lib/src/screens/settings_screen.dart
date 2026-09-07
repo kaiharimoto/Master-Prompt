@@ -257,14 +257,11 @@ class SettingsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        TextFormField(
-                          initialValue: s.workingDirectory ?? '',
-                          style: MpType.mono.copyWith(color: c.ink),
-                          decoration: const InputDecoration(
-                            hintText: 'Leave blank for a folder per mission',
-                          ),
-                          onFieldSubmitted: (String v) => store.updateSettings(
-                            s.copyWith(workingDirectory: v.trim()),
+                        _PathField(
+                          initial: s.workingDirectory ?? '',
+                          hint: 'Leave blank for a folder per mission',
+                          onSettled: (String v) => store.updateSettings(
+                            s.copyWith(workingDirectory: v),
                           ),
                         ),
                         const SizedBox(height: MpSpace.xs),
@@ -508,6 +505,64 @@ class _UpdatePanel extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// A path you type, kept when you look away.
+///
+/// The working directory used to save only on `onFieldSubmitted`, so typing a
+/// path and clicking anywhere else discarded it without a word — and the next
+/// run went somewhere else entirely. There is no obvious moment to save a path
+/// except the moment you stop editing it.
+class _PathField extends StatefulWidget {
+  const _PathField({
+    required this.initial,
+    required this.hint,
+    required this.onSettled,
+  });
+
+  final String initial;
+  final String hint;
+  final ValueChanged<String> onSettled;
+
+  @override
+  State<_PathField> createState() => _PathFieldState();
+}
+
+class _PathFieldState extends State<_PathField> {
+  late final TextEditingController _text = TextEditingController(
+    text: widget.initial,
+  );
+  late final FocusNode _focus = FocusNode()..addListener(_onFocusChange);
+
+  void _onFocusChange() {
+    if (!_focus.hasFocus) _settle();
+  }
+
+  void _settle() {
+    final String v = _text.text.trim();
+    if (v != widget.initial) widget.onSettled(v);
+  }
+
+  @override
+  void dispose() {
+    _focus
+      ..removeListener(_onFocusChange)
+      ..dispose();
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    return TextField(
+      controller: _text,
+      focusNode: _focus,
+      style: MpType.mono.copyWith(color: c.ink),
+      decoration: InputDecoration(hintText: widget.hint),
+      onSubmitted: (_) => _settle(),
     );
   }
 }

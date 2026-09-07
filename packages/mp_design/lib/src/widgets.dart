@@ -492,6 +492,7 @@ class MpFocal extends StatelessWidget {
     this.primary,
     this.secondary,
     this.disclosures = const <Widget>[],
+    this.maxWidth = MpSpace.readingWidth,
     super.key,
   });
 
@@ -516,6 +517,10 @@ class MpFocal extends StatelessWidget {
   /// Everything deferred, folded away at the bottom.
   final List<Widget> disclosures;
 
+  /// The measure. One question wants a reading column; a conversation with a
+  /// composer under it wants a little more.
+  final double maxWidth;
+
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
@@ -533,9 +538,7 @@ class MpFocal extends StatelessWidget {
             constraints: BoxConstraints(minHeight: constraints.maxHeight - 72),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: MpSpace.readingWidth,
-                ),
+                constraints: BoxConstraints(maxWidth: maxWidth),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[

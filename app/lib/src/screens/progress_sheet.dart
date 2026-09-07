@@ -12,65 +12,78 @@ import '../store/project.dart';
 /// here, one tap away, for when you want the whole picture rather than the next
 /// step.
 class ProgressSheet extends StatelessWidget {
-  const ProgressSheet({required this.project, super.key});
+  const ProgressSheet({
+    required this.project,
+    this.draggable = true,
+    super.key,
+  });
 
   final Project project;
+
+  /// Drag-to-expand belongs to a bottom sheet. In a desktop dialog the frame
+  /// is already the right size and the gesture has nothing to grab.
+  final bool draggable;
 
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
     final ReadinessReport r = const InterviewEngine().assess(project.spec);
 
+    Widget body(ScrollController? controller) => Padding(
+      padding: EdgeInsets.fromLTRB(
+        draggable ? MpSpace.lg : 0,
+        0,
+        draggable ? MpSpace.lg : 0,
+        0,
+      ),
+      child: ListView(
+        controller: controller,
+        shrinkWrap: !draggable,
+        children: <Widget>[
+          Text('Progress', style: MpType.title.copyWith(color: c.ink)),
+          const SizedBox(height: MpSpace.sm),
+          Text(
+            r.canCompile
+                ? 'Everything required is settled.'
+                : '${r.satisfied} of ${r.totalRequired} required things '
+                      'settled. Each one below is something an agent would '
+                      'otherwise have to stop and ask about.',
+            style: MpType.prose.copyWith(color: c.inkMuted),
+          ),
+          const SizedBox(height: MpSpace.md),
+          MpMeter(value: r.completion, tone: r.canCompile ? c.success : c.ink),
+          const SizedBox(height: MpSpace.xl),
+
+          if (r.blocking.isNotEmpty) ...<Widget>[
+            Text(
+              'STILL NEEDED',
+              style: MpType.eyebrow.copyWith(color: c.inkFaint),
+            ),
+            const SizedBox(height: MpSpace.md),
+            for (final ReadinessGap g in r.blocking)
+              _Gap(gap: g, tone: c.danger),
+            const SizedBox(height: MpSpace.lg),
+          ],
+
+          if (r.advisory.isNotEmpty) ...<Widget>[
+            Text('OPTIONAL', style: MpType.eyebrow.copyWith(color: c.inkFaint)),
+            const SizedBox(height: MpSpace.md),
+            for (final ReadinessGap g in r.advisory)
+              _Gap(gap: g, tone: c.inkFaint),
+          ],
+          SizedBox(height: draggable ? MpSpace.xxl : MpSpace.md),
+        ],
+      ),
+    );
+
+    if (!draggable) return body(null);
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.7,
       maxChildSize: 0.92,
-      builder: (BuildContext context, ScrollController controller) => Padding(
-        padding: const EdgeInsets.fromLTRB(MpSpace.lg, 0, MpSpace.lg, 0),
-        child: ListView(
-          controller: controller,
-          children: <Widget>[
-            Text('Progress', style: MpType.title.copyWith(color: c.ink)),
-            const SizedBox(height: MpSpace.sm),
-            Text(
-              r.canCompile
-                  ? 'Everything required is settled.'
-                  : '${r.satisfied} of ${r.totalRequired} required things '
-                        'settled. Each one below is something an agent would '
-                        'otherwise have to stop and ask about.',
-              style: MpType.prose.copyWith(color: c.inkMuted),
-            ),
-            const SizedBox(height: MpSpace.md),
-            MpMeter(
-              value: r.completion,
-              tone: r.canCompile ? c.success : c.ink,
-            ),
-            const SizedBox(height: MpSpace.xl),
-
-            if (r.blocking.isNotEmpty) ...<Widget>[
-              Text(
-                'STILL NEEDED',
-                style: MpType.eyebrow.copyWith(color: c.inkFaint),
-              ),
-              const SizedBox(height: MpSpace.md),
-              for (final ReadinessGap g in r.blocking)
-                _Gap(gap: g, tone: c.danger),
-              const SizedBox(height: MpSpace.lg),
-            ],
-
-            if (r.advisory.isNotEmpty) ...<Widget>[
-              Text(
-                'OPTIONAL',
-                style: MpType.eyebrow.copyWith(color: c.inkFaint),
-              ),
-              const SizedBox(height: MpSpace.md),
-              for (final ReadinessGap g in r.advisory)
-                _Gap(gap: g, tone: c.inkFaint),
-            ],
-            const SizedBox(height: MpSpace.xxl),
-          ],
-        ),
-      ),
+      builder: (BuildContext context, ScrollController controller) =>
+          body(controller),
     );
   }
 }

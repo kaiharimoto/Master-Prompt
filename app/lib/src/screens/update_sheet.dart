@@ -5,6 +5,7 @@ import 'package:mp_design/mp_design.dart';
 import '../store/build_info.dart';
 import '../update/release.dart';
 import '../update/updater.dart';
+import 'present.dart';
 
 /// Updating, as one subject with one button.
 ///
@@ -18,11 +19,8 @@ class UpdateSheet extends StatefulWidget {
   final Updater updater;
 
   static Future<void> show(BuildContext context, Updater updater) {
-    return showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: MpTheme.colorsOf(context).surfaceRaised,
-      showDragHandle: true,
-      isScrollControlled: true,
+    return present(
+      context,
       builder: (BuildContext context) => UpdateSheet(updater: updater),
     );
   }

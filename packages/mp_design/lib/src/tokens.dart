@@ -102,6 +102,13 @@ abstract final class MpSpace {
   /// line becomes tiring to track back from.
   static const double readingWidth = 620;
 
+  /// For a screen that is a conversation rather than a single question.
+  ///
+  /// Still a measure you can read a paragraph across, but not a phone column
+  /// stranded in the middle of a widescreen window with a composer, a reply
+  /// and a set of notices all sharing it.
+  static const double conversationWidth = 820;
+
   /// Minimum height of anything tappable. Comfortably above the 48dp floor,
   /// because the primary action on a screen should be hard to miss.
   static const double tapTarget = 56;

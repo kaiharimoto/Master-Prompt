@@ -464,7 +464,15 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
               if (r.log.isNotEmpty) ...<Widget>[
                 const SizedBox(height: MpSpace.md),
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 220),
+                  // A twelve-hour run against a 220px window is a keyhole.
+                  // Taller where there is room, and never taller than half the
+                  // window, so the controls under it stay in view.
+                  constraints: BoxConstraints(
+                    maxHeight: (MediaQuery.sizeOf(context).height * 0.4).clamp(
+                      220.0,
+                      520.0,
+                    ),
+                  ),
                   decoration: BoxDecoration(
                     color: c.canvas,
                     borderRadius: MpRadius.card,
@@ -479,7 +487,10 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
                         for (final String line in r.log.reversed)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
+                            // Selectable: the log is the first thing anyone
+                            // asks about when a run goes wrong, and it could
+                            // not be copied out of.
+                            child: SelectableText(
                               line,
                               style: MpType.mono.copyWith(color: c.inkMuted),
                             ),
