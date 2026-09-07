@@ -282,6 +282,12 @@ seed field's `onSubmitted` had been dead code since it was written: with
 **And the window had no minimum size**, so it could be dragged below 900px and
 silently become the phone layout on the way past.
 
+**And it shipped the stock Flutter template icon on both platforms** — the blue
+swatch, untouched since the first commit. It has a mark of its own now: the
+wordmark's initial in the app's own type and ink, over the hairline rule the
+design system is built on. `tool/make_icon.py` is committed beside it so the
+thing is reproducible rather than a binary nobody can regenerate.
+
 Then the rest of the phone shape. **Progress, Missions and Update were modal
 bottom sheets on both platforms** — a thumb gesture from the bottom edge of a
 phone, which on a mouse-driven window is a panel that has slid in from
