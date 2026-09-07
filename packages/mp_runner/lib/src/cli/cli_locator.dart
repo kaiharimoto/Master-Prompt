@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:meta/meta.dart';
 
 import 'capability_profile.dart';
+import 'session_id.dart';
 
 /// Where a `claude` binary was found, and what it can do.
 @immutable
@@ -235,17 +236,6 @@ class CliLocator {
     } on Exception catch (e) {
       return ProbeAttempt(path, ProbeOutcome.notExecutable, '$e');
     }
-  }
-
-  /// True for a candidate Windows cannot start directly.
-  ///
-  /// `CreateProcess` refuses a `.cmd` or `.bat`, which is how an npm install
-  /// of Claude Code — `%APPDATA%\npm\claude.cmd` — was reported as simply not
-  /// found. A shell is the only way to run one.
-  static bool needsShell(String path) {
-    if (!Platform.isWindows) return false;
-    final String lower = path.toLowerCase();
-    return lower.endsWith('.cmd') || lower.endsWith('.bat');
   }
 
   /// Run `--version` and `--help` against one candidate.

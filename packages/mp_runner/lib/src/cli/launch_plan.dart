@@ -314,10 +314,19 @@ class LaunchPlanBuilder {
       ]);
     }
 
-    // The prompt goes last, as a positional argument.
-    args.add(request.prompt);
+    // Everything after `--` is an operand, never an option. Without it a
+    // perfectly ordinary answer — "- twenty seats, - real service depth" —
+    // is read by the argument parser as a flag it does not recognise, and the
+    // turn dies with `unknown option`.
+    final int promptAt = args.length + 1;
+    args
+      ..add('--')
+      ..add(request.prompt);
 
-    _assertInvariants(args, telemetry);
+    // Only the flags are inspected. Scanning the whole list meant the guards
+    // below were reading the user's prose, so a prompt that happened to
+    // contain `--fork-session` could satisfy one of them.
+    _assertInvariants(args.sublist(0, promptAt - 1), telemetry);
 
     return LaunchPlan(
       executable: executable,

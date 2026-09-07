@@ -6,6 +6,7 @@
 library;
 
 export 'src/cli/capability_profile.dart';
+export 'src/cli/session_id.dart';
 export 'src/cli/launch_plan.dart';
 export 'src/stream/cli_event.dart';
 export 'src/supervisor/limit_detector.dart';

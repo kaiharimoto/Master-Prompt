@@ -126,7 +126,12 @@ class Diagnostics {
       b
         ..writeln()
         ..writeln('[settings]')
-        ..writeln('model       ${settings.model}')
+        // Empty means no --model flag at all, which is not the
+        // same as a blank line in a pasted report.
+        ..writeln(
+          'model       '
+          '${settings.model.isEmpty ? "(CLI default)" : settings.model}',
+        )
         ..writeln('effort      ${settings.effort}')
         ..writeln('permission  ${settings.permissionMode}')
         ..writeln('theme       ${settings.themeMode.name}')

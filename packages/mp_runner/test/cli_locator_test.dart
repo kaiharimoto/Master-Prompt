@@ -113,13 +113,13 @@ void _windowsInstallHazards() {
       // — %APPDATA%\npm\claude.cmd — threw ProcessException, which probe
       // swallowed. It was reported as simply not found.
       expect(
-        CliLocator.needsShell(r'C:\Users\k\AppData\Roaming\npm\claude.cmd'),
+        needsShell(r'C:\Users\k\AppData\Roaming\npm\claude.cmd'),
         Platform.isWindows,
         reason:
             'the shell is a Windows workaround; using one elsewhere would '
             'change quoting for no reason',
       );
-      expect(CliLocator.needsShell('/usr/local/bin/claude'), isFalse);
+      expect(needsShell('/usr/local/bin/claude'), isFalse);
     });
 
     test('every candidate reports an outcome, not just a name', () async {

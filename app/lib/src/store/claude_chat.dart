@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -29,14 +30,40 @@ class ClaudeChat extends ChangeNotifier {
   final ConversationFactory _open;
 
   CliConversation? _conversation;
+  StreamSubscription<ConversationEvent>? _listening;
+  Timer? _tick;
+  DateTime? _startedAt;
+
   bool _busy = false;
   String? _error;
+  List<String> _notes = const <String>[];
+  final StringBuffer _live = StringBuffer();
+  String _activity = '';
 
   /// Everything said in this mission's session, oldest first.
   List<ChatTurn> get turns => _conversation?.turns ?? const <ChatTurn>[];
 
   bool get busy => _busy;
   String? get error => _error;
+
+  /// What the installed CLI could not do as asked — a degraded effort level, a
+  /// build that reports no session id. These used to reach `Diagnostics` and
+  /// nowhere else, so a build that silently restarted the conversation every
+  /// round looked exactly like one that did not.
+  List<String> get notes => _notes;
+
+  /// Text as it arrives, so the screen shows the answer being written rather
+  /// than a disabled button for however long the turn takes.
+  String get liveText => _live.toString();
+
+  /// The most recent tool use or stderr line — one line, not a log.
+  String get activity => _activity;
+
+  /// How long the turn in flight has been running. A number that moves is the
+  /// difference between "working" and "wedged".
+  Duration get elapsed => _startedAt == null
+      ? Duration.zero
+      : DateTime.now().difference(_startedAt!);
 
   /// True once a turn has actually been exchanged, which is what distinguishes
   /// the CLI route from the clipboard one on a machine that could do either.
@@ -57,9 +84,11 @@ class ClaudeChat extends ChangeNotifier {
 
   /// Puts one round to the CLI and waits for the whole answer.
   ///
-  /// Returns the reply, or null when the turn failed — in which case [error]
-  /// says why. A failure never silently looks like an empty answer.
-  Future<String?> send(String prompt, AppSettings settings) async {
+  /// Returns null when the turn failed — in which case [error] says why. A
+  /// failure never silently looks like an empty answer, and it leaves no trace
+  /// in the transcript, so the retry is written for the fresh session it
+  /// actually is.
+  Future<ConversationReply?> send(String prompt, AppSettings settings) async {
     if (_busy) return null;
     final ClaudeInstall? install = runner.install;
     if (install == null) {
@@ -70,40 +99,93 @@ class ClaudeChat extends ChangeNotifier {
 
     _busy = true;
     _error = null;
+    _notes = const <String>[];
+    _live.clear();
+    _activity = '';
+    _startedAt = DateTime.now();
+    _tick = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => notifyListeners(),
+    );
     notifyListeners();
+
     try {
-      _conversation ??= await _open(install, settings);
-      final ConversationReply reply = await _conversation!.ask(prompt);
+      final CliConversation c = _conversation ??= await _open(
+        install,
+        settings,
+      );
+      await _listening?.cancel();
+      _listening = c.events.listen(_onEvent);
+
+      final ConversationReply reply = await c.ask(prompt);
+      _notes = reply.notes;
       Diagnostics.instance.log(
-        'CLI turn (${prompt.length} chars): '
+        'CLI turn (${prompt.length} chars, ${elapsed.inSeconds}s): '
         '${reply.ok ? '${reply.text.length} chars back' : 'failed'}'
         '${reply.sessionId == null ? '' : ' in ${reply.sessionId}'}.',
       );
       for (final String n in reply.notes) {
         Diagnostics.instance.log('CLI turn note: $n');
       }
+      if (reply.stderrText.isNotEmpty) {
+        Diagnostics.instance.log('CLI stderr: ${reply.stderrText}');
+      }
       if (!reply.ok) {
         _error = reply.error ?? 'The CLI answered with nothing.';
         return null;
       }
-      return reply.text;
+      return reply;
     } on Object catch (e) {
       _error = '$e';
       return null;
     } finally {
+      _tick?.cancel();
+      _tick = null;
+      _startedAt = null;
       _busy = false;
       notifyListeners();
     }
+  }
+
+  /// Stops the turn in flight. Nothing is applied and the round survives.
+  Future<void> cancel() async => _conversation?.cancel();
+
+  void _onEvent(ConversationEvent e) {
+    switch (e.kind) {
+      case ConversationEventKind.text:
+        _live.write(e.text);
+      case ConversationEventKind.tool:
+        _activity = 'Using ${e.text}';
+      case ConversationEventKind.stderr:
+        _activity = e.text;
+      case ConversationEventKind.started:
+      case ConversationEventKind.done:
+        return;
+    }
+    notifyListeners();
   }
 
   /// Forget the session. A different mission is a different conversation, and
   /// resuming the last one would carry another mission's settled answers into
   /// it as if they were this one's.
   void reset() {
+    unawaited(_listening?.cancel());
+    _listening = null;
+    unawaited(_conversation?.dispose());
     _conversation = null;
     _error = null;
+    _notes = const <String>[];
+    _live.clear();
     _busy = false;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    unawaited(_listening?.cancel());
+    unawaited(_conversation?.dispose());
+    super.dispose();
   }
 
   /// The real thing: a session-backed conversation in a directory of its own.
@@ -125,6 +207,10 @@ class ClaudeChat extends ChangeNotifier {
       executable: install.path,
       capabilities: install.capabilities,
       workingDirectory: dir.path,
+      // Empty means no --model at all, leaving the CLI on whatever the user
+      // chose with /model. The flag refuses anything that is not an alias or a
+      // full dated name, and it enumerates no choices, so the capability probe
+      // cannot catch a bad one before it fails the turn.
       model: s.model.trim().isEmpty ? null : s.model.trim(),
       // The launch plan degrades this to whatever the build accepts, so a
       // preference the CLI has never heard of costs a note rather than a run.

@@ -7,6 +7,11 @@ import 'package:meta/meta.dart';
 import '../stream/cli_event.dart';
 import 'capability_profile.dart';
 import 'launch_plan.dart';
+import 'session_id.dart';
+
+/// The shared generator, aliased so the constructor's default value can reach
+/// it past its own parameter of the same name.
+const String Function() _newSessionId = newSessionId;
 
 /// One side of a desktop interview exchange.
 @immutable
@@ -22,6 +27,33 @@ class ChatTurn {
   final DateTime at;
 }
 
+/// What is happening inside a turn, as it happens.
+enum ConversationEventKind {
+  /// The session opened. Carries the id the CLI actually chose.
+  started,
+
+  /// Assistant text arrived.
+  text,
+
+  /// The assistant used a tool, named.
+  tool,
+
+  /// A line on stderr — where the limit and auth reasons live, and nowhere else.
+  stderr,
+
+  /// The turn ended, one way or another.
+  done,
+}
+
+@immutable
+class ConversationEvent {
+  const ConversationEvent(this.kind, this.text, {this.sessionId});
+
+  final ConversationEventKind kind;
+  final String text;
+  final String? sessionId;
+}
+
 /// What one `ask` produced.
 @immutable
 class ConversationReply {
@@ -30,6 +62,8 @@ class ConversationReply {
     this.sessionId,
     this.notes = const <String>[],
     this.error,
+    this.exitCode = 0,
+    this.stderrText = '',
   });
 
   /// Everything the assistant said, joined.
@@ -43,6 +77,15 @@ class ConversationReply {
 
   /// Set when the turn did not produce a usable reply.
   final String? error;
+
+  final int exitCode;
+
+  /// Kept even when the turn succeeded. `Error.message` is non-enumerable and
+  /// the CLI serialises with a plain `JSON.stringify`, so a warning about a
+  /// nearing limit exists here and in no other channel. Discarding it whenever
+  /// text came back — which is what this used to do — throws away the only
+  /// notice that the next turn is about to fail.
+  final String stderrText;
 
   bool get ok => error == null && text.trim().isNotEmpty;
 }
@@ -60,6 +103,13 @@ class ConversationReply {
 /// verified invariants — `--print` is mandatory, stream-json needs `--verbose`,
 /// a pinned id cannot ride a plain `--resume` — apply to a conversation exactly
 /// as they do to a run.
+///
+/// **There is one code path to a process.** The previous version had an
+/// injectable `ProcessRunner`, every test used it, and so the three functions
+/// that only exist against a real binary were never executed once — which is
+/// how an invalid session id shipped. Argument composition is now a pure
+/// function ([planFor]) that a test can inspect without spawning anything, and
+/// [ask] always spawns. There is no seam left to fake.
 class CliConversation {
   CliConversation({
     required this.executable,
@@ -67,22 +117,48 @@ class CliConversation {
     required this.workingDirectory,
     this.model,
     this.effortPreference = const <String>['high', 'medium'],
-    this.newSessionId = _uuid,
-    ProcessRunner? runner,
-  }) : _run = runner ?? _defaultRunner;
+    this.environment = const <String, String>{},
+    this.timeout = const Duration(minutes: 15),
+    this.newSessionId = _newSessionId,
+  });
 
   final String executable;
   final CapabilityProfile capabilities;
   final String workingDirectory;
+
+  /// Omitted entirely when null, which leaves the CLI on whatever model the
+  /// user has already chosen with `/model`. That is the safe default: the flag
+  /// takes an alias or a full dated name, and a value that is neither fails
+  /// every turn.
   final String? model;
+
   final List<String> effortPreference;
+
+  /// Merged into the child's environment. The CLI reads credentials from here,
+  /// and a test uses it to choose a scenario without replacing the process
+  /// machinery it is trying to exercise.
+  final Map<String, String> environment;
+
+  /// How long a turn may take before it is killed and reported. A real round
+  /// takes well under a minute; the generous default is there so a slow
+  /// machine is never mistaken for a wedged one, and the ceiling exists so a
+  /// wedged one is never mistaken for a slow machine.
+  final Duration timeout;
 
   /// Injected so a test can pin the id it expects to see resumed.
   final String Function() newSessionId;
 
-  final ProcessRunner _run;
-
   String? _sessionId;
+  Process? _current;
+  bool _cancelled = false;
+
+  final StreamController<ConversationEvent> _events =
+      StreamController<ConversationEvent>.broadcast();
+
+  /// What is happening inside the turn in flight. Without this the window is a
+  /// frozen rectangle for however long the CLI takes, and a turn that has hung
+  /// looks exactly like one that is working.
+  Stream<ConversationEvent> get events => _events.stream;
 
   /// The session every turn after the first resumes. Null until one opens.
   String? get sessionId => _sessionId;
@@ -90,103 +166,280 @@ class CliConversation {
   final List<ChatTurn> _turns = <ChatTurn>[];
   List<ChatTurn> get turns => List<ChatTurn>.unmodifiable(_turns);
 
+  bool get busy => _current != null;
+
   /// Starts over. The next turn opens a new session.
   void reset() {
     _sessionId = null;
     _turns.clear();
   }
 
+  /// Stops the turn in flight.
+  Future<void> cancel() async {
+    _cancelled = true;
+    _current?.kill();
+  }
+
+  Future<void> dispose() async => _events.close();
+
+  /// The exact invocation [ask] would make, without making it.
+  ///
+  /// Public because argument composition is the half that can be proven
+  /// without a process, and it should be proven that way rather than inferred
+  /// from a recording of a fake one.
+  LaunchPlan planFor(String prompt) {
+    final String? resuming = _sessionId;
+    return const LaunchPlanBuilder().build(
+      executable: executable,
+      capabilities: capabilities,
+      request: LaunchRequest(
+        prompt: prompt,
+        workingDirectory: workingDirectory,
+        intent: resuming == null ? LaunchIntent.fresh : LaunchIntent.resume,
+        sessionId: resuming == null ? newSessionId() : null,
+        resumeSessionId: resuming,
+        model: model,
+        effortPreference: effortPreference,
+        // Never the user's run setting. `bypassPermissions` exists so an
+        // unattended build can work without stopping to ask; an interview
+        // turn is a question about what to build and needs no tools at all.
+        // Under the default mode a tool call cannot be approved in a
+        // headless turn, so the failure direction is refusal rather than
+        // something happening on disk that nobody asked for.
+        permissionMode: 'default',
+      ),
+    );
+  }
+
   /// Puts [prompt] to the CLI and waits for the whole reply.
   Future<ConversationReply> ask(String prompt) async {
-    _turns.add(
-      ChatTurn(fromUser: true, text: prompt, at: DateTime.now().toUtc()),
-    );
+    if (_current != null) {
+      return const ConversationReply(
+        text: '',
+        error: 'A turn is already in flight.',
+      );
+    }
+    _cancelled = false;
 
-    final String? resuming = _sessionId;
+    final ChatTurn asked = ChatTurn(
+      fromUser: true,
+      text: prompt,
+      at: DateTime.now().toUtc(),
+    );
+    _turns.add(asked);
+
+    /// A failed turn must leave no trace in the transcript.
+    ///
+    /// It used to leave the user's turn behind, so `hasExchange` went true on
+    /// a failure and the retry sent the short *continuing* round into a
+    /// session that had never existed. Retrying after an error made things
+    /// quietly worse, which is the worst way for a retry to behave.
+    ConversationReply fail(
+      String message, {
+      int exitCode = 0,
+      String stderrText = '',
+      String partial = '',
+      List<String> notes = const <String>[],
+    }) {
+      _turns.remove(asked);
+      _events.add(ConversationEvent(ConversationEventKind.done, message));
+      return ConversationReply(
+        text: partial,
+        sessionId: _sessionId,
+        notes: notes,
+        error: message,
+        exitCode: exitCode,
+        stderrText: stderrText,
+      );
+    }
+
     final LaunchPlan plan;
     try {
-      plan = const LaunchPlanBuilder().build(
-        executable: executable,
-        capabilities: capabilities,
-        request: LaunchRequest(
-          prompt: prompt,
-          workingDirectory: workingDirectory,
-          intent: resuming == null ? LaunchIntent.fresh : LaunchIntent.resume,
-          sessionId: resuming == null ? newSessionId() : null,
-          resumeSessionId: resuming,
-          model: model,
-          effortPreference: effortPreference,
-          // Never the user's run setting. `bypassPermissions` exists so an
-          // unattended build can work without stopping to ask; an interview
-          // turn is a question about what to build and needs no tools at all.
-          // Under the default mode a tool call cannot be approved in a
-          // headless turn, so the failure direction is refusal rather than
-          // something happening on disk that nobody asked for.
-          permissionMode: 'default',
-        ),
-      );
+      plan = planFor(prompt);
     } on LaunchPlanError catch (e) {
-      return ConversationReply(text: '', error: e.message);
+      return fail(e.message);
     }
 
-    final ProcessResult result;
+    final String? tooLong = _tooLongForThisPlatform(plan);
+    if (tooLong != null) return fail(tooLong);
+
+    final Process process;
     try {
-      result = await _run(plan);
+      process = await Process.start(
+        plan.executable,
+        plan.arguments,
+        workingDirectory: plan.workingDirectory,
+        environment: _childEnvironment(plan),
+        includeParentEnvironment: false,
+        runInShell: needsShell(plan.executable),
+      );
     } on ProcessException catch (e) {
-      return ConversationReply(text: '', error: e.message);
+      return fail(e.message);
     }
+    _current = process;
 
     final StringBuffer said = StringBuffer();
+    final StringBuffer errText = StringBuffer();
+    final StringBuffer plain = StringBuffer();
+    String? reported;
+    String? resultText;
+
+    // Killed rather than awaited past the ceiling: `Process.run` had no
+    // timeout at all, so a CLI waiting on a login prompt it cannot show hung
+    // the app until it was force-quit, orphaning the child.
+    bool timedOut = false;
+    final Timer clock = Timer(timeout, () {
+      timedOut = true;
+      process.kill();
+    });
+
+    final Future<void> outDone = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((String line) {
+          if (line.trim().isEmpty) return;
+          plain.writeln(line);
+          final CliEvent event = CliEvent.parse(line);
+          final String? id = _sessionIdOf(event);
+          if (id != null && reported == null) {
+            reported = id;
+            _events.add(
+              ConversationEvent(
+                ConversationEventKind.started,
+                'Session $id.',
+                sessionId: id,
+              ),
+            );
+          }
+          if (event is AssistantEvent && !event.isSubagent) {
+            final String text = event.text;
+            if (text.trim().isNotEmpty) {
+              said.write(text);
+              _events.add(ConversationEvent(ConversationEventKind.text, text));
+            }
+            for (final String tool in event.toolUses) {
+              _events.add(ConversationEvent(ConversationEventKind.tool, tool));
+            }
+          } else if (event is ResultEvent) {
+            resultText = event.text;
+          }
+        })
+        .asFuture<void>()
+        // Malformed bytes throw from the strict decoder, and losing the whole
+        // turn to one bad character is worse than losing the character.
+        .catchError((Object _) {});
+
+    final Future<void> errDone = process.stderr
+        .transform(utf8.decoder)
+        .listen((String chunk) {
+          errText.write(chunk);
+          final String line = chunk.trimRight();
+          if (line.isNotEmpty) {
+            _events.add(ConversationEvent(ConversationEventKind.stderr, line));
+          }
+        })
+        .asFuture<void>()
+        .catchError((Object _) {});
+
+    final int exitCode = await process.exitCode;
+    await Future.wait<void>(<Future<void>>[outDone, errDone]);
+    clock.cancel();
+    _current = null;
+
+    final String stderrText = errText.toString().trim();
+    // A plain-text build produces no events at all, so what it wrote *is* the
+    // reply — but only when plain text is what was asked for. Falling back to
+    // raw stdout unconditionally means a `json`-tier build hands the user the
+    // JSON envelope as if Claude had said it, with the patch block inside it
+    // backslash-escaped and invisible to the parser.
+    String text = said.isNotEmpty
+        ? said.toString().trim()
+        : (resultText ?? '').trim();
+    if (text.isEmpty && plan.telemetry == TelemetryTier.text) {
+      text = plain.toString().trim();
+    }
+
+    if (_cancelled) {
+      return fail('Stopped.', exitCode: exitCode, stderrText: stderrText);
+    }
+    if (timedOut) {
+      return fail(
+        'Claude did not answer within ${timeout.inMinutes} minutes, so the '
+        'turn was stopped. Nothing was applied.',
+        exitCode: exitCode,
+        stderrText: stderrText,
+        partial: text,
+      );
+    }
+
+    // A non-zero exit is a failure even when text came back. Committing half a
+    // reply — and the session id attached to it — as a complete answer is how
+    // a turn that died at a usage limit was stored as if Claude had finished
+    // speaking.
+    if (exitCode != 0) {
+      return fail(
+        stderrText.isEmpty
+            ? 'The CLI exited $exitCode without saying why.'
+            : stderrText,
+        exitCode: exitCode,
+        stderrText: stderrText,
+        partial: text,
+        notes: plan.notes,
+      );
+    }
+
+    if (text.isEmpty) {
+      return fail(
+        stderrText.isEmpty
+            ? 'The CLI exited $exitCode without saying anything.'
+            : stderrText,
+        exitCode: exitCode,
+        stderrText: stderrText,
+        notes: plan.notes,
+      );
+    }
+
     // What the CLI reports, preferred over what was asked for. They agree in
     // practice, but if they ever did not, resuming the id we pinned rather
     // than the one it actually opened would fail on the next turn — and the
     // id cannot be pinned at all on older builds, where reading it back is
     // the only way to get one.
-    String? reported;
-
-    for (final String line in '${result.stdout}'.split('\n')) {
-      if (line.trim().isEmpty) continue;
-      final CliEvent event = CliEvent.parse(line);
-      reported = event.sessionId ?? reported;
-      if (event is AssistantEvent && !event.isSubagent) {
-        final String text = event.text.trim();
-        if (text.isNotEmpty) said.writeln(text);
-      }
-    }
+    final List<String> notes = <String>[...plan.notes];
     final String? session = reported ?? plan.sessionId;
-
-    // Plain-text builds produce no events at all, so the output is the reply.
-    final String text = said.isEmpty
-        ? '${result.stdout}'.trim()
-        : said.toString().trim();
-
-    if (text.isEmpty) {
-      final String err = '${result.stderr}'.trim();
-      return ConversationReply(
-        text: '',
-        sessionId: session,
-        notes: plan.notes,
-        error: err.isEmpty
-            ? 'The CLI exited ${result.exitCode} without saying anything.'
-            : err,
+    if (session == null) {
+      // Silent, total interview corruption otherwise: with no id there is
+      // nothing to resume, so every round opens a fresh session while the app
+      // goes on sending rounds written for a chat that remembers the last one.
+      notes.add(
+        'This CLI build reports no session id, so each round starts a new '
+        'conversation and Claude will not remember the previous one.',
       );
     }
-
     _sessionId = session ?? _sessionId;
     _turns.add(
       ChatTurn(fromUser: false, text: text, at: DateTime.now().toUtc()),
     );
+    _events.add(ConversationEvent(ConversationEventKind.done, 'Answered.'));
+
     return ConversationReply(
       text: text,
       sessionId: _sessionId,
-      notes: plan.notes,
+      notes: notes,
+      stderrText: stderrText,
     );
   }
 
-  static Future<ProcessResult> _defaultRunner(LaunchPlan plan) {
+  /// `session_id` read defensively. It is a hard cast on [CliEvent], evaluated
+  /// on every line, and a non-string would take the whole turn down.
+  String? _sessionIdOf(CliEvent event) {
+    final Object? raw = event.raw['session_id'];
+    return raw is String && raw.isNotEmpty ? raw : null;
+  }
+
+  Map<String, String> _childEnvironment(LaunchPlan plan) {
     final Map<String, String> env = Map<String, String>.from(
       Platform.environment,
-    );
+    )..addAll(environment);
     for (final MapEntry<String, String?> e in plan.environment.entries) {
       if (e.value == null) {
         env.remove(e.key);
@@ -194,37 +447,25 @@ class CliConversation {
         env[e.key] = e.value!;
       }
     }
-    return Process.run(
-      plan.executable,
-      plan.arguments,
-      workingDirectory: plan.workingDirectory,
-      environment: env,
-      includeParentEnvironment: false,
-      runInShell: CliConversation.needsShell(plan.executable),
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
+    return env;
+  }
+
+  /// Refuses a command line the operating system would truncate or reject.
+  ///
+  /// Windows caps `CreateProcess` at 32767 characters, and a `.cmd` — which an
+  /// npm install of Claude Code is — goes through `cmd.exe`, where the cap is
+  /// 8191. Failing here with a sentence is better than failing there with
+  /// whatever a truncated argument list happens to do.
+  String? _tooLongForThisPlatform(LaunchPlan plan) {
+    if (!Platform.isWindows) return null;
+    final int budget = needsShell(plan.executable) ? 7800 : 30000;
+    final int length = plan.arguments.fold<int>(
+      plan.executable.length,
+      (int n, String a) => n + a.length + 3,
     );
-  }
-
-  /// Same Windows batch-file rule the locator applies: `CreateProcess` refuses
-  /// a `.cmd`, so an npm install has to go through a shell here too.
-  static bool needsShell(String path) {
-    if (!Platform.isWindows) return false;
-    final String lower = path.toLowerCase();
-    return lower.endsWith('.cmd') || lower.endsWith('.bat');
-  }
-
-  static int _counter = 0;
-
-  /// Enough of a UUID for the CLI to accept as a session id.
-  static String _uuid() {
-    final int n = DateTime.now().microsecondsSinceEpoch;
-    final String hex = n.toRadixString(16).padLeft(12, '0');
-    final String tail = (_counter++).toRadixString(16).padLeft(4, '0');
-    return '${hex.substring(0, 8)}-${hex.substring(8)}-4000-8000-'
-        '${hex.substring(0, 8)}$tail';
+    if (length <= budget) return null;
+    return 'That message is too long to hand to the CLI on Windows '
+        '($length characters, limit $budget). Shorten it, or copy it across '
+        'by hand instead.';
   }
 }
-
-/// How a plan is executed. Replaced in tests.
-typedef ProcessRunner = Future<ProcessResult> Function(LaunchPlan plan);

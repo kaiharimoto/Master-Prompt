@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../cli/capability_profile.dart';
 import '../cli/launch_plan.dart';
+import '../cli/session_id.dart';
 import '../stream/cli_event.dart';
 import 'clock.dart';
 import 'limit_detector.dart';
@@ -85,7 +86,7 @@ class RunSupervisor {
     LaunchIntent intent = record.sessionId == null
         ? LaunchIntent.fresh
         : LaunchIntent.resume;
-    String? pinnedId = record.sessionId ?? _uuid();
+    String? pinnedId = record.sessionId ?? newSessionId();
     bool forkNext = false;
 
     while (!record.isFinished) {
@@ -181,7 +182,7 @@ class RunSupervisor {
             'The session could not be reattached; forking from its transcript.',
           );
           forkNext = true;
-          pinnedId = _uuid();
+          pinnedId = newSessionId();
           await store.save(record);
           continue;
         }
@@ -192,7 +193,7 @@ class RunSupervisor {
         );
         intent = LaunchIntent.fresh;
         forkNext = false;
-        pinnedId = _uuid();
+        pinnedId = newSessionId();
         record = record.copyWith(sessionId: null);
         await store.save(record);
         continue;
@@ -239,7 +240,7 @@ class RunSupervisor {
           ? LaunchIntent.fresh
           : LaunchIntent.resume;
       forkNext = false;
-      pinnedId = record.sessionId == null ? _uuid() : null;
+      pinnedId = record.sessionId == null ? newSessionId() : null;
     }
 
     await store.save(record);
@@ -287,6 +288,10 @@ class RunSupervisor {
       workingDirectory: plan.workingDirectory,
       environment: env,
       includeParentEnvironment: false,
+      // The locator finds `%APPDATA%\npm\claude.cmd` and the interview runs
+      // it, but this — the path that actually does the twelve-hour work — was
+      // still calling CreateProcess directly, which refuses a batch file.
+      runInShell: needsShell(plan.executable),
     );
     _current = process;
 
@@ -378,20 +383,6 @@ class RunSupervisor {
   }
 
   Future<void> dispose() async => _events.close();
-
-  static int _counter = 0;
-
-  /// A v4-shaped identifier. The CLI only requires a valid UUID; this avoids a
-  /// dependency for something with no security role.
-  static String _uuid() {
-    final int n = DateTime.now().microsecondsSinceEpoch + (_counter++);
-    final String hex = n.toRadixString(16).padLeft(16, '0');
-    final String tail = (n * 2654435761 & 0xFFFFFFFFFFFF)
-        .toRadixString(16)
-        .padLeft(12, '0');
-    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
-        '4${hex.substring(13, 16)}-a${tail.substring(0, 3)}-${tail.substring(0, 12)}';
-  }
 }
 
 class _AttemptResult {

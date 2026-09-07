@@ -6,7 +6,7 @@ class AppSettings {
   const AppSettings({
     this.themeMode = ThemeMode.system,
     this.claudePath,
-    this.model = 'claude-opus-5',
+    this.model = '',
     this.effort = 'high',
     this.permissionMode = 'bypassPermissions',
     this.workingDirectory,
@@ -20,6 +20,16 @@ class AppSettings {
   /// Explicit path to the CLI, when discovery does not find it.
   final String? claudePath;
 
+  /// Which model the CLI is asked for, or empty to leave it alone.
+  ///
+  /// **Empty is the default, and it means no `--model` at all.** The flag takes
+  /// an alias (`opus`, `sonnet`) or a full dated name
+  /// (`claude-sonnet-4-5-20250929`); anything else is refused, and because
+  /// `--model` enumerates no choices in `--help`, the capability probe cannot
+  /// catch a bad one. The app shipped `claude-opus-5` here, which is neither
+  /// form, so every turn and every run would have failed on it. Sending
+  /// nothing leaves the CLI on whatever the user already chose with `/model`,
+  /// which cannot be a value this build rejects.
   final String model;
 
   /// Preferred effort. The launch plan degrades this to whatever the installed
@@ -90,7 +100,7 @@ class AppSettings {
       orElse: () => ThemeMode.system,
     ),
     claudePath: j['claudePath'] as String?,
-    model: '${j['model'] ?? 'claude-opus-5'}',
+    model: _readModel(j['model']),
     effort: '${j['effort'] ?? 'high'}',
     permissionMode: '${j['permissionMode'] ?? 'bypassPermissions'}',
     workingDirectory: j['workingDirectory'] as String?,
@@ -98,4 +108,22 @@ class AppSettings {
     standaloneTurns: j['standaloneTurns'] as bool? ?? false,
     pasteLimit: (j['pasteLimit'] as num?)?.toInt() ?? 8000,
   );
+
+  /// Migrates a stored value the CLI would refuse.
+  ///
+  /// Settings shipped with a dropdown of `claude-opus-5` / `claude-sonnet-5` /
+  /// `claude-haiku-4-5`. None of those is an alias or a dated full name, so
+  /// every saved copy holds a value that fails on use. They map to the alias
+  /// they meant; anything else unrecognised falls back to leaving the flag off,
+  /// which always works.
+  static String _readModel(Object? raw) {
+    final String v = '${raw ?? ''}'.trim();
+    if (v.isEmpty) return '';
+    if (const <String>['opus', 'sonnet', 'haiku'].contains(v)) return v;
+    if (RegExp(r'^claude-[a-z0-9-]+-\d{8}$').hasMatch(v)) return v;
+    for (final String alias in const <String>['opus', 'sonnet', 'haiku']) {
+      if (v.contains(alias)) return alias;
+    }
+    return '';
+  }
 }

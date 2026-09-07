@@ -163,9 +163,9 @@ class SettingsScreen extends StatelessWidget {
                   number: '04',
                   title: 'Model',
                   subtitle:
-                      'The requested effort is degraded automatically if the '
-                      'installed CLI does not accept it, rather than failing '
-                      'the launch.',
+                      'Leave the model alone unless you want to override it. '
+                      'Effort is degraded automatically if the installed CLI '
+                      'does not accept it, rather than failing the launch.',
                 ),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(
@@ -177,23 +177,40 @@ class SettingsScreen extends StatelessWidget {
                         child: DropdownButtonFormField<String>(
                           initialValue: s.model,
                           items: const <DropdownMenuItem<String>>[
+                            // Aliases, not versioned names. `--model` takes an
+                            // alias or a full dated name and refuses anything
+                            // else, and it enumerates no choices in --help so
+                            // the capability probe cannot catch a bad one. An
+                            // alias also stays correct when a new model ships.
                             DropdownMenuItem<String>(
-                              value: 'claude-opus-5',
-                              child: Text('Opus 5'),
+                              value: '',
+                              child: Text('Whatever the CLI is set to'),
                             ),
                             DropdownMenuItem<String>(
-                              value: 'claude-sonnet-5',
-                              child: Text('Sonnet 5'),
+                              value: 'opus',
+                              child: Text('Opus'),
                             ),
                             DropdownMenuItem<String>(
-                              value: 'claude-haiku-4-5',
-                              child: Text('Haiku 4.5'),
+                              value: 'sonnet',
+                              child: Text('Sonnet'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'haiku',
+                              child: Text('Haiku'),
                             ),
                           ],
                           onChanged: (String? v) => v == null
                               ? null
                               : store.updateSettings(s.copyWith(model: v)),
                         ),
+                      ),
+                      const SizedBox(height: MpSpace.xs),
+                      Text(
+                        s.model.isEmpty
+                            ? 'No --model flag is sent, so Claude Code stays on '
+                                  'whatever you last chose with /model.'
+                            : 'Every turn and every run asks for ${s.model}.',
+                        style: MpType.caption.copyWith(color: c.inkMuted),
                       ),
                       const SizedBox(height: MpSpace.md),
                       MpField(

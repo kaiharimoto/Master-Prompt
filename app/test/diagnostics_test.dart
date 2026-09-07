@@ -72,7 +72,13 @@ void main() {
       workingDirectory: r'C:\Users\kai\missions',
     );
     final String r = Diagnostics.instance.report(settings: s);
-    expect(r, contains('claude-opus-5'));
+    expect(
+      r,
+      contains('(CLI default)'),
+      reason:
+          'no --model flag is sent by default, and a blank line in a pasted '
+          'report does not say that',
+    );
     expect(r, contains('bypassPermissions'));
     // The paths contain a user name, so only their presence is reported.
     expect(r, isNot(contains('kai')));

@@ -61,7 +61,7 @@ class _ScriptedChat extends ClaudeChat {
   bool get available => runner.install != null;
 
   @override
-  Future<String?> send(String prompt, AppSettings settings) async {
+  Future<ConversationReply?> send(String prompt, AppSettings settings) async {
     asked.add(prompt);
     _turns.add(
       ChatTurn(fromUser: true, text: prompt, at: DateTime.now().toUtc()),
@@ -83,7 +83,7 @@ class _ScriptedChat extends ClaudeChat {
       ChatTurn(fromUser: false, text: reply, at: DateTime.now().toUtc()),
     );
     notifyListeners();
-    return reply;
+    return ConversationReply(text: reply, sessionId: 'scripted');
   }
 
   @override

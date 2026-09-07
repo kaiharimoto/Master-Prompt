@@ -175,7 +175,7 @@ class _FlowScreenState extends State<FlowScreen> {
           note: 'asked the CLI',
         ),
       );
-      final String? reply = await widget.chat.send(
+      final ConversationReply? reply = await widget.chat.send(
         prompt,
         widget.store.settings,
       );
@@ -185,7 +185,7 @@ class _FlowScreenState extends State<FlowScreen> {
         );
         return;
       }
-      await _read(p, reply, viaCli: true);
+      await _read(p, reply.text, viaCli: true);
       _followUpField.clear();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -227,7 +227,11 @@ class _FlowScreenState extends State<FlowScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[widget.store, widget.flow]),
+      listenable: Listenable.merge(<Listenable>[
+        widget.store,
+        widget.flow,
+        widget.chat,
+      ]),
       builder: (BuildContext context, _) {
         final Project? p = widget.store.current;
         final ReadinessReport? report = p == null
@@ -475,13 +479,20 @@ class _FlowScreenState extends State<FlowScreen> {
   Widget _conversing(Project p, ReadinessReport report) {
     final MpColors c = MpTheme.colorsOf(context);
     final String? problem = widget.flow.problem;
-    final String? reply = widget.chat.lastReply;
     final bool busy = _busy || widget.chat.busy;
+    // While the turn is running the answer being written is what the screen is
+    // about; once it lands, the finished one is. A turn that failed after an
+    // earlier success used to leave the *previous* answer on screen under the
+    // heading "Claude answered", with the failure tucked underneath.
+    final String? reply = busy
+        ? (widget.chat.liveText.isEmpty ? null : widget.chat.liveText)
+        : (widget.flow.problem != null ? null : widget.chat.lastReply);
 
     // Nothing came back at all, so there is nothing to answer and Send would
     // be a button that does nothing. The way on is the question again, where
     // the round can be sent a second time or copied instead.
     final bool failed = !busy && reply == null;
+    final int seconds = widget.chat.elapsed.inSeconds;
 
     return MpFocal(
       key: const ValueKey<String>('beat-chat'),
@@ -492,7 +503,10 @@ class _FlowScreenState extends State<FlowScreen> {
           ? 'That turn did not go through'
           : 'Claude answered',
       supporting: busy
-          ? 'A round takes about as long as it would in the chat app.'
+          ? (widget.chat.activity.isNotEmpty
+                ? widget.chat.activity
+                : '${seconds}s so far. A round takes about as long as it '
+                      'would in the chat app.')
           : failed
           ? 'Nothing was lost. The round is still there to send again, or to '
                 'copy across by hand.'
@@ -508,6 +522,19 @@ class _FlowScreenState extends State<FlowScreen> {
                 style: MpType.prose.copyWith(color: c.ink),
               ),
             ),
+          // What the installed build could not do as asked. This reached the
+          // diagnostics log and nowhere else, so a CLI that silently restarted
+          // the conversation every round looked exactly like one that did not.
+          for (final String note in widget.chat.notes) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            MpPanel(
+              accent: c.warning,
+              child: Text(
+                note,
+                style: MpType.prose.copyWith(color: c.inkMuted),
+              ),
+            ),
+          ],
           if (problem != null) ...<Widget>[
             const SizedBox(height: MpSpace.md),
             MpPanel(
@@ -553,11 +580,18 @@ class _FlowScreenState extends State<FlowScreen> {
             ),
       secondary: failed
           ? null
+          : busy
+          ? MpButton(
+              label: 'Stop',
+              kind: MpButtonKind.quiet,
+              expand: true,
+              onPressed: widget.chat.cancel,
+            )
           : MpButton(
               label: 'Back to the question',
               kind: MpButtonKind.quiet,
               expand: true,
-              onPressed: busy ? null : _backToQuestion,
+              onPressed: _backToQuestion,
             ),
       disclosures: <Widget>[
         MpDisclosure(
