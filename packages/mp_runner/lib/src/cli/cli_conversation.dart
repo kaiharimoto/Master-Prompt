@@ -120,6 +120,7 @@ class CliConversation {
     this.environment = const <String, String>{},
     this.timeout = const Duration(minutes: 15),
     this.newSessionId = _newSessionId,
+    this.commandLineBudget,
   });
 
   final String executable;
@@ -147,6 +148,15 @@ class CliConversation {
 
   /// Injected so a test can pin the id it expects to see resumed.
   final String Function() newSessionId;
+
+  /// How many characters of command line this platform will carry, or null to
+  /// work it out from the platform.
+  ///
+  /// Injectable because the rule is Windows-only and a Linux runner could
+  /// otherwise never reach it — which is the same shape of hole that let an
+  /// invalid session id ship: a platform-guarded branch with no way in from
+  /// the machine the tests run on.
+  final int? commandLineBudget;
 
   String? _sessionId;
   Process? _current;
@@ -450,21 +460,34 @@ class CliConversation {
     return env;
   }
 
-  /// Refuses a command line the operating system would truncate or reject.
+  /// What this platform will carry on a command line, or null for no limit.
   ///
   /// Windows caps `CreateProcess` at 32767 characters, and a `.cmd` — which an
-  /// npm install of Claude Code is — goes through `cmd.exe`, where the cap is
-  /// 8191. Failing here with a sentence is better than failing there with
-  /// whatever a truncated argument list happens to do.
-  String? _tooLongForThisPlatform(LaunchPlan plan) {
+  /// npm install of Claude Code is — goes through `cmd.exe`, where the cap
+  /// drops to 8191. Both are left some headroom for the flags and the quoting.
+  int? budgetFor(String executable) {
+    if (commandLineBudget != null) return commandLineBudget;
     if (!Platform.isWindows) return null;
-    final int budget = needsShell(plan.executable) ? 7800 : 30000;
-    final int length = plan.arguments.fold<int>(
-      plan.executable.length,
-      (int n, String a) => n + a.length + 3,
-    );
+    return needsShell(executable) ? 7800 : 30000;
+  }
+
+  /// The length of the command line, counted the way the operating system
+  /// counts it: every argument, plus a space and the quotes around it.
+  static int commandLineLength(LaunchPlan plan) => plan.arguments.fold<int>(
+    plan.executable.length,
+    (int n, String a) => n + a.length + 3,
+  );
+
+  /// Refuses a command line the operating system would truncate or reject.
+  ///
+  /// Failing here with a sentence is better than failing there with whatever a
+  /// truncated argument list happens to do.
+  String? _tooLongForThisPlatform(LaunchPlan plan) {
+    final int? budget = budgetFor(plan.executable);
+    if (budget == null) return null;
+    final int length = commandLineLength(plan);
     if (length <= budget) return null;
-    return 'That message is too long to hand to the CLI on Windows '
+    return 'That message is too long to hand to the CLI on this platform '
         '($length characters, limit $budget). Shorten it, or copy it across '
         'by hand instead.';
   }

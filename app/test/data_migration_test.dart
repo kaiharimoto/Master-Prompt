@@ -109,11 +109,39 @@ void main() {
 
   test('only Windows ever moved, so only Windows looks', () {
     expect(
-      DataMigration.previousLocations().isEmpty,
-      !Platform.isWindows,
+      DataMigration.previousLocations(
+        onWindows: false,
+        roaming: r'C:\Users\k\AppData\Roaming',
+      ),
+      isEmpty,
       reason:
           'Android keys its directory off the applicationId, which has not '
           'changed and must not',
+    );
+  });
+
+  test('it looks where the old build actually put things', () {
+    // The one thing about this that can be wrong on a Windows machine and
+    // nowhere else, so it is checked here rather than left to be discovered
+    // by a user whose missions have vanished.
+    final List<Directory> old = DataMigration.previousLocations(
+      onWindows: true,
+      roaming: r'C:\Users\k\AppData\Roaming',
+    );
+    expect(old, hasLength(1));
+    expect(
+      old.single.path,
+      r'C:\Users\k\AppData\Roaming\com.masterprompt\master_prompt',
+      reason:
+          'path_provider builds this from the exe VERSIONINFO, so it is the '
+          'CompanyName and ProductName the old build carried, verbatim',
+    );
+  });
+
+  test('no APPDATA means nothing to bring forward, not a crash', () {
+    expect(
+      DataMigration.previousLocations(onWindows: true, roaming: ''),
+      isEmpty,
     );
   });
 }

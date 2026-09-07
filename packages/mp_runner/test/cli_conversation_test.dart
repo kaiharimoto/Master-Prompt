@@ -327,6 +327,44 @@ Options:
       expect(seen.last, ConversationEventKind.done);
     });
 
+    test(
+      'a prompt too long for the command line is refused, not truncated',
+      () async {
+        // Windows caps CreateProcess at 32767 characters and cmd.exe at 8191,
+        // and an npm install of Claude Code runs through cmd. This rule was
+        // written behind `if (!Platform.isWindows) return null`, which meant no
+        // test on this runner could ever reach it — the same shape of hole that
+        // let an invalid session id ship.
+        final CliConversation c = CliConversation(
+          executable: fake,
+          capabilities: profile(),
+          workingDirectory: tmp.path,
+          commandLineBudget: 200,
+          environment: <String, String>{'FAKE_CLAUDE_SCENARIO': 'success'},
+        );
+
+        final ConversationReply r = await c.ask('x' * 400);
+        expect(r.ok, isFalse);
+        expect(r.error, contains('too long'));
+        expect(
+          c.turns,
+          isEmpty,
+          reason: 'nothing was sent, so nothing belongs in the transcript',
+        );
+      },
+    );
+
+    test('an ordinary round is nowhere near the limit', () async {
+      final CliConversation c = live();
+      expect(
+        CliConversation.commandLineLength(c.planFor('A normal round.')),
+        lessThan(7800),
+        reason:
+            'the tightest real limit is cmd.exe at 8191, and an interview '
+            'round has to fit comfortably inside it',
+      );
+    });
+
     test('the transcript keeps both sides in order', () async {
       final CliConversation c = live();
       await c.ask('Round one.');

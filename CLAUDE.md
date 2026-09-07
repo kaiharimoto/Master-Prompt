@@ -122,10 +122,16 @@ every saved mission, and the app starts up empty with nothing saying why.
 never overwrites, so it cannot destroy anything however many times it runs.
 Renaming the app again means adding to `previousLocations()`.
 
-**Anything Windows-only must key off the injected `platform`, not
-`Platform.isWindows`.** `Updater` already carries an `UpdatePlatform`, and using
-the ambient check beside it made the entire one-click update path unreachable
-from the Linux runner — which is the only place it can be proven at all.
+**A branch guarded by `Platform.isWindows` has no way in from the runner the
+tests run on, so it is not tested — assume it is broken.** This has now bitten
+three times in one session: the one-click update path, the command-line length
+guard, and the old-data-location lookup were all written behind an ambient
+platform check and all had zero coverage the moment they were written. Every one
+of them now takes the platform, or the value the platform decides, as a
+parameter: `Updater` has `UpdatePlatform`, `CliConversation` has
+`commandLineBudget`, `DataMigration.previousLocations` has `onWindows` and
+`roaming`. Do the same for the next one. `Platform.isWindows` belongs only where
+it *chooses* a default, never where it guards logic worth testing.
 
 **There is one code path to a process, on purpose.** `CliConversation` used to
 take an injectable `ProcessRunner`; every test used it, so `_defaultRunner`,

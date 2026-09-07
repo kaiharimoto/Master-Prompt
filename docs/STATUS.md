@@ -380,7 +380,7 @@ else entirely with no indication.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-350 tests: 151 in `mp_core`, 97 in `mp_runner`, 102 in the app.
+354 tests: 151 in `mp_core`, 99 in `mp_runner`, 104 in the app.
 
 ### Not yet proven
 
@@ -523,6 +523,25 @@ phone predates the updater. Then, in this order:
   on layout. This is the second time that accent bar has caused a layout crash.
   The review panel renders a plain column instead, which is better anyway: a
   scroll area inside a scrolling page is miserable on a phone.
+- **A branch behind `Platform.isWindows` is a branch with no test, and this
+  session wrote three of them while fixing the first one.** The one-click
+  update, the command-line length guard and the old-data-location lookup were
+  all written behind an ambient platform check on a Linux runner, which means
+  none of them could be executed by anything. They take the deciding value as a
+  parameter now. The rule that came out of it: `Platform.isX` may *choose a
+  default*, but must never *guard logic* — because the logic it guards is
+  exactly the logic that cannot be reached.
+- **A test that injects everything tests nothing.** Every `CliConversation`
+  test injected the process runner and the session id, so the three functions
+  that only exist against a real binary had zero executions while nine tests
+  reported green. The fix was not more tests, it was removing the seam: argument
+  composition became a pure function that can be inspected without a process,
+  and the send path now always spawns.
+- **A test double that accepts everything proves only that the code runs.**
+  `fake_claude` validated exactly one argument combination, so it happily
+  echoed back a session id of the shape `8-5-4-4-12`. It refuses what the real
+  binary refuses now, in the real binary's words, and that single change turns
+  the bug that reached a user into a failing test on a Linux runner.
 - **A `sed`-style replace that does not match is silent.** Two edits this
   session were no-ops because `dart format` had reflowed the lines being
   matched, and both were caught only by a failing test rather than by the edit

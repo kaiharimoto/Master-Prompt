@@ -22,11 +22,16 @@ abstract final class DataMigration {
   ///
   /// Only the Windows path ever changed: Android keys its directory off the
   /// `applicationId`, which must not change and has not.
-  static List<Directory> previousLocations() {
-    if (!Platform.isWindows) return const <Directory>[];
-    final String? roaming = Platform.environment['APPDATA'];
-    if (roaming == null || roaming.isEmpty) return const <Directory>[];
-    return <Directory>[Directory('$roaming\\com.masterprompt\\master_prompt')];
+  ///
+  /// [roaming] and [onWindows] are parameters rather than reads of the ambient
+  /// platform so that the path this builds can be checked on a Linux runner. A
+  /// Windows-only branch with no way in from the machine the tests run on is
+  /// exactly the hole that shipped an invalid session id.
+  static List<Directory> previousLocations({String? roaming, bool? onWindows}) {
+    if (!(onWindows ?? Platform.isWindows)) return const <Directory>[];
+    final String? appData = roaming ?? Platform.environment['APPDATA'];
+    if (appData == null || appData.isEmpty) return const <Directory>[];
+    return <Directory>[Directory('$appData\\com.masterprompt\\master_prompt')];
   }
 
   /// Copies anything [to] does not already have from the first [from] that
