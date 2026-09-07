@@ -288,6 +288,20 @@ wordmark's initial in the app's own type and ink, over the hairline rule the
 design system is built on. `tool/make_icon.py` is committed beside it so the
 thing is reproducible rather than a binary nobody can regenerate.
 
+**Opening Settings blanked the window.** On a phone a pushed route is right —
+one column, a back arrow, done. On a desktop it covers the rail as well, so
+Settings erased a 1600px display into a phone page and took the mission list
+with it. The four screen destinations open in the content pane now, with the
+rail intact and Escape closing them exactly as it closes a pushed route.
+
+Writing the test for that found a bug nothing had ever reached: **the Autonomy
+panel in Settings overflowed by 18 pixels**, because an accented `MpPanel` wraps
+its child in `IntrinsicHeight` and a `SwitchListTile` cannot be measured inside
+one — and that panel is accented by default, since the default permission mode
+is `bypassPermissions`. The same tiles were also painting their ink on the page
+behind the panel, which Flutter asserts on. Both switches are built from the
+design system now. Third layout crash traceable to that accent bar.
+
 Then the rest of the phone shape. **Progress, Missions and Update were modal
 bottom sheets on both platforms** — a thumb gesture from the bottom edge of a
 phone, which on a mouse-driven window is a panel that has slid in from
@@ -386,7 +400,7 @@ else entirely with no indication.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-354 tests: 151 in `mp_core`, 99 in `mp_runner`, 104 in the app.
+356 tests: 151 in `mp_core`, 99 in `mp_runner`, 106 in the app.
 
 ### Not yet proven
 

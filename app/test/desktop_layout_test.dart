@@ -125,6 +125,41 @@ void main() {
     expect(find.byType(BottomSheet), findsNothing);
   });
 
+  testWidgets('Settings opens beside the rail, not over it', (
+    WidgetTester tester,
+  ) async {
+    await desktop(tester);
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    // MpSectionHeader sets its title in the eyebrow style, uppercased.
+    expect(find.text('UPDATES'), findsOneWidget, reason: 'Settings is open');
+    expect(
+      find.text('MASTER PROMPT'),
+      findsOneWidget,
+      reason:
+          'a pushed route covers the whole window, so opening Settings blanked '
+          'a 1600px display into a phone page and took the mission list with it',
+    );
+    expect(find.text('New mission'), findsOneWidget);
+  });
+
+  testWidgets('a pane closes back to the mission', (WidgetTester tester) async {
+    await desktop(tester);
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    expect(find.text('What are you building?'), findsOneWidget);
+    expect(find.text('UPDATES'), findsNothing);
+  });
+
   testWidgets('the opening question is still the one thing on screen', (
     WidgetTester tester,
   ) async {

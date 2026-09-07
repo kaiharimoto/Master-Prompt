@@ -104,23 +104,17 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: MpSpace.md),
                 MpPanel(
-                  child: SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
+                  child: _SettingSwitch(
                     value: s.standaloneTurns,
                     onChanged: (bool v) =>
                         store.updateSettings(s.copyWith(standaloneTurns: v)),
-                    title: Text(
-                      'Every message stands alone',
-                      style: MpType.body.copyWith(color: c.ink),
-                    ),
-                    subtitle: Text(
-                      'Off by default: the interview is meant to run in one '
-                      'continuing chat, which already holds the framing and '
-                      'everything settled, so each round only carries what '
-                      'that round adds. Turn this on if you start a fresh '
-                      'chat every round.',
-                      style: MpType.caption.copyWith(color: c.inkMuted),
-                    ),
+                    title: 'Every message stands alone',
+                    detail:
+                        'Off by default: the interview is meant to run in one '
+                        'continuing chat, which already holds the framing and '
+                        'everything settled, so each round only carries what '
+                        'that round adds. Turn this on if you start a fresh '
+                        'chat every round.',
                   ),
                 ),
 
@@ -325,22 +319,16 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: MpSpace.md),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
+                      _SettingSwitch(
                         value: s.stepDownOnOpusLimit,
                         onChanged: (bool v) => store.updateSettings(
                           s.copyWith(stepDownOnOpusLimit: v),
                         ),
-                        title: Text(
-                          'Step down to Sonnet on an Opus limit',
-                          style: MpType.body.copyWith(color: c.ink),
-                        ),
-                        subtitle: Text(
-                          'Off by default: the standing policy is to wait for '
-                          'the limit to lift rather than quietly change which '
-                          'model does the work.',
-                          style: MpType.caption.copyWith(color: c.inkMuted),
-                        ),
+                        title: 'Step down to Sonnet on an Opus limit',
+                        detail:
+                            'Off by default: the standing policy is to wait '
+                            'for the limit to lift rather than quietly change '
+                            'which model does the work.',
                       ),
                     ],
                   ),
@@ -563,6 +551,53 @@ class _PathFieldState extends State<_PathField> {
       style: MpType.mono.copyWith(color: c.ink),
       decoration: InputDecoration(hintText: widget.hint),
       onSubmitted: (_) => _settle(),
+    );
+  }
+}
+
+/// A switch with a title and an explanation, built out of the design system
+/// rather than out of `SwitchListTile`.
+///
+/// Two reasons, both found the hard way. A `ListTile` paints its ink on the
+/// nearest Material, which inside an `MpPanel` is the page *behind* the
+/// panel — so the splash lands under an opaque box and Flutter asserts. And an
+/// accented `MpPanel` wraps its child in `IntrinsicHeight`, which a `ListTile`
+/// does not measure reliably inside: the result was an 18px overflow in the
+/// Autonomy panel, which is accented by default because the default permission
+/// mode is `bypassPermissions`. That is the third layout crash this accent bar
+/// has caused.
+class _SettingSwitch extends StatelessWidget {
+  const _SettingSwitch({
+    required this.value,
+    required this.onChanged,
+    required this.title,
+    required this.detail,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String title;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(title, style: MpType.body.copyWith(color: c.ink)),
+              const SizedBox(height: 2),
+              Text(detail, style: MpType.caption.copyWith(color: c.inkMuted)),
+            ],
+          ),
+        ),
+        const SizedBox(width: MpSpace.md),
+        Switch.adaptive(value: value, onChanged: onChanged),
+      ],
     );
   }
 }

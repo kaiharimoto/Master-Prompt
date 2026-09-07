@@ -218,6 +218,20 @@ lives behind **Progress**, the generated message behind a disclosure. If you fin
 yourself adding a second panel to a flow screen, it belongs in a disclosure or
 the menu.
 
+**A `ListTile` does not belong inside an `MpPanel`.** It paints its ink on the
+nearest Material, which inside a panel is the page *behind* it, so the splash
+lands under an opaque box and Flutter asserts; and inside an *accented* panel
+the `IntrinsicHeight` cannot measure it, which overflowed the Autonomy panel by
+18px — accented by default, because the default permission mode is
+`bypassPermissions`. That is the third layout crash this accent bar has caused.
+`_SettingSwitch` in `settings_screen.dart` is the replacement.
+
+**On desktop the destinations open in the content pane, not as pushed routes.**
+A push covers the rail too, so opening Settings blanked a 1600px window into a
+phone page and took the mission list with it. `_panel` in `_HomeScreenState`
+holds which one; the narrow layout still pushes, which is right when there is
+only one column.
+
 **Widget tests default to 800×600, which is below the 900px desktop gate.** So
 every test in this repository exercised the phone layout, and the entire wide
 branch of `home.dart` went uncovered until a fresh desktop install turned out to

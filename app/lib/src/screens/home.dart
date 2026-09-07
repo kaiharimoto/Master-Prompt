@@ -58,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
   late final DesktopRunner _runner = widget.runner ?? DesktopRunner();
   late final ClaudeChat _chat = widget.chat ?? ClaudeChat(runner: _runner);
 
+  /// Which destination the wide layout is showing in its content pane, if any.
+  ///
+  /// On a phone these are pushed routes, which is right: there is only ever
+  /// one column and a back arrow is the way out. On a desktop a push covers
+  /// the rail as well, so opening Settings blanks a 1600px window into a phone
+  /// page and the missions you were switching between disappear.
+  AppDestination? _panel;
+
   @override
   void dispose() {
     _flow.dispose();
@@ -73,6 +81,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _newRound() {
     _flow.reset();
     _chat.reset();
+    // A pane about the old mission has nothing to say about the new one.
+    _closePanel();
   }
 
   void _open(AppDestination d) {
@@ -95,25 +105,35 @@ class _HomeScreenState extends State<HomeScreen> {
               _MissionPicker(store: widget.store, onPicked: _newRound),
         );
       case AppDestination.brief:
-        _push(d.label, PromptScreen(store: widget.store, project: p!));
       case AppDestination.run:
-        _push(
-          d.label,
-          RunScreen(store: widget.store, project: p!, runner: _runner),
-        );
       case AppDestination.transcript:
-        _push(d.label, TranscriptScreen(project: p!));
       case AppDestination.settings:
-        _push(
-          d.label,
-          SettingsScreen(
-            store: widget.store,
-            updater: _updater,
-            runner: _runner,
-          ),
-        );
+        if (isDesktop(context)) {
+          setState(() => _panel = d);
+        } else {
+          _push(d.label, _screenFor(d, p));
+        }
     }
   }
+
+  void _closePanel() => setState(() => _panel = null);
+
+  Widget _screenFor(AppDestination d, Project? p) => switch (d) {
+    AppDestination.brief => PromptScreen(store: widget.store, project: p!),
+    AppDestination.run => RunScreen(
+      store: widget.store,
+      project: p!,
+      runner: _runner,
+    ),
+    AppDestination.transcript => TranscriptScreen(project: p!),
+    AppDestination.settings => SettingsScreen(
+      store: widget.store,
+      updater: _updater,
+      runner: _runner,
+    ),
+    // The three that are never a pane: they are sheets, or a dialog.
+    _ => const SizedBox.shrink(),
+  };
 
   void _push(String title, Widget child) {
     Navigator.of(context).push(
@@ -194,6 +214,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
+    // A pane about a mission cannot outlive the mission. Deselecting one with
+    // the Brief open would otherwise build a screen with nothing to show it.
+    final AppDestination? pane =
+        _panel != null && _panel!.needsMission && p == null ? null : _panel;
+
     if (wide) {
       return Scaffold(
         backgroundColor: c.canvas,
@@ -221,8 +246,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Row(
                         children: <Widget>[
+                          if (pane != null) ...<Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back, size: 22),
+                              tooltip: 'Back to the mission',
+                              onPressed: _closePanel,
+                            ),
+                            const SizedBox(width: MpSpace.sm),
+                          ],
                           Expanded(
-                            child: p == null
+                            child: pane != null
+                                ? Text(
+                                    pane.label,
+                                    style: MpType.heading.copyWith(
+                                      color: c.ink,
+                                    ),
+                                  )
+                                : p == null
                                 ? Text(
                                     'No mission open',
                                     style: MpType.label.copyWith(
@@ -240,7 +280,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const MpRule(),
-                    Expanded(child: flow),
+                    Expanded(
+                      // Escape leaves a pane exactly as it leaves a pushed
+                      // route on a phone, so the two behave the same way.
+                      child: pane == null
+                          ? flow
+                          : MpEscape(
+                              onEscape: _closePanel,
+                              child: _screenFor(pane, p),
+                            ),
+                    ),
                   ],
                 ),
               ),
