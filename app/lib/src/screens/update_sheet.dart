@@ -158,9 +158,16 @@ class _UpdateSheetState extends State<UpdateSheet> {
                 '${u.check?.asset?.size ?? ''}';
     }
     if (u.phase == UpdatePhase.downloaded) {
-      return u.platform == UpdatePlatform.android
-          ? 'Android will ask you to confirm. Your saved missions are kept — '
-                'every build is signed with the same key.'
+      if (u.quitting) {
+        return 'Master Prompt will close, update, and open again on its own.';
+      }
+      if (u.platform == UpdatePlatform.android) {
+        return 'Android will ask you to confirm. Your saved missions are kept '
+            '— every build is signed with the same key.';
+      }
+      return u.check?.asset?.kind == AssetKind.installer
+          ? 'One click. The app closes, updates and reopens itself; your saved '
+                'missions are untouched.'
           : 'Extract it over your existing folder once the app is closed.';
     }
     return u.check?.detail ?? 'Looking for a newer build.';
@@ -180,7 +187,9 @@ class _UpdateSheetState extends State<UpdateSheet> {
     }
     if (u.phase == UpdatePhase.downloaded) {
       return _Action(
-        label: 'Install',
+        label: u.check?.asset?.kind == AssetKind.installer
+            ? 'Install and restart'
+            : 'Install',
         icon: Icons.download_done,
         onPressed: u.install,
       );

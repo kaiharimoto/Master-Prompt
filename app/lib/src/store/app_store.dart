@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'data_migration.dart';
 import 'diagnostics.dart';
 import 'project.dart';
 import 'settings.dart';
@@ -46,9 +47,14 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<Directory> _dir() async {
-    _root ??= Directory(
-      '${(await getApplicationSupportDirectory()).path}/projects',
-    );
+    if (_root == null) {
+      final Directory support = await getApplicationSupportDirectory();
+      // Before anything reads the new location. Renaming the app moved this
+      // directory, and an app that starts up empty with no explanation is the
+      // worst possible way to find that out.
+      await DataMigration.run(to: support);
+      _root = Directory('${support.path}/projects');
+    }
     if (!_root!.existsSync()) _root!.createSync(recursive: true);
     return _root!;
   }

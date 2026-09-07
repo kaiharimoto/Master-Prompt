@@ -24,6 +24,22 @@ enum UpdatePlatform {
 /// [build] is CI's run number, which is the only monotonic thing available —
 /// the marketing version stays `0.1.0` across dozens of builds, so comparing
 /// versions would report "up to date" forever.
+/// What kind of thing was downloaded, which decides what "install" means.
+enum AssetKind {
+  /// An Android package, handed to the system installer.
+  apk,
+
+  /// A Windows setup program, run silently and then relaunched.
+  installer,
+
+  /// A Windows portable zip, which the user has to extract by hand.
+  ///
+  /// Still published, and still recognised, because the build a user is
+  /// running today knows only this shape. Drop it and their copy reports "no
+  /// asset" forever and never learns an installer exists.
+  archive,
+}
+
 class ReleaseAsset {
   const ReleaseAsset({
     required this.name,
@@ -31,6 +47,7 @@ class ReleaseAsset {
     required this.build,
     required this.sha,
     required this.bytes,
+    required this.kind,
   });
 
   final String name;
@@ -38,6 +55,7 @@ class ReleaseAsset {
   final int build;
   final String sha;
   final int bytes;
+  final AssetKind kind;
 
   /// `0.1.0+57 · a1b2c3d` reads the same way `BuildInfo.label` does, so the
   /// two can be compared by eye without translating between them.
@@ -99,6 +117,11 @@ class UpdateCheck {
 /// `MasterPrompt-57-a1b2c3d.apk`
 final RegExp _apk = RegExp(r'^MasterPrompt-(\d+)-([0-9a-f]{7,40})\.apk$');
 
+/// `MasterPromptSetup-57-a1b2c3d.exe`
+final RegExp _setup = RegExp(
+  r'^MasterPromptSetup-(\d+)-([0-9a-f]{7,40})\.exe$',
+);
+
 /// `MasterPrompt-windows-x64-57-a1b2c3d.zip`
 final RegExp _zip = RegExp(
   r'^MasterPrompt-windows-x64-(\d+)-([0-9a-f]{7,40})\.zip$',
@@ -136,7 +159,15 @@ UpdateCheck readRelease(
     );
   }
 
-  final RegExp pattern = platform == UpdatePlatform.android ? _apk : _zip;
+  // Windows publishes two shapes at once during the changeover. The installer
+  // is preferred wherever both are present, because it is the one that can
+  // update itself without the user handling a file.
+  final Map<RegExp, AssetKind> patterns = platform == UpdatePlatform.android
+      ? <RegExp, AssetKind>{_apk: AssetKind.apk}
+      : <RegExp, AssetKind>{
+          _setup: AssetKind.installer,
+          _zip: AssetKind.archive,
+        };
   final List<ReleaseAsset> found = <ReleaseAsset>[];
 
   final Object? assets = decoded['assets'];
@@ -146,24 +177,28 @@ UpdateCheck readRelease(
       final Object? name = entry['name'];
       final Object? url = entry['browser_download_url'];
       if (name is! String || url is! String) continue;
-      final RegExpMatch? m = pattern.firstMatch(name);
-      if (m == null) continue;
-      final int? build = int.tryParse(m.group(1)!);
-      final Uri? parsed = Uri.tryParse(url);
-      if (build == null || parsed == null) continue;
-      found.add(
-        ReleaseAsset(
-          name: name,
-          url: parsed,
-          build: build,
-          sha: m.group(2)!.substring(0, 7),
-          bytes: switch (entry['size']) {
-            final int n => n,
-            final num n => n.toInt(),
-            _ => 0,
-          },
-        ),
-      );
+      for (final MapEntry<RegExp, AssetKind> p in patterns.entries) {
+        final RegExpMatch? m = p.key.firstMatch(name);
+        if (m == null) continue;
+        final int? build = int.tryParse(m.group(1)!);
+        final Uri? parsed = Uri.tryParse(url);
+        if (build == null || parsed == null) break;
+        found.add(
+          ReleaseAsset(
+            name: name,
+            url: parsed,
+            build: build,
+            sha: m.group(2)!.substring(0, 7),
+            kind: p.value,
+            bytes: switch (entry['size']) {
+              final int n => n,
+              final num n => n.toInt(),
+              _ => 0,
+            },
+          ),
+        );
+        break;
+      }
     }
   }
 
@@ -177,7 +212,11 @@ UpdateCheck readRelease(
     );
   }
 
-  found.sort((ReleaseAsset a, ReleaseAsset b) => b.build.compareTo(a.build));
+  // Newest build first; within one build, the installer before the zip.
+  found.sort((ReleaseAsset a, ReleaseAsset b) {
+    final int byBuild = b.build.compareTo(a.build);
+    return byBuild != 0 ? byBuild : a.kind.index.compareTo(b.kind.index);
+  });
   final ReleaseAsset newest = found.first;
 
   final int? mine = int.tryParse(currentBuild);

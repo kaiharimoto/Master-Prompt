@@ -132,29 +132,83 @@ jobs:
           channel: stable
           cache: true
 
+      # This job built and shipped without running a single test, while the
+      # Android job ran analyze and the full suite. A Windows-only regression
+      # had nothing standing between it and the release page.
+      - name: Resolve, analyse, test
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      # The build number has to reach the exe's VERSIONINFO, not just the Dart
+      # side, or Windows sees every build as 0.1.0.1 and an installer cannot
+      # tell an upgrade from a reinstall. Flutter derives that resource from
+      # pubspec's `version:`, so that is what gets stamped.
+      - name: Stamp the build number into the version
+        shell: pwsh
+        run: |
+          $p = "app/pubspec.yaml"
+          (Get-Content $p) -replace '^version: .*$', `
+            'version: 0.1.0+${{ github.run_number }}' | Set-Content $p
+          Select-String -Path $p -Pattern '^version:'
+
       # The only place a Windows binary can be produced — Flutter desktop needs
       # a Windows host. This is why the runner logic lives in a plain dart:io
       # package that is proven on Linux first.
       - name: Build release
         working-directory: app
         run: |
-          flutter pub get
           flutter build windows --release `
             --dart-define=MP_BUILD=${{ github.run_number }} `
             --dart-define=MP_SHA=${{ github.sha }}
 
-      - name: Package portable zip
+      # Checked rather than assumed. The runner image very likely ships Inno
+      # Setup, and "very likely" is what put an invalid session id on a user's
+      # machine this week.
+      - name: Ensure Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            Write-Host "ISCC not present; installing."
+            choco install innosetup -y --no-progress
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe still not at $iscc" }
+          Write-Host "using $iscc"
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build the installer
         shell: pwsh
         run: |
           $sha = "${{ github.sha }}".Substring(0,7)
           New-Item -ItemType Directory -Force -Path out | Out-Null
+          & "$env:ISCC" `
+            "/DAppVersion=0.1.0.${{ github.run_number }}" `
+            "/DBuildDir=..\..\build\windows\x64\runner\Release" `
+            "/DOutputDir=..\..\..\out" `
+            "/DOutputBase=MasterPromptSetup-${{ github.run_number }}-$sha" `
+            "app\windows\installer\master_prompt.iss"
+          Get-ChildItem out
+
+      # The zip keeps shipping for now. The copy a user is running today knows
+      # only that filename, so dropping it would strand them reporting "no
+      # asset" forever, never learning an installer exists. One cycle later it
+      # can go.
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $sha = "${{ github.sha }}".Substring(0,7)
           Compress-Archive -Path "app/build/windows/x64/runner/Release/*" `
             -DestinationPath "out/MasterPrompt-windows-x64-${{ github.run_number }}-$sha.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: out/*.zip
+          path: |
+            out/*.exe
+            out/*.zip
           retention-days: 14
 
   publish-dev:
@@ -218,13 +272,20 @@ jobs:
             After that you should not need this page: the app checks here at
             launch and offers the newer build from its own menu.
 
-            **Windows** — download the `.zip`, extract it anywhere, and run
-            `master_prompt.exe`. SmartScreen will warn that the publisher is
-            unknown, because the binary is unsigned: choose *More info* then
-            *Run anyway*.
+            **Windows** — download `MasterPromptSetup-*.exe` and run it. It
+            installs for you only, so there is no administrator prompt, and it
+            adds a Start-menu entry and an uninstaller like any other program.
+            SmartScreen will warn that the publisher is unknown, because the
+            installer is unsigned: choose *More info* then *Run anyway*.
+
+            After that, updates are one click from inside the app — it closes,
+            updates and reopens itself. The `.zip` is still published for
+            anyone who wants a portable copy, or who installed before the
+            installer existed.
 
             Found something wrong? Open Settings, tap **Copy diagnostics**, and
             paste that into the chat.
           files: |
             artifacts/android/*.apk
+            artifacts/windows/*.exe
             artifacts/windows/*.zip

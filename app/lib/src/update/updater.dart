@@ -9,6 +9,18 @@ import 'package:path_provider/path_provider.dart';
 import '../store/build_info.dart';
 import 'release.dart';
 
+/// Where a silent Windows install writes its log.
+const String installLogName = 'install.log';
+
+/// Records which build a silent install was reaching for.
+///
+/// A silent installer that fails is silent: the app simply comes back
+/// unchanged, which looks exactly like an update that was never taken. This
+/// is written before the installer starts and checked on the next launch, so
+/// the question is answered by comparing build numbers rather than by
+/// string-matching somebody else's log format.
+const String pendingInstallName = 'pending-install.txt';
+
 /// What happened when the finished file was handed to the operating system.
 enum InstallOutcome {
   /// The OS took it. Whatever it does next is out of our hands, including the
@@ -20,9 +32,14 @@ enum InstallOutcome {
   needsPermission,
 
   /// Nothing here can install it — the file is on disk and the user finishes
-  /// by hand. This is the honest answer on Windows, where a running `.exe`
-  /// cannot replace itself.
+  /// by hand. The answer for a portable zip, which cannot replace a running
+  /// executable underneath itself.
   manual,
+
+  /// The Windows installer is running silently. It will close this app,
+  /// replace it, and start it again, so the only thing left to do here is get
+  /// out of its way.
+  replacingThisApp,
 }
 
 /// Everything about updating that touches the world outside the process.
@@ -232,9 +249,24 @@ class Updater extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Written first: if the process dies between here and the installer
+      // starting, the worst case is a stale note that the next launch clears.
+      final ReleaseAsset? target = check?.asset;
+      if (platform == UpdatePlatform.windows && target != null) {
+        try {
+          final Directory dir = await _transport.workspace();
+          File(
+            '${dir.path}${Platform.pathSeparator}$pendingInstallName',
+          ).writeAsStringSync('${target.build}');
+        } on FileSystemException {
+          // Losing the note costs a report, not the update.
+        }
+      }
+
       final InstallOutcome outcome = await _transport.install(f);
       _handoff = switch (outcome) {
         InstallOutcome.handedOver => null,
+        InstallOutcome.replacingThisApp => null,
         InstallOutcome.needsPermission =>
           'Android needs permission first. Turn on "Allow from this source", '
               'come back, and press Install again.',
@@ -243,11 +275,56 @@ class Updater extends ChangeNotifier {
               'existing folder, and start it again.',
       };
       _phase = UpdatePhase.downloaded;
+      _quitting = outcome == InstallOutcome.replacingThisApp;
       notifyListeners();
+
+      // The installer cannot replace files this process is holding open, so
+      // leaving is part of installing. A moment first, so the screen has said
+      // what is happening before it disappears.
+      if (_quitting) {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        _quit();
+      }
     } catch (e) {
       _fail('The installer could not be started. ${_plain(e)}');
     }
   }
+
+  /// Reports an update that was taken and did not arrive.
+  ///
+  /// Called at launch. If a build was reached for and this copy is still older
+  /// than it, the silent install failed after this process had already exited,
+  /// and nothing else would ever say so.
+  Future<String?> lastInstallProblem() async {
+    if (platform != UpdatePlatform.windows) return null;
+    try {
+      final Directory dir = await _transport.workspace();
+      final File note = File(
+        '${dir.path}${Platform.pathSeparator}$pendingInstallName',
+      );
+      if (!note.existsSync()) return null;
+      final int? wanted = int.tryParse(note.readAsStringSync().trim());
+      note.deleteSync();
+
+      final int? mine = int.tryParse(currentBuild);
+      if (wanted == null || mine == null || mine >= wanted) return null;
+      return 'The update to build $wanted did not finish, so this is still '
+          'build $mine. The log is in ${dir.path}.';
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  /// True once the Windows installer has been handed control and this process
+  /// is on its way out. The UI stops offering buttons that will not survive.
+  bool get quitting => _quitting;
+  bool _quitting = false;
+
+  /// Overridable so a test can watch for the exit instead of taking it.
+  @visibleForTesting
+  void Function() quit = () => exit(0);
+
+  void _quit() => quit();
 
   /// Forgets a failure so the button goes back to offering the obvious action.
   void clearError() {
@@ -364,10 +441,28 @@ class _RealTransport implements UpdateTransport {
         _ => InstallOutcome.manual,
       };
     }
+    if (Platform.isWindows && file.path.toLowerCase().endsWith('.exe')) {
+      // Detached, so the installer outlives the app it is about to replace,
+      // and silent, so there is no wizard to drive. `/relaunch=1` is read by
+      // the script's own [Run] check and reopens the app at the end — the
+      // difference between one click and "now find it again".
+      //
+      // The app exits immediately after this returns. Either order is safe:
+      // if it is already gone the installer just copies, and if it is still
+      // up `CloseApplications` closes it first.
+      await Process.start(file.path, <String>[
+        '/SILENT',
+        '/SUPPRESSMSGBOXES',
+        '/NORESTART',
+        '/relaunch=1',
+        '/LOG=${file.parent.path}${Platform.pathSeparator}$installLogName',
+      ], mode: ProcessStartMode.detached);
+      return InstallOutcome.replacingThisApp;
+    }
     if (Platform.isWindows) {
-      // A running executable cannot be replaced underneath itself, so the
-      // honest thing is to put the user in front of the file rather than
-      // pretend. Explorer's exit code is not meaningful here.
+      // A portable zip. A running executable cannot be replaced underneath
+      // itself, so the honest thing is to put the user in front of the file
+      // rather than pretend. Explorer's exit code is not meaningful here.
       try {
         await Process.run('explorer.exe', <String>['/select,${file.path}']);
       } catch (_) {

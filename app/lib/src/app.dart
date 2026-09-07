@@ -3,6 +3,7 @@ import 'package:mp_design/mp_design.dart';
 
 import 'screens/home.dart';
 import 'store/app_store.dart';
+import 'store/diagnostics.dart';
 import 'update/updater.dart';
 
 /// True where the app can drive the Claude Code CLI as a subprocess.
@@ -30,6 +31,11 @@ class _MasterPromptAppState extends State<MasterPromptApp> {
     // be met by a network error; the menu grows a mark if there is anything
     // to say and stays quiet if there is not.
     _updater.checkQuietly();
+    // A silent installer that fails is silent, and the app coming back
+    // unchanged looks exactly like an update that was never taken.
+    _updater.lastInstallProblem().then((String? problem) {
+      if (problem != null) Diagnostics.instance.log(problem);
+    });
   }
 
   void unawaitedLoad() {

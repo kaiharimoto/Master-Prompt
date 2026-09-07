@@ -4,7 +4,8 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that connected the CLI and put the interview in it._
+_Last updated: the commit that made the desktop interview actually work, and
+gave Windows a real installer._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
@@ -165,6 +166,97 @@ to build needs no tools at all. And the turn runs in a directory of its own
 rather than the mission's working directory, so a `CLAUDE.md` sitting in the
 project the mission is *about* does not join the conversation uninvited.
 
+Then, from the PC, one line: **"invalid session ID. Must be a valid UUID."**
+
+**The desktop interview had never worked, and it shipped behind nine green
+tests.** `microsecondsSinceEpoch` is thirteen hex digits; the generator assumed
+twelve, so it built `8-5-4-4-12`. Deterministic — every machine, every first
+turn. Twenty lines away in the same package, `RunSupervisor` had a correct
+generator. Third time this repo has carried two implementations of one idea and
+load-beared the wrong one.
+
+**Why the tests passed is the part worth keeping.** Every conversation test
+injected both the process runner and the session id, so `_defaultRunner`,
+`needsShell` and the generator had *zero executions in the entire suite*. The id
+the tests pinned — `fixed-id-0000-4000-8000-000000000000` — is six groups and
+not hex. They proved the value was plumbed through correctly and never once
+asked whether it was valid.
+
+So the seam is gone. Argument composition is a pure function, `planFor()`, that
+a test reads without spawning anything; `ask()` always spawns; and the
+conversation tests drive the compiled fake CLI the way the supervisor tests
+always have. And the fake now **refuses what the real binary refuses**, in its
+words: a non-UUID session id, a missing `--print`, an unknown flag, a bad
+`--model`, `--effort` or `--permission-mode`. A double that accepts everything
+proves only that the code runs.
+
+That immediately caught the failure already queued behind the first one:
+**Settings sent `--model claude-opus-5` on every turn and every run.** The flag
+takes an alias (`opus`) or a full dated name (`claude-sonnet-4-5-20250929`), and
+because it enumerates no choices in `--help` the capability probe waves anything
+through — it fails at run time, every time. Settings now offers the aliases and
+defaults to sending no `--model` at all.
+
+An audit found four more, none of which had a test:
+
+- **No timeout, no cancel, no progress.** `Process.run` blocked until exit, so a
+  multi-minute turn was a static window with every button disabled; a wedged CLI
+  looked exactly like a working one, and the only way out orphaned the child. It
+  streams now — text as it arrives, an elapsed count, the tool in use, a **Stop**
+  button, and a ceiling that kills.
+- **A failed turn corrupted the retry.** The user's turn stayed in the
+  transcript, so `hasExchange` went true and the retry sent the short
+  *continuing* round into a session that had never existed. Retrying after the
+  error made it quietly worse.
+- **A non-zero exit with partial text was stored as a complete answer**, and
+  stderr was discarded whenever any text came back — the one channel a limit or
+  auth reason travels on.
+- **An answer beginning with `-`** was read as a flag. The prompt goes after
+  `--` now, and the invariant guards stopped scanning the user's prose.
+
+The same `.cmd` bug the interview had was still in the **run** path:
+`Process.start` without `runInShell` refuses a batch file, so an npm-installed
+`claude.cmd` would have thrown on the path that does the twelve-hour work.
+
+**And `tool/probe_cli.dart` finally exists.** `docs/cli-contract.md` has said to
+run it since the day it was written, and the file had never been created — a
+contract that claims to be verifiable and is not. It reports version, flags,
+enumerated choices, whether a v4 session id is accepted, which model aliases
+resolve, whether the prompt can go on stdin, and whether `--` is honoured. One
+command answers what this repository has been guessing at.
+
+Then, separately: **the program was called `master_prompt`.** In the title bar,
+the taskbar, Alt-Tab, Task Manager, the exe name and every version string. It
+shipped as a zip you extract by hand, and "Install" opened Explorer with the
+file selected and left five manual steps.
+
+It is **Master Prompt** now, `MasterPrompt.exe`, and it installs. A per-user
+Inno Setup installer — `%LOCALAPPDATA%\Programs`, so no administrator prompt —
+with a Start-menu entry and an uninstaller in Add/Remove Programs. Updates are
+one click: the app writes down which build it is reaching for, spawns the
+installer silently with `/relaunch=1`, and leaves, because an installer cannot
+overwrite an executable that is still running. It comes back updated. If it does
+not, the next launch compares the build it wanted against the build it is and
+says so — a silent installer that fails is otherwise indistinguishable from an
+update nobody took.
+
+**The rename moved the user's data**, which is the sharp edge of all of this.
+`path_provider_windows` derives the support directory from the exe's
+`CompanyName` and `ProductName` *at runtime*, so editing a resource string
+relocates every saved mission and the app starts up empty with nothing saying
+why. `DataMigration` brings the old location forward: it copies rather than
+moves, never overwrites, and writes its marker last, so it cannot destroy
+anything however many times it runs or wherever it is interrupted.
+
+CI changed with it. The Windows job now runs `flutter analyze` and the full test
+suite — it ran **neither**, while the Android job ran both. It stamps the build
+number into `pubspec.yaml` so it reaches the exe's version resource and
+Android's `versionCode`, which was pinned at `1` for every build ever shipped.
+It checks for Inno Setup rather than assuming it. And `release.yml` produced
+`MasterPrompt-windows-x64.zip` and an unrenamed `app-release.apk`, **neither of
+which matches the updater's filename patterns** — a tagged release was invisible
+to every installed copy. Fixed before it was needed.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -226,11 +318,32 @@ project the mission is *about* does not join the conversation uninvited.
   that the first round is written for a session that knows nothing and later
   rounds are not; that a turn in flight cannot be sent twice; and that with no
   CLI the desktop behaves exactly as the phone does.
+- **The session id.** Against the RFC pattern, the version and variant nibbles,
+  and 20,000 rapid calls with no repeat — the contract, not the implementation.
+- **The conversation, against a real process.** No injected runner and no
+  injected id, so the three functions that only exist on a desktop actually
+  execute: the id is one the CLI accepts, the second turn resumes the first, a
+  prompt beginning with `-` survives, a subagent is not mistaken for the
+  assistant, a partial answer that ends in failure is not an answer and leaves
+  no transcript behind, a warning on a successful turn is kept, a build with no
+  session id says so, a turn that never answers is stopped, a turn in flight can
+  be cancelled, and progress is visible while it runs.
+- **The data migration.** Missions and the crash log arrive; the originals stay
+  put; running it twice does nothing the second time; an interrupted copy is
+  finished on the next launch; nothing already in the new location is ever
+  overwritten; and a first install on a clean machine is not given a marker for
+  a migration that never happened.
+- **The one-click update.** That the app leaves so the installer can replace the
+  files it is holding, that it records which build it was reaching for, that a
+  silent install which failed is reported on the next launch and only once, and
+  that one which worked says nothing. The installer preferred over the zip in
+  the same build; the zip still recognised alone; the build number deciding
+  before the kind.
 - **End to end, headlessly:** discussion patch → spec → gate → compile → write to
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-313 tests: 151 in `mp_core`, 82 in `mp_runner`, 80 in the app.
+342 tests: 151 in `mp_core`, 97 in `mp_runner`, 94 in the app.
 
 ### Not yet proven
 
@@ -247,11 +360,15 @@ project the mission is *about* does not join the conversation uninvited.
   actual update behaviour on a device is unverified. The updater makes this
   matter twice over: an install that will not go over the top loses the saved
   missions.
-- **Anything Windows-specific.** `where`, and running a `.cmd` through a shell,
-  cannot be exercised on the Linux runner; the tests cover the shape and the
-  decision, not the platform behaviour. The PC is the only place that answers
-  it — and the failure is now visible rather than silent, which is the point of
-  the per-candidate report.
+- **Anything Windows-specific.** `where`, running a `.cmd` through a shell, the
+  installer itself, the silent update, and whether `cmd.exe` mangles a
+  multi-line prompt. The Linux runner covers decisions and shapes; the PC is the
+  only oracle. `tool/probe_cli.dart` exists to make that one round trip instead
+  of several.
+- **The rename, on a machine with existing missions.** The migration is tested
+  against real directories, but not against a real `path_provider` on a real
+  Windows profile. It copies rather than moves, so the worst case is recoverable
+  by hand.
 - **The desktop runner and the desktop interview against a real `claude`
   binary.** Everything is proven against the fake CLI; the real one has never
   been driven from the app. A `--print` turn also costs tokens per round where
@@ -316,6 +433,16 @@ phone predates the updater. Then, in this order:
 9. Whether the flow still feels guided now that the reply is a code block.
 
 **On the PC, which is the only place the real question is answered:**
+
+0. **`dart run tool/probe_cli.dart`** in `packages/mp_runner`, before anything
+   else. It says what your install actually accepts — the session id, the model
+   aliases, whether the prompt can go on stdin. Paste the output; it answers in
+   one round trip what this project has otherwise had to guess at.
+0b. **Install from `MasterPromptSetup-*.exe`.** Expect no administrator prompt,
+   a Start-menu entry, an uninstall entry, and — the thing to check — your
+   existing missions still there. If they are gone, the data migration is what
+   went wrong and the old copy is still at
+   `%APPDATA%\com.masterprompt\master_prompt`.
 
 10. **Settings → Claude Code.** It should name the version, the path and the
     credential, or list every path it tried and why each failed. That list is

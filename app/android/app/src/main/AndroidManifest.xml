@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <application
-        android:label="master_prompt"
+        android:label="Master Prompt"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

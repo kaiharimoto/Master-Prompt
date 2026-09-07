@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.masterprompt" "\0"
-            VALUE "FileDescription", "master_prompt" "\0"
+            VALUE "CompanyName", "Master Prompt" "\0"
+            VALUE "FileDescription", "Master Prompt" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "master_prompt" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.masterprompt. All rights reserved." "\0"
-            VALUE "OriginalFilename", "master_prompt.exe" "\0"
-            VALUE "ProductName", "master_prompt" "\0"
+            VALUE "InternalName", "Master Prompt" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Master Prompt. All rights reserved." "\0"
+            VALUE "OriginalFilename", "MasterPrompt.exe" "\0"
+            VALUE "ProductName", "Master Prompt" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

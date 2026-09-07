@@ -113,6 +113,41 @@ then a paragraph break, then a line ending, never through a fenced block, and
 nothing can probe the real ceiling and only the person holding the phone can
 find it.
 
+**The Windows data directory is a function of `Runner.rc`.**
+`path_provider_windows` builds `getApplicationSupportDirectory()` as
+`RoamingAppData\<CompanyName>\<ProductName>`, read out of the running exe's
+VERSIONINFO **at runtime**. So editing a resource string silently relocates
+every saved mission, and the app starts up empty with nothing saying why.
+`DataMigration` brings the old location forward; it copies rather than moves and
+never overwrites, so it cannot destroy anything however many times it runs.
+Renaming the app again means adding to `previousLocations()`.
+
+**Anything Windows-only must key off the injected `platform`, not
+`Platform.isWindows`.** `Updater` already carries an `UpdatePlatform`, and using
+the ambient check beside it made the entire one-click update path unreachable
+from the Linux runner — which is the only place it can be proven at all.
+
+**There is one code path to a process, on purpose.** `CliConversation` used to
+take an injectable `ProcessRunner`; every test used it, so `_defaultRunner`,
+`needsShell` and the session-id generator had **zero executions in the whole
+suite**, and an id of the shape `8-5-4-4-12` reached a real machine behind nine
+green tests. Argument composition is now a pure function, `planFor()`, which a
+test inspects without spawning anything; `ask()` always spawns; and the
+conversation tests run against the compiled `tool/fake_claude.dart`. Do not
+reintroduce a seam that lets a test skip the process.
+
+**The fake CLI refuses what the real one refuses.** A non-UUID `--session-id`, a
+missing `--print`, an unknown flag, a bad `--model`, `--effort` or
+`--permission-mode` — each with the real binary's wording. A double that accepts
+everything proves only that the code runs. `tool/probe_cli.dart` answers the
+same questions against a real install, and is the thing to run on a machine
+where something is wrong.
+
+**`--model` takes an alias or a full dated name**, and enumerates no choices in
+`--help`, so the capability probe cannot catch a bad one — it fails at run time,
+on every turn. Settings offers `opus`/`sonnet`/`haiku` and defaults to sending
+no `--model` at all.
+
 **The desktop interview is a session, not a series of one-shots.**
 `CliConversation` opens the first turn with `LaunchIntent.fresh` and a pinned
 id, then resumes it on every turn after, which gives the desktop the same *one

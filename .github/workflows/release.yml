@@ -61,12 +61,21 @@ jobs:
             --dart-define=MP_BUILD=${{ github.run_number }} \
             --dart-define=MP_SHA=${{ github.sha }}
 
+      # The updater recognises builds by filename, so a release that does not
+      # match its patterns is invisible to every installed copy. This job used
+      # to upload `app-release.apk` unrenamed.
+      - name: Name the artifacts
+        run: |
+          mkdir -p out
+          SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          cp app/build/app/outputs/flutter-apk/app-release.apk \
+             "out/MasterPrompt-${{ github.run_number }}-$SHA.apk"
+          cp app/build/app/outputs/bundle/release/*.aab out/
+
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: |
-            app/build/app/outputs/flutter-apk/*.apk
-            app/build/app/outputs/bundle/release/*.aab
+          path: out/*
 
   windows:
     name: Windows
@@ -88,17 +97,36 @@ jobs:
             --dart-define=MP_BUILD=${{ github.run_number }} `
             --dart-define=MP_SHA=${{ github.sha }}
 
-      - name: Package portable zip
+      - name: Ensure Inno Setup
         shell: pwsh
         run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe still not at $iscc" }
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build the installer and the portable zip
+        shell: pwsh
+        run: |
+          $sha = "${{ github.sha }}".Substring(0,7)
           New-Item -ItemType Directory -Force -Path out | Out-Null
+          & "$env:ISCC" `
+            "/DAppVersion=0.1.0.${{ github.run_number }}" `
+            "/DBuildDir=..\..\build\windows\x64\runner\Release" `
+            "/DOutputDir=..\..\..\out" `
+            "/DOutputBase=MasterPromptSetup-${{ github.run_number }}-$sha" `
+            "app\windows\installer\master_prompt.iss"
           Compress-Archive -Path "app/build/windows/x64/runner/Release/*" `
-            -DestinationPath "out/MasterPrompt-windows-x64.zip"
+            -DestinationPath "out/MasterPrompt-windows-x64-${{ github.run_number }}-$sha.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: out/*.zip
+          path: |
+            out/*.exe
+            out/*.zip
 
   publish:
     name: Publish one release with both platforms

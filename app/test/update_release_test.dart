@@ -96,6 +96,63 @@ void main() {
       );
     });
 
+    test('the installer wins over the zip in the same build', () {
+      final UpdateCheck r = readRelease(
+        payload(
+          names: <String>[
+            'MasterPrompt-windows-x64-57-a1b2c3d.zip',
+            'MasterPromptSetup-57-a1b2c3d.exe',
+          ],
+        ),
+        currentBuild: '42',
+        platform: UpdatePlatform.windows,
+      );
+
+      expect(r.asset!.kind, AssetKind.installer);
+      expect(
+        r.asset!.name,
+        'MasterPromptSetup-57-a1b2c3d.exe',
+        reason:
+            'the installer is the only one of the two that can update itself '
+            'without the user handling a file',
+      );
+    });
+
+    test('the zip is still recognised on its own', () {
+      final UpdateCheck r = readRelease(
+        payload(names: <String>['MasterPrompt-windows-x64-57-a1b2c3d.zip']),
+        currentBuild: '42',
+        platform: UpdatePlatform.windows,
+      );
+
+      expect(
+        r.asset!.kind,
+        AssetKind.archive,
+        reason:
+            'the copy a user is running today knows only this shape, so '
+            'dropping it would strand them on "no asset" forever',
+      );
+    });
+
+    test('a newer zip beats an older installer', () {
+      final UpdateCheck r = readRelease(
+        payload(
+          names: <String>[
+            'MasterPromptSetup-41-aaaaaaa.exe',
+            'MasterPrompt-windows-x64-57-bbbbbbb.zip',
+          ],
+        ),
+        currentBuild: '42',
+        platform: UpdatePlatform.windows,
+      );
+
+      expect(
+        r.asset!.build,
+        57,
+        reason: 'kind only breaks a tie; the build number decides first',
+      );
+    });
+
     test('says so when the release has nothing for this platform', () {
       final UpdateCheck r = readRelease(
         payload(names: <String>['MasterPrompt-57-a1b2c3d.apk']),

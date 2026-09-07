@@ -294,6 +294,96 @@ void main() {
     );
   });
 
+  group('the one-click Windows update', () {
+    late Updater win;
+
+    setUp(() {
+      transport
+        ..outcome = InstallOutcome.replacingThisApp
+        ..answer = jsonDecode('''
+{
+  "html_url": "https://github.com/kaiharimoto/Master-Prompt/releases/tag/dev",
+  "assets": [{
+    "name": "MasterPromptSetup-57-a1b2c3d.exe",
+    "size": 12,
+    "browser_download_url": "https://example.invalid/MasterPromptSetup-57-a1b2c3d.exe"
+  }]
+}
+''');
+      win = Updater(
+        transport: transport,
+        platform: UpdatePlatform.windows,
+        currentBuild: '42',
+      );
+    });
+
+    tearDown(() => win.dispose());
+
+    test('leaves, so the installer can replace the files it holds', () async {
+      int quits = 0;
+      win.quit = () => quits++;
+
+      await win.runCheck();
+      await win.download();
+      await win.install();
+
+      expect(
+        quits,
+        1,
+        reason:
+            'an installer cannot overwrite an executable that is still '
+            'running, so leaving is part of installing rather than a courtesy',
+      );
+      expect(
+        win.handoff,
+        isNull,
+        reason: 'there is nothing left for the user to do, so nothing to say',
+      );
+    });
+
+    test('records which build it was reaching for', () async {
+      win.quit = () {};
+      await win.runCheck();
+      await win.download();
+      await win.install();
+
+      expect(
+        File('${tmp.path}/$pendingInstallName').readAsStringSync(),
+        '57',
+        reason:
+            'a silent installer that fails is silent, so the next launch has '
+            'to be able to tell "did not take" from "was never taken"',
+      );
+    });
+
+    test(
+      'a silent install that failed is reported on the next launch',
+      () async {
+        File('${tmp.path}/$pendingInstallName').writeAsStringSync('57');
+
+        final String? problem = await win.lastInstallProblem();
+        expect(problem, contains('build 57'));
+        expect(
+          File('${tmp.path}/$pendingInstallName').existsSync(),
+          isFalse,
+          reason: 'reported once, not every launch from now on',
+        );
+      },
+    );
+
+    test('an install that worked says nothing', () async {
+      File('${tmp.path}/$pendingInstallName').writeAsStringSync('57');
+      final Updater arrived = Updater(
+        transport: transport,
+        platform: UpdatePlatform.windows,
+        currentBuild: '57',
+      );
+      addTearDown(arrived.dispose);
+
+      expect(await arrived.lastInstallProblem(), isNull);
+    });
+  });
+
   test('nothing runs twice at once', () async {
     final Future<void> first = updater.runCheck();
     final Future<void> second = updater.runCheck();
