@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mp_core/mp_core.dart';
@@ -49,6 +50,16 @@ class _FlowScreenState extends State<FlowScreen> {
   final TextEditingController _replyField = TextEditingController();
   final TextEditingController _followUpField = TextEditingController();
   bool _busy = false;
+
+  /// Whether to put the caret in the field the moment the screen appears.
+  ///
+  /// Right on a desktop, where the keyboard is already there and clicking into
+  /// the box first is pure friction. Wrong on a phone, where it throws the
+  /// on-screen keyboard over the question you are meant to be reading.
+  static bool get _typeStraightAway =>
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS;
 
   /// Which route this round took. Both are available on a connected desktop,
   /// and the waiting beat is a different screen for each: one is a paste box,
@@ -264,17 +275,21 @@ class _FlowScreenState extends State<FlowScreen> {
       supporting:
           'One sentence is enough. Everything else gets worked out between you '
           'and Claude, a question at a time.',
-      body: TextField(
-        controller: _seedField,
-        autofocus: false,
-        maxLines: 4,
-        minLines: 3,
-        textCapitalization: TextCapitalization.sentences,
-        style: MpType.body.copyWith(color: c.ink),
-        decoration: const InputDecoration(
-          hintText: 'A photorealistic rooftop bar above a city at night…',
+      body: MpSubmit(
+        // `onSubmitted` never fired here: with maxLines above one, Flutter
+        // routes Enter to a newline and the handler was dead code.
+        onSubmit: _busy ? null : _begin,
+        child: TextField(
+          controller: _seedField,
+          autofocus: _typeStraightAway,
+          maxLines: 4,
+          minLines: 3,
+          textCapitalization: TextCapitalization.sentences,
+          style: MpType.body.copyWith(color: c.ink),
+          decoration: const InputDecoration(
+            hintText: 'A photorealistic rooftop bar above a city at night…',
+          ),
         ),
-        onSubmitted: (_) => _begin(),
       ),
       primary: MpButton(
         label: _busy ? 'Starting…' : 'Begin',
@@ -429,17 +444,21 @@ class _FlowScreenState extends State<FlowScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          TextField(
-            controller: _replyField,
-            maxLines: 8,
-            minLines: 4,
-            style: MpType.mono.copyWith(color: c.ink),
-            decoration: InputDecoration(
-              hintText: 'Paste here',
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.content_paste, size: 22),
-                tooltip: 'Paste from clipboard',
-                onPressed: _pasteFromClipboard,
+          MpSubmit(
+            onSubmit: _busy ? null : () => _applyReply(p),
+            child: TextField(
+              controller: _replyField,
+              autofocus: _typeStraightAway,
+              maxLines: 8,
+              minLines: 4,
+              style: MpType.mono.copyWith(color: c.ink),
+              decoration: InputDecoration(
+                hintText: 'Paste here',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.content_paste, size: 22),
+                  tooltip: 'Paste from clipboard',
+                  onPressed: _pasteFromClipboard,
+                ),
               ),
             ),
           ),
@@ -547,16 +566,29 @@ class _FlowScreenState extends State<FlowScreen> {
           ],
           if (reply != null) ...<Widget>[
             const SizedBox(height: MpSpace.md),
-            TextField(
-              controller: _followUpField,
-              maxLines: 6,
-              minLines: 3,
-              enabled: !busy,
-              textCapitalization: TextCapitalization.sentences,
-              style: MpType.body.copyWith(color: c.ink),
-              decoration: const InputDecoration(
-                hintText: 'Answer its questions, or push back on one…',
+            MpSubmit(
+              // This was the only way into the conversation and it could only
+              // be reached with the mouse, after every single turn.
+              onSubmit: busy
+                  ? null
+                  : () => _askClaude(p, _followUpField.text.trim()),
+              child: TextField(
+                controller: _followUpField,
+                autofocus: _typeStraightAway && !busy,
+                maxLines: 6,
+                minLines: 3,
+                enabled: !busy,
+                textCapitalization: TextCapitalization.sentences,
+                style: MpType.body.copyWith(color: c.ink),
+                decoration: const InputDecoration(
+                  hintText: 'Answer its questions, or push back on one…',
+                ),
               ),
+            ),
+            const SizedBox(height: MpSpace.xs),
+            Text(
+              '${MpSubmit.hintFor(context)} sends. Enter starts a new line.',
+              style: MpType.caption.copyWith(color: c.inkFaint),
             ),
           ],
         ],

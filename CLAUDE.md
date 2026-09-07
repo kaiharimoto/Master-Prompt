@@ -212,6 +212,19 @@ lives behind **Progress**, the generated message behind a disclosure. If you fin
 yourself adding a second panel to a flow screen, it belongs in a disclosure or
 the menu.
 
+**Widget tests default to 800×600, which is below the 900px desktop gate.** So
+every test in this repository exercised the phone layout, and the entire wide
+branch of `home.dart` went uncovered until a fresh desktop install turned out to
+have no menu — and so no way to reach Settings and connect the CLI. Desktop
+behaviour needs `tester.view.physicalSize`; `desktop_layout_test.dart` is the
+group that does it.
+
+**Enter cannot be the send key.** Every writing field here is multi-line, and
+with `maxLines` above one Flutter routes Enter to a newline and never calls
+`onSubmitted` — which is why the seed field's submit handler was dead code for
+months. `MpSubmit` binds Ctrl+Enter (and Cmd+Enter), which is what the fields
+use.
+
 **The same three beats serve both routes.** On a connected desktop the ASK beat
 sends the round into the CLI session and the waiting beat becomes the reply plus
 a box to answer in; on a phone, or a desktop with no CLI, they are Copy and

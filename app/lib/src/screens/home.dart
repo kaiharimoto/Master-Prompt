@@ -123,19 +123,28 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute<void>(
         builder: (BuildContext context) {
           final MpColors c = MpTheme.colorsOf(context);
-          return Scaffold(
-            backgroundColor: c.canvas,
-            appBar: AppBar(
+          // Escape closes a pushed screen, which is what every other desktop
+          // program does and what Flutter gives a route none of by default.
+          // None of these screens autofocuses a field, so taking focus here
+          // cannot steal a caret from one.
+          return MpEscape(
+            child: Scaffold(
               backgroundColor: c.canvas,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              title: Text(title, style: MpType.heading.copyWith(color: c.ink)),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: c.line),
+              appBar: AppBar(
+                backgroundColor: c.canvas,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                title: Text(
+                  title,
+                  style: MpType.heading.copyWith(color: c.ink),
+                ),
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(1),
+                  child: Container(height: 1, color: c.line),
+                ),
               ),
+              body: SafeArea(top: false, child: child),
             ),
-            body: SafeArea(top: false, child: child),
           );
         },
       ),
@@ -201,25 +210,38 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Column(
                   children: <Widget>[
-                    if (p != null)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          MpSpace.lg,
-                          MpSpace.md,
-                          MpSpace.lg,
-                          MpSpace.md,
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(child: _Progress(project: p)),
-                            _Menu(
-                              enabled: true,
-                              hasUpdate: _updater.hasUpdate,
-                              onSelected: _open,
-                            ),
-                          ],
-                        ),
+                    // The header is unconditional. It used to be built only
+                    // when a mission was selected, which meant a fresh desktop
+                    // install had no menu at all — and therefore no way to
+                    // reach Settings and connect the Claude Code CLI, which is
+                    // the first thing a desktop user needs to do.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        MpSpace.lg,
+                        MpSpace.md,
+                        MpSpace.lg,
+                        MpSpace.md,
                       ),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: p == null
+                                ? Text(
+                                    'No mission open',
+                                    style: MpType.label.copyWith(
+                                      color: c.inkFaint,
+                                    ),
+                                  )
+                                : _Progress(project: p),
+                          ),
+                          _Menu(
+                            enabled: p != null,
+                            hasUpdate: _updater.hasUpdate,
+                            onSelected: _open,
+                          ),
+                        ],
+                      ),
+                    ),
                     const MpRule(),
                     Expanded(child: flow),
                   ],

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/screens/home.dart';
 import 'package:master_prompt/src/store/app_store.dart';
@@ -321,6 +322,56 @@ void main() {
 
     await chat.release(tester);
     expect(find.text('Claude answered'), findsOneWidget);
+  });
+
+  testWidgets('a follow-up can be sent without reaching for the mouse', (
+    WidgetTester tester,
+  ) async {
+    final _ScriptedChat chat = await seedDesktop(tester, <String>[
+      questionsOnly,
+      shapeReply,
+    ]);
+
+    await tester.tap(find.text('Ask Claude'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, 'Twenty seats.');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(
+      chat.asked,
+      hasLength(2),
+      reason:
+          'this box was the only way into the conversation and could only be '
+          'submitted with the mouse, once per turn, for the whole interview',
+    );
+    expect(chat.asked.last, 'Twenty seats.');
+  });
+
+  testWidgets('Enter still starts a new line rather than sending', (
+    WidgetTester tester,
+  ) async {
+    final _ScriptedChat chat = await seedDesktop(tester, <String>[
+      questionsOnly,
+    ]);
+
+    await tester.tap(find.text('Ask Claude'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, 'Twenty seats.');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(
+      chat.asked,
+      hasLength(1),
+      reason:
+          'these are paragraphs, not search boxes; sending on Enter would cut '
+          'an answer off mid-thought',
+    );
   });
 
   testWidgets('without a CLI the desktop behaves exactly as the phone does', (

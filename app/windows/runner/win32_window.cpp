@@ -197,6 +197,21 @@ Win32Window::MessageHandler(HWND hwnd,
 
       return 0;
     }
+    // Without this the window can be dragged down to a few pixels wide, and —
+    // because the desktop layout is gated on a 900px width — it silently turns
+    // into the phone interface on the way past. A floor below which the app is
+    // not usable is not a layout preference, it is a fact about the app.
+    case WM_GETMINMAXINFO: {
+      // Same pair the template already uses to scale the initial size, rather
+      // than a second way of asking the same question.
+      HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      double scale_factor = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
+      auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+      info->ptMinTrackSize.x = Scale(940, scale_factor);
+      info->ptMinTrackSize.y = Scale(620, scale_factor);
+      return 0;
+    }
+
     case WM_SIZE: {
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {

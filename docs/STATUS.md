@@ -257,6 +257,31 @@ It checks for Inno Setup rather than assuming it. And `release.yml` produced
 which matches the updater's filename patterns** — a tagged release was invisible
 to every installed copy. Fixed before it was needed.
 
+Then the desktop interface itself, which had been serving a phone layout to a
+widescreen window.
+
+**Settings and Update were unreachable on a wide window with no mission
+open** — the header was built inside `if (p != null)`, so a fresh desktop
+install had no menu at all, and therefore no way to reach the panel that
+connects the Claude Code CLI. That is the first thing a desktop user has to do.
+Nothing caught it because `isDesktop(context)` is a 900px gate and **every
+widget test in the repository ran at 800×600**, including `desktop_flow_test`,
+despite its name. The entire wide branch had zero coverage. It has a test group
+of its own now, at 1600×1000.
+
+**There was no keyboard support anywhere**: zero `Shortcuts`, zero `FocusNode`s,
+and the one `autofocus` in the app was set to `false`. The desktop chat's
+follow-up box — the only way into the conversation — could be submitted with
+the mouse and nothing else, once per turn, for the whole interview. Ctrl+Enter
+sends now, Enter still starts a new line, Escape closes a pushed screen, and the
+field each beat is about takes the caret on arrival — on a desktop only, since
+on a phone that throws the keyboard over the question you are meant to read. The
+seed field's `onSubmitted` had been dead code since it was written: with
+`maxLines` above one, Flutter routes Enter to a newline and never calls it.
+
+**And the window had no minimum size**, so it could be dragged below 900px and
+silently become the phone layout on the way past.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -343,7 +368,7 @@ to every installed copy. Fixed before it was needed.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-342 tests: 151 in `mp_core`, 97 in `mp_runner`, 94 in the app.
+349 tests: 151 in `mp_core`, 97 in `mp_runner`, 101 in the app.
 
 ### Not yet proven
 

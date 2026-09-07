@@ -5,6 +5,7 @@
 /// colour is reserved for the few things that must interrupt.
 library;
 
+export 'src/keyboard.dart';
 export 'src/theme.dart';
 export 'src/tokens.dart';
 export 'src/widgets.dart';
