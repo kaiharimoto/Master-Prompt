@@ -235,7 +235,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('nothing scripted'), findsOneWidget);
-    expect(find.text('Back to the question'), findsOneWidget);
+    expect(
+      find.text('Send'),
+      findsNothing,
+      reason:
+          'there is nothing to answer when nothing came back, and a Send that '
+          'does nothing is worse than no Send',
+    );
+
+    await tester.tap(find.text('Back to the question'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Ask Claude'),
+      findsOneWidget,
+      reason: 'the round survives a failed turn and can be sent again',
+    );
   });
 
   testWidgets('the first round is written for a session that knows nothing', (

@@ -208,6 +208,13 @@ class _FlowScreenState extends State<FlowScreen> {
     Diagnostics.instance.log('Accepted a round: ${r.applied.length} changes.');
   }
 
+  /// Leaves the CLI route without losing the session, so the round can be
+  /// sent again or copied across instead.
+  void _backToQuestion() {
+    setState(() => _viaCli = false);
+    widget.flow.reconsider();
+  }
+
   Future<void> _pasteFromClipboard() async {
     final ClipboardData? d = await Clipboard.getData(Clipboard.kTextPlain);
     if (d?.text != null && mounted) {
@@ -471,16 +478,24 @@ class _FlowScreenState extends State<FlowScreen> {
     final String? reply = widget.chat.lastReply;
     final bool busy = _busy || widget.chat.busy;
 
+    // Nothing came back at all, so there is nothing to answer and Send would
+    // be a button that does nothing. The way on is the question again, where
+    // the round can be sent a second time or copied instead.
+    final bool failed = !busy && reply == null;
+
     return MpFocal(
       key: const ValueKey<String>('beat-chat'),
       eyebrow: _stageEyebrow(report),
       question: busy
           ? 'Asking Claude…'
-          : reply == null
-          ? 'Waiting on Claude'
+          : failed
+          ? 'That turn did not go through'
           : 'Claude answered',
       supporting: busy
           ? 'A round takes about as long as it would in the chat app.'
+          : failed
+          ? 'Nothing was lost. The round is still there to send again, or to '
+                'copy across by hand.'
           : 'Answer below and it goes back into the same session. Anything it '
                 'settles arrives as a round to accept.',
       body: Column(
@@ -519,26 +534,31 @@ class _FlowScreenState extends State<FlowScreen> {
           ],
         ],
       ),
-      primary: MpButton(
-        label: busy ? 'Asking Claude…' : 'Send',
-        icon: Icons.arrow_forward,
-        kind: MpButtonKind.primary,
-        expand: true,
-        onPressed: busy
-            ? null
-            : () => _askClaude(p, _followUpField.text.trim()),
-      ),
-      secondary: MpButton(
-        label: 'Back to the question',
-        kind: MpButtonKind.quiet,
-        expand: true,
-        onPressed: busy
-            ? null
-            : () {
-                setState(() => _viaCli = false);
-                widget.flow.reconsider();
-              },
-      ),
+      primary: failed
+          ? MpButton(
+              label: 'Back to the question',
+              icon: Icons.arrow_back,
+              kind: MpButtonKind.primary,
+              expand: true,
+              onPressed: _backToQuestion,
+            )
+          : MpButton(
+              label: busy ? 'Asking Claude…' : 'Send',
+              icon: Icons.arrow_forward,
+              kind: MpButtonKind.primary,
+              expand: true,
+              onPressed: busy
+                  ? null
+                  : () => _askClaude(p, _followUpField.text.trim()),
+            ),
+      secondary: failed
+          ? null
+          : MpButton(
+              label: 'Back to the question',
+              kind: MpButtonKind.quiet,
+              expand: true,
+              onPressed: busy ? null : _backToQuestion,
+            ),
       disclosures: <Widget>[
         MpDisclosure(
           label: 'Paste a reply instead',
