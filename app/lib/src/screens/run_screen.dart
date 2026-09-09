@@ -269,6 +269,88 @@ String _countdown(DateTime resumeAt) {
   return left.isNegative ? 'any moment' : 'in ${_spell(left)}';
 }
 
+/// Whether the run met what the brief actually asked for.
+///
+/// A run was called finished on one signal — the process exited zero and the
+/// CLI's result event said `success`. The brief makes six verifiable
+/// commitments and the app could check none of them, so a twelve-hour run that
+/// produced three of eleven artifacts, ran one review cycle of four and scored
+/// itself 61 against a threshold of 90 was painted the same green as one that
+/// met every gate. That is a silently wrong answer, which is worse than a
+/// missing one.
+class _OutcomePanel extends StatelessWidget {
+  const _OutcomePanel({required this.outcome});
+
+  final MissionOutcome outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final List<Shortfall> shortfalls = outcome.shortfalls;
+
+    return MpPanel(
+      accent: outcome.met ? c.success : c.warning,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            outcome.met
+                ? 'It met the brief.'
+                : 'It finished, but not everything the brief asked for is '
+                      'there.',
+            style: MpType.label.copyWith(color: c.ink),
+          ),
+          if (outcome.expected.isNotEmpty) ...<Widget>[
+            const SizedBox(height: MpSpace.xs),
+            Text(
+              '${outcome.produced.length} of ${outcome.expected.length} '
+              'evidence artifacts on disk.',
+              style: MpType.caption.copyWith(color: c.inkMuted),
+            ),
+          ],
+          // Sentences, not field labels — MpField uppercases, which is right
+          // for "NEXT ACTION" and unreadable for a line of prose.
+          for (final Shortfall f in shortfalls) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(Icons.remove, size: 16, color: c.warning),
+                const SizedBox(width: MpSpace.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(f.what, style: MpType.body.copyWith(color: c.ink)),
+                      if (f.detail.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 2),
+                        Text(
+                          f.detail,
+                          style: MpType.caption.copyWith(color: c.inkMuted),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (!outcome.met) ...<Widget>[
+            const SizedBox(height: MpSpace.md),
+            Text(
+              'Nothing here overrides your own look at the work. It is the '
+              'difference between "the process exited cleanly" and "the '
+              'mission is done", which is a difference the screen used to '
+              'hide.',
+              style: MpType.caption.copyWith(color: c.inkFaint),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// What the run costs and how far into it you are.
 ///
 /// Every number here was already computed, persisted to JSON, and then
@@ -535,7 +617,13 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
           accent: switch (r.status) {
             DesktopRunStatus.paused => c.warning,
             DesktopRunStatus.failed => c.danger,
-            DesktopRunStatus.finished => c.success,
+            // Green is a claim about the mission, and the only thing the
+            // supervisor knows is that the process exited zero. Where the
+            // brief set gates, they decide.
+            DesktopRunStatus.finished =>
+              r.outcome?.hasGates ?? false
+                  ? (r.outcome!.met ? c.success : c.warning)
+                  : c.success,
             _ => null,
           },
           child: Column(
@@ -560,6 +648,11 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
               if (r.isBusy || r.record != null || r.attempt > 0) ...<Widget>[
                 const SizedBox(height: MpSpace.md),
                 _Vitals(runner: r),
+              ],
+
+              if (r.outcome != null && r.outcome!.hasGates) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                _OutcomePanel(outcome: r.outcome!),
               ],
 
               if (r.error != null) ...<Widget>[

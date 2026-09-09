@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/screens/run_screen.dart';
 import 'package:master_prompt/src/store/app_store.dart';
@@ -32,6 +31,7 @@ class StubRunner extends DesktopRunner {
     this.stubLog = const <String>[],
     this.stubElapsed = Duration.zero,
     this.stubDirectory,
+    this.stubOutcome,
   });
 
   final DesktopRunStatus stubStatus;
@@ -47,6 +47,7 @@ class StubRunner extends DesktopRunner {
   final List<String> stubLog;
   final Duration stubElapsed;
   final String? stubDirectory;
+  final MissionOutcome? stubOutcome;
 
   @override
   DesktopRunStatus get status => stubStatus;
@@ -78,6 +79,8 @@ class StubRunner extends DesktopRunner {
   Duration get elapsed => stubElapsed;
   @override
   String? get workingDirectory => stubDirectory;
+  @override
+  MissionOutcome? get outcome => stubOutcome;
 
   /// The screen probes on arrival. There is nothing to probe here, and a real
   /// one cannot complete in the tester's zone.
@@ -91,11 +94,12 @@ MpState beat({
   String next = 'Light the backbar',
   String? blocked,
   String? ask,
+  int cycle = 2,
 }) => MpState(
   taskId: 'cocktail_bar',
   phase: phase,
   step: 'modelling the stools',
-  cycle: 2,
+  cycle: cycle,
   score: score,
   next: next,
   blocked: blocked,
@@ -197,6 +201,53 @@ void main() {
     ) async {
       await show(tester, StubRunner(stubDirectory: '/home/k/missions/bar'));
       expect(find.textContaining('/home/k/missions/bar'), findsOneWidget);
+    });
+  });
+
+  group('finished is not the same as done', () {
+    testWidgets('a run that missed the brief is not painted as a success', (
+      WidgetTester tester,
+    ) async {
+      // The supervisor's `completed` means the process exited zero and the
+      // CLI said `success`. A run that produced one of three artifacts and
+      // scored 61 against a threshold of 90 used to be the same green as one
+      // that met every gate.
+      await show(
+        tester,
+        StubRunner(
+          stubStatus: DesktopRunStatus.finished,
+          stubOutcome: MissionCheck.inspect(
+            spec: project.spec,
+            filesPresent: const <String>{},
+            reported: beat(score: 61),
+          ),
+        ),
+      );
+
+      expect(
+        find.textContaining('not everything the brief asked for'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('exit threshold of 90'), findsOneWidget);
+      expect(find.textContaining('01_arrival.png'), findsOneWidget);
+    });
+
+    testWidgets('a run that met the brief says so plainly', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        StubRunner(
+          stubStatus: DesktopRunStatus.finished,
+          stubOutcome: MissionCheck.inspect(
+            spec: project.spec,
+            filesPresent: const <String>{'01_arrival.png'},
+            reported: beat(score: 96, phase: MissionPhase.done, cycle: 4),
+          ),
+        ),
+      );
+
+      expect(find.text('It met the brief.'), findsOneWidget);
     });
   });
 

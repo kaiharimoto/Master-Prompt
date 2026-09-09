@@ -75,6 +75,16 @@ class DesktopRunner extends ChangeNotifier {
   /// default it is a path inside application support that nobody has seen.
   String? get workingDirectory => _workingDirectory;
 
+  /// What the brief asked for, checked against what is actually on disk.
+  ///
+  /// Null until a run ends. The supervisor's `completed` means the process
+  /// exited zero and the CLI said `success` — a fact about the process, not
+  /// about the mission — so a run that produced three of eleven artifacts and
+  /// scored itself 61 against a threshold of 90 was painted the same green as
+  /// one that met every gate.
+  MissionOutcome? _outcome;
+  MissionOutcome? get outcome => _outcome;
+
   /// How long the run has been going. A number that moves is the difference
   /// between "working" and "wedged", and over twelve hours it is most of what
   /// there is to look at.
@@ -198,6 +208,7 @@ class DesktopRunner extends ChangeNotifier {
     _costUsd = null;
     _sessionId = null;
     _record = null;
+    _outcome = null;
     _heartbeat = RunHeartbeat(expectedTaskId: project.spec.taskId);
     _onState = onState;
     _workingDirectory = wd.path;
@@ -271,6 +282,13 @@ class DesktopRunner extends ChangeNotifier {
         'Run ${out.conclusion?.name ?? 'ended'} after '
         '${out.attempts.length} attempt(s).',
       );
+      _outcome = _inspect(project.spec, wd);
+      final MissionOutcome? o = _outcome;
+      if (o != null && o.hasGates && !o.met) {
+        for (final Shortfall f in o.shortfalls) {
+          _say('Not met: ${f.what}');
+        }
+      }
     } on Object catch (e) {
       _error = '$e';
       _status = DesktopRunStatus.failed;
@@ -281,6 +299,40 @@ class DesktopRunner extends ChangeNotifier {
       _tick = null;
       notifyListeners();
     }
+  }
+
+  /// Which of the named evidence artifacts are actually there.
+  ///
+  /// By basename and recursively, because the brief fixes the file names but
+  /// not where in the tree they land. Bounded, because a working directory can
+  /// contain a whole checkout and walking all of it to answer a question about
+  /// eleven files would be its own bug.
+  MissionOutcome _inspect(MissionSpec spec, Directory wd) {
+    final Set<String> present = <String>{};
+    try {
+      int seen = 0;
+      for (final FileSystemEntity e in wd.listSync(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (++seen > 20000) break;
+        if (e is! File) continue;
+        try {
+          if (e.lengthSync() > 0) {
+            present.add(e.path.split(Platform.pathSeparator).last);
+          }
+        } on FileSystemException {
+          // A file that cannot be measured is not counted as produced.
+        }
+      }
+    } on FileSystemException catch (e) {
+      _say('Could not check the working directory: $e');
+    }
+    return MissionCheck.inspect(
+      spec: spec,
+      filesPresent: present,
+      reported: state,
+    );
   }
 
   Future<void> stop() async {
