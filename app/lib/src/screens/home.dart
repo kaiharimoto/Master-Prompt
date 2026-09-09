@@ -766,22 +766,31 @@ class _MissionPickerState extends State<_MissionPicker> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
                         if (current != null) ...<Widget>[
-                          MpOutbound(
-                            title: 'This mission as a file',
-                            subtitle:
-                                'The spec, the brief, the last reported '
-                                'progress and the exchanges. Nothing '
-                                'device-specific travels — no session, no '
-                                'paths — so it opens cleanly wherever it '
-                                'lands.',
-                            document: _bundleFor(current).encode(),
-                            note:
-                                'A Master Prompt mission file. Open Master '
-                                'Prompt on the other device, choose Missions, '
-                                'and paste it under "Move a mission between '
-                                'devices".',
-                            fileName: _bundleFor(current).suggestedFileName,
-                            limit: store.settings.pasteLimit,
+                          // Built once. Called twice it encoded the whole
+                          // mission twice per frame — and stamped each with
+                          // its own `exportedAt`, so the file name and the
+                          // document inside it could disagree about the date.
+                          Builder(
+                            builder: (BuildContext context) {
+                              final MissionBundle b = _bundleFor(current);
+                              return MpOutbound(
+                                title: 'This mission as a file',
+                                subtitle:
+                                    'The spec, the brief, the last reported '
+                                    'progress and the exchanges. Nothing '
+                                    'device-specific travels — no session, no '
+                                    'paths — so it opens cleanly wherever it '
+                                    'lands.',
+                                document: b.encode(),
+                                note:
+                                    'A Master Prompt mission file. Open Master '
+                                    'Prompt on the other device, choose Missions, '
+                                    'and paste it under "Move a mission between '
+                                    'devices".',
+                                fileName: b.suggestedFileName,
+                                limit: store.settings.pasteLimit,
+                              );
+                            },
                           ),
                           const SizedBox(height: MpSpace.md),
                         ],
