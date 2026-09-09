@@ -56,7 +56,17 @@ The first test written for it was worthless in the same way as the elapsed one
 above — a tight loop against the real clock, green on Linux where the resolution
 genuinely is microseconds, while the same code lost a mission on Windows.
 `AppStore` takes its clock as a parameter now, the way `RunSupervisor` already
-did, and a frozen clock is the coarse platform taken to its limit.
+did, and a frozen clock is the coarse platform taken to its limit. The mint is
+also floored at load by the largest id already on disk, because the counter dies
+with the process and a clock corrected backwards can put a later launch on an
+instant already spent.
+
+Two of the three tests written for it proved nothing until each was checked by
+reverting the fix — the second set the next launch's clock *earlier*, which
+yields a lower id and so differs trivially, when the collision needs the clock
+back on the **same** instant. Three times in one session is a pattern rather
+than an accident, so the rule is in `CLAUDE.md` now: **revert the fix and watch
+the test fail, or it is not a test.**
 
 ### The red-team pass goes down the pipe too
 
