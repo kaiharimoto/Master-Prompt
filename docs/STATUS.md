@@ -42,6 +42,22 @@ rather than as a list:
 And one caught by a test as it was written: the mission sheet fixed its controls
 beneath a scrolling list, so opening the new disclosure overflowed it by 384px.
 
+**A seventh came from CI rather than from reading, and it is the most serious of
+them.** One Windows job failed among 147 green: two missions handed the same id.
+`AppStore` minted them from `microsecondsSinceEpoch`, and Windows advances its
+clock in ticks of a millisecond or more, so two made inside one tick collide —
+and `save` writes each project to `<id>.json`, so the second silently overwrites
+the first. The next push passed by luck of tick timing, which is exactly why
+"flaky" was the wrong reading. The half that mattered was pre-existing: the same
+mint was in `create`, reachable from the seed screen by a double-tap, long
+before the import path that exposed it.
+
+The first test written for it was worthless in the same way as the elapsed one
+above — a tight loop against the real clock, green on Linux where the resolution
+genuinely is microseconds, while the same code lost a mission on Windows.
+`AppStore` takes its clock as a parameter now, the way `RunSupervisor` already
+did, and a frozen clock is the coarse platform taken to its limit.
+
 ### The red-team pass goes down the pipe too
 
 It was copy-paste on every platform, including one with the CLI sitting right
