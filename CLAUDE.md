@@ -275,6 +275,18 @@ one-click unconfirmed kill. An `AppLifecycleListener` in `_HomeScreenState` is
 the whole fix. `AppExitResponse` is a `dart:ui` type and Flutter does not
 re-export it.
 
+**Two screens talk to the CLI, and there is one opener.** `openConversation`
+in `cli_session.dart` is it. A second copy would be free to disagree about a
+directory of its own (so a `CLAUDE.md` in the project the mission is *about*
+does not join uninvited), `permissionMode: default` regardless of the run
+setting, and effort that degrades downward only. The red-team pass runs in a
+session named `review` rather than the interview's: it carries the whole
+compiled brief, and sending twenty-two thousand characters into the chat
+conducting the interview would bury the round-to-round context that interview
+depends on. On a `.cmd` install the command-line budget is 7,800 characters, so
+the pass refuses the pipe there — which is why the clipboard route is demoted
+one level rather than removed.
+
 **`MpField` uppercases its label**, which is right for `NEXT ACTION` and
 unreadable for a sentence. A line of prose is a `Text`, not a field label.
 
