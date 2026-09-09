@@ -90,6 +90,7 @@ class StateParser {
     'next',
     'blocked',
     'ask',
+    'coldstart',
   };
 
   StateParseResult parse(String pasted, {String? expectedTaskId}) {
@@ -206,6 +207,7 @@ class StateParser {
       blocked: f['blocked'],
       ask: f['ask'],
       extra: extra,
+      coldStart: ColdStart.parse(f['coldstart']),
     );
   }
 

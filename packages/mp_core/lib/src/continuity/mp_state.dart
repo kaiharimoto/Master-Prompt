@@ -42,6 +42,33 @@ enum MissionPhase {
   }
 }
 
+/// What a run has said about reopening its own result from nothing.
+enum ColdStart {
+  /// Not attempted yet, or the run has not said.
+  unknown,
+
+  /// Attempted and it did not survive.
+  failed,
+
+  /// Attempted and it did.
+  passed;
+
+  static ColdStart parse(String? raw) {
+    final String s = (raw ?? '').trim().toLowerCase();
+    if (s == 'passed' || s == 'pass' || s == 'ok' || s == 'yes') {
+      return ColdStart.passed;
+    }
+    if (s == 'failed' || s == 'fail' || s == 'no') return ColdStart.failed;
+    return ColdStart.unknown;
+  }
+
+  String get wire => switch (this) {
+    ColdStart.passed => 'passed',
+    ColdStart.failed => 'failed',
+    ColdStart.unknown => 'not-yet',
+  };
+}
+
 /// The model's own claim about where the mission stands, as carried by the
 /// `mpstate` block at the end of every reply.
 ///
@@ -63,6 +90,7 @@ class MpState {
     this.blocked,
     this.ask,
     this.extra = const <String, String>{},
+    this.coldStart = ColdStart.unknown,
   });
 
   final int version;
@@ -93,11 +121,24 @@ class MpState {
   /// trip through an older one.
   final Map<String, String> extra;
 
+  /// Whether the run has proved the result survives being reopened from
+  /// nothing.
+  ///
+  /// The brief demands this before completion and there is no signal for it in
+  /// the event stream, so the only way to know is for the run to say. Absent
+  /// on a reply that predates the key, which reads as [ColdStart.unknown] —
+  /// and unknown is not passed.
+  final ColdStart coldStart;
+
   bool get isBlocked => _meaningful(blocked);
 
   bool get hasQuestion => _meaningful(ask);
 
   bool get isComplete => phase == MissionPhase.done;
+
+  /// True only when the run reported that it actually ran the cold start and
+  /// the result survived it.
+  bool get coldStartPassed => coldStart == ColdStart.passed;
 
   static bool _meaningful(String? v) {
     if (v == null) return false;
@@ -113,9 +154,11 @@ class MpState {
     String? next,
     String? blocked,
     String? ask,
+    ColdStart? coldStart,
   }) => MpState(
     version: version,
     taskId: taskId,
+    coldStart: coldStart ?? this.coldStart,
     phase: phase ?? this.phase,
     step: step ?? this.step,
     cycle: cycle ?? this.cycle,
@@ -138,7 +181,8 @@ class MpState {
       ..writeln('score=${_num(score)}')
       ..writeln('next=$next')
       ..writeln('blocked=${isBlocked ? blocked : 'none'}')
-      ..write('ask=${hasQuestion ? ask : 'none'}');
+      ..writeln('ask=${hasQuestion ? ask : 'none'}')
+      ..write('coldstart=${coldStart.wire}');
     return b.toString();
   }
 
@@ -156,6 +200,7 @@ class MpState {
     if (blocked != null) 'blocked': blocked,
     if (ask != null) 'ask': ask,
     if (extra.isNotEmpty) 'extra': extra,
+    'coldStart': coldStart.name,
   };
 
   static MpState fromJson(Map<String, Object?> j) => MpState(
@@ -170,6 +215,7 @@ class MpState {
     ask: j['ask'] as String?,
     extra: (j['extra'] as Map<Object?, Object?>? ?? const <Object?, Object?>{})
         .map((Object? k, Object? v) => MapEntry<String, String>('$k', '$v')),
+    coldStart: ColdStart.parse(j['coldStart'] as String?),
   );
 
   @override

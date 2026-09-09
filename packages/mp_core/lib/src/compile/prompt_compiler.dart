@@ -232,6 +232,14 @@ class PromptCompiler {
     w.raw('next=<the single next action>');
     w.raw('blocked=<none, or what is blocking>');
     w.raw('ask=<none, or one question for the user>');
+    if (spec.validation.coldStartProcedure.isNotEmpty) {
+      // Section 06 demands the result survive being reopened from nothing, and
+      // nothing in the event stream reports whether that ever happened — so
+      // the only way to know is for the run to say. Asked for only when the
+      // brief actually names a procedure; a gate the brief did not set is a
+      // gate this program has no business inventing.
+      w.raw('coldstart=<not-yet|passed|failed, per section 06>');
+    }
     w.raw('```');
 
     if (profile == TransportProfile.paste) {

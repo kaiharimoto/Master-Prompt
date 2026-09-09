@@ -1,9 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/screens/run_screen.dart';
 import 'package:master_prompt/src/store/app_store.dart';
 import 'package:master_prompt/src/store/desktop_runner.dart';
-import 'dart:io';
-
 import 'package:master_prompt/src/store/project.dart';
 import 'package:master_prompt/src/store/settings.dart';
 import 'package:mp_core/mp_core.dart';
@@ -112,6 +112,7 @@ MpState beat({
   String? blocked,
   String? ask,
   int cycle = 2,
+  ColdStart coldStart = ColdStart.unknown,
 }) => MpState(
   taskId: 'cocktail_bar',
   phase: phase,
@@ -121,6 +122,7 @@ MpState beat({
   next: next,
   blocked: blocked,
   ask: ask,
+  coldStart: coldStart,
 );
 
 void main() {
@@ -363,7 +365,14 @@ void main() {
               '01_arrival.png',
               ...MissionCheck.directiveFiles,
             },
-            reported: beat(score: 96, phase: MissionPhase.done, cycle: 4),
+            reported: beat(
+              score: 96,
+              phase: MissionPhase.done,
+              cycle: 4,
+              // The seed brief names a cold-start procedure, and nothing in
+              // the event stream reports whether it was ever run.
+              coldStart: ColdStart.passed,
+            ),
             // The seed brief names one critic, and a review nobody
             // independent did is a review the builder gave itself.
             criticsSeen: 1,

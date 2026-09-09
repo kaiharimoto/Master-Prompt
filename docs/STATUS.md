@@ -134,9 +134,14 @@ from distinct `parent_tool_use_id`s in the event stream — a signal that had
 always been there and was used only to keep subagent chatter out of the log, so
 a review that never happened looked exactly like one that did.
 
-One commitment is still unobserved: the cold-start validation the brief demands
-before completion. There is no signal for it in the event stream, so it would
-need the agent to report it through the heartbeat.
+The last one — the cold-start validation section 06 demands before completion —
+now comes back through the heartbeat, which was the only place it could: there
+is no signal for it in the event stream at all. The block gains
+`coldstart=<not-yet|passed|failed>`, and only for a brief that actually names a
+procedure, because a gate the brief did not set is not this program's to
+invent. Unknown is not passed, on the same reasoning as the score.
+
+So all seven of the brief's verifiable commitments are checked.
 
 The guided flow has been used on an Android phone for a full interview round,
 and two things came back from it. Both are fixed in this build and neither is

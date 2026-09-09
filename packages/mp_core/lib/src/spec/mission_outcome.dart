@@ -39,6 +39,8 @@ class MissionOutcome {
     this.cyclesRun = 0,
     this.criticsSeen = 0,
     this.directivesMissing = const <String>[],
+    this.coldStartRequired = false,
+    this.coldStart = ColdStart.unknown,
   });
 
   /// The fixed evidence set, by file name. The brief names these exactly so a
@@ -74,6 +76,16 @@ class MissionOutcome {
   /// told to re-read, so their absence is also the resume being hollow.
   final List<String> directivesMissing;
 
+  /// Whether the brief named a cold-start procedure at all.
+  final bool coldStartRequired;
+
+  /// What the run said about running it. There is no signal for this in the
+  /// event stream, so the run saying so is the only evidence there is — and
+  /// saying nothing is not the same as saying it passed.
+  final ColdStart coldStart;
+
+  bool get coldStartMet => !coldStartRequired || coldStart == ColdStart.passed;
+
   bool get criticsMet => criticsSeen >= criticsRequired;
 
   bool get directivesMet => directivesMissing.isEmpty;
@@ -98,7 +110,8 @@ class MissionOutcome {
       (scoreMet ?? false) &&
       cyclesMet &&
       criticsMet &&
-      directivesMet;
+      directivesMet &&
+      coldStartMet;
 
   /// Whether anything is known well enough to be worth saying. A mission with
   /// no evidence set, no rubric and no review loop has nothing to check.
@@ -106,7 +119,8 @@ class MissionOutcome {
       expected.isNotEmpty ||
       rubricTotal > 0 ||
       cyclesRequired > 0 ||
-      criticsRequired > 0;
+      criticsRequired > 0 ||
+      coldStartRequired;
 
   /// What is not right, in words worth showing to the person who waited.
   List<Shortfall> get shortfalls => <Shortfall>[
@@ -147,6 +161,17 @@ class MissionOutcome {
         detail:
             'A critic reviews from a context that never built the thing. One '
             'that never ran is a review the builder gave itself.',
+      ),
+    if (!coldStartMet)
+      Shortfall(
+        coldStart == ColdStart.failed
+            ? 'The result did not survive being reopened from nothing'
+            : 'Nothing confirmed the result survives being reopened from '
+                  'nothing',
+        detail: coldStart == ColdStart.failed
+            ? 'The brief says not to declare completion until it does.'
+            : 'Section 06 names a cold-start procedure. The run never '
+                  'reported running it, and there is no other signal for it.',
       ),
     if (directivesMissing.isNotEmpty)
       Shortfall(
@@ -201,6 +226,8 @@ abstract final class MissionCheck {
     cyclesRun: reported?.cycle ?? 0,
     criticsRequired: spec.review.critics.length,
     criticsSeen: criticsSeen,
+    coldStartRequired: spec.validation.coldStartProcedure.trim().isNotEmpty,
+    coldStart: reported?.coldStart ?? ColdStart.unknown,
     directivesMissing: <String>[
       for (final String f in directiveFiles)
         if (!filesPresent.contains(f)) f,

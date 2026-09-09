@@ -6,6 +6,7 @@ MissionSpec specWith({
   int exitThreshold = 90,
   int minimumCycles = 4,
   int critics = 2,
+  String coldStart = 'Open the file and render 01 at full resolution.',
 }) => MissionSpec(
   id: 'p',
   taskId: 'cocktail_bar',
@@ -20,6 +21,7 @@ MissionSpec specWith({
         proves: 'coverage',
       ),
   ],
+  validation: ValidationPlan(coldStartProcedure: coldStart),
   review: ReviewLoopSpec(
     minimumCycles: minimumCycles,
     critics: <Critic>[
@@ -40,8 +42,16 @@ MissionSpec specWith({
   ),
 );
 
-MpState said({double score = 61, int cycle = 1}) =>
-    MpState(taskId: 'cocktail_bar', score: score, cycle: cycle);
+MpState said({
+  double score = 61,
+  int cycle = 1,
+  ColdStart coldStart = ColdStart.passed,
+}) => MpState(
+  taskId: 'cocktail_bar',
+  score: score,
+  cycle: cycle,
+  coldStart: coldStart,
+);
 
 void main() {
   group('finished is not the same as done', () {
@@ -186,6 +196,70 @@ void main() {
       expect(o.directivesMet, isFalse);
       expect(o.shortfalls.single.detail, contains('TASK_STATE.md'));
       expect(o.shortfalls.single.detail, contains('INVENTORY.md'));
+    });
+
+    test('a cold start nobody ran is not a cold start that passed', () {
+      // Section 06 demands the result survive being reopened from nothing, and
+      // there is no signal for it in the event stream at all — so the run
+      // saying so is the only evidence there is, and saying nothing is not the
+      // same as saying it passed.
+      final MissionOutcome o = MissionCheck.inspect(
+        spec: specWith(),
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
+        reported: said(score: 93, cycle: 4, coldStart: ColdStart.unknown),
+        criticsSeen: 2,
+      );
+
+      expect(o.coldStartMet, isFalse);
+      expect(o.met, isFalse);
+      expect(o.shortfalls.single.what, contains('reopened from nothing'));
+    });
+
+    test('a cold start that failed says so differently', () {
+      final MissionOutcome o = MissionCheck.inspect(
+        spec: specWith(),
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
+        reported: said(score: 93, cycle: 4, coldStart: ColdStart.failed),
+        criticsSeen: 2,
+      );
+
+      expect(
+        o.shortfalls.single.what,
+        contains('did not survive'),
+        reason:
+            '"it failed" and "nobody checked" are different problems and lead '
+            'somewhere different',
+      );
+    });
+
+    test('a mission that names no cold start is not asked about one', () {
+      final MissionOutcome o = MissionCheck.inspect(
+        spec: specWith(coldStart: ''),
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
+        reported: said(score: 93, cycle: 4, coldStart: ColdStart.unknown),
+        criticsSeen: 2,
+      );
+
+      expect(
+        o.met,
+        isTrue,
+        reason: 'a gate the brief did not set is not this program to invent',
+      );
     });
 
     test('a mission with no gates is not judged', () {
