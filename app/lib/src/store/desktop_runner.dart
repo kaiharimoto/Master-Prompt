@@ -6,6 +6,7 @@ import 'package:mp_core/mp_core.dart';
 import 'package:mp_runner/mp_runner.dart';
 
 import 'diagnostics.dart';
+import 'keep_awake.dart';
 import 'project.dart';
 import 'settings.dart';
 
@@ -18,12 +19,22 @@ enum DesktopRunStatus { idle, locating, running, paused, finished, failed }
 /// project plus settings into a run, and the supervisor's event stream into
 /// something a widget can paint.
 class DesktopRunner extends ChangeNotifier {
-  DesktopRunner({CliLocator locator = const CliLocator()}) : _locator = locator;
+  DesktopRunner({CliLocator locator = const CliLocator(), KeepAwake? awake})
+    : _locator = locator,
+      _awake = awake ?? KeepAwake();
 
   /// Injected so a widget test can have a connected CLI without one existing.
   /// Probing is real process work, which cannot complete inside the tester's
   /// fake-async zone at all.
   final CliLocator _locator;
+
+  /// Held for exactly as long as a run is. See [notifyListeners].
+  final KeepAwake _awake;
+
+  /// Whether the machine is currently being held awake, for the run panel and
+  /// the diagnostics report — a hold nobody can see is a hold nobody can
+  /// notice leaking.
+  bool get holdingAwake => _awake.held;
 
   static bool get isSupported =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -386,9 +397,24 @@ class DesktopRunner extends ChangeNotifier {
     _say('Stopping at the next checkpoint.');
   }
 
+  /// Every status change in this class goes through here, which is why the
+  /// hold is derived from [isBusy] rather than set at the places a run starts
+  /// and ends.
+  ///
+  /// A path that ends a run without passing the usual exit — a throw, a
+  /// cancel, a supervisor that returns early — would otherwise leave a laptop
+  /// awake indefinitely, and a machine that never sleeps again is a worse
+  /// outcome than one that slept through hour three.
+  @override
+  void notifyListeners() {
+    unawaited(_awake.want(isBusy));
+    super.notifyListeners();
+  }
+
   @override
   void dispose() {
     _tick?.cancel();
+    unawaited(_awake.want(false));
     unawaited(_supervisor?.dispose());
     super.dispose();
   }

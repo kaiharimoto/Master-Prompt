@@ -1,6 +1,10 @@
 #include "flutter_window.h"
 
+#include <flutter/standard_method_codec.h>
+#include <windows.h>
+
 #include <optional>
+#include <variant>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -27,6 +31,49 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  // `masterprompt/platform`, and it does one thing: hold the machine awake
+  // while a run is going. A twelve-hour unattended run on a laptop that sleeps
+  // at hour three did not fail — it stopped, and the log ends mid-sentence.
+  //
+  // Which run is active, and when, is decided in Dart. This end is deliberately
+  // incapable of deciding anything: none of it can be executed by a test on the
+  // Linux runner, and the same shape of gap is what shipped an invalid session
+  // id once already.
+  platform_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "masterprompt/platform",
+      &flutter::StandardMethodCodec::GetInstance());
+  platform_->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+             result) {
+        if (call.method_name() != "keepAwake") {
+          result->NotImplemented();
+          return;
+        }
+
+        bool awake = false;
+        if (const auto* args =
+                std::get_if<flutter::EncodableMap>(call.arguments())) {
+          const auto it = args->find(flutter::EncodableValue("awake"));
+          if (it != args->end()) {
+            if (const bool* value = std::get_if<bool>(&it->second)) {
+              awake = *value;
+            }
+          }
+        }
+
+        // ES_CONTINUOUS alone clears the request; with ES_SYSTEM_REQUIRED it
+        // holds. The display is deliberately not held — the screen may sleep,
+        // and a monitor that never blanks overnight is its own complaint.
+        //
+        // This is per-thread state, and the handler always runs on the
+        // platform thread, so the hold and its release are the same thread's.
+        const EXECUTION_STATE state =
+            awake ? (ES_CONTINUOUS | ES_SYSTEM_REQUIRED) : ES_CONTINUOUS;
+        const bool ok = SetThreadExecutionState(state) != 0;
+        result->Success(flutter::EncodableValue(ok));
+      });
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -40,6 +87,13 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  // Release the hold before the engine goes, whatever Dart managed to do on
+  // the way out. A process that exits still holding it leaves nothing behind —
+  // the request dies with the thread — but clearing it here means the window
+  // closing is enough on its own.
+  SetThreadExecutionState(ES_CONTINUOUS);
+
+  platform_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

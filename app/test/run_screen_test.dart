@@ -35,6 +35,7 @@ class StubRunner extends DesktopRunner {
     this.stubDirectory,
     this.stubOutcome,
     this.stubResumable,
+    this.stubAwake = true,
   });
 
   final DesktopRunStatus stubStatus;
@@ -52,6 +53,7 @@ class StubRunner extends DesktopRunner {
   final String? stubDirectory;
   final MissionOutcome? stubOutcome;
   final RunRecord? stubResumable;
+  final bool stubAwake;
 
   @override
   DesktopRunStatus get status => stubStatus;
@@ -87,6 +89,8 @@ class StubRunner extends DesktopRunner {
   MissionOutcome? get outcome => stubOutcome;
   @override
   RunRecord? get resumable => stubResumable;
+  @override
+  bool get holdingAwake => stubAwake;
 
   /// The screen sweeps the store on arrival. There is no store here.
   @override
@@ -207,6 +211,23 @@ void main() {
         findsOneWidget,
         reason: 'the session id is what makes a resume a resume',
       );
+    });
+
+    testWidgets('a machine that will sleep through the run says so', (
+      WidgetTester tester,
+    ) async {
+      // The failure is total and silent — a run that ends at hour three did
+      // not fail, it stopped — so the absence of the hold is worth knowing
+      // before the night rather than after it.
+      await show(tester, StubRunner(stubAwake: false));
+      expect(find.text('not held'), findsOneWidget);
+    });
+
+    testWidgets('a machine being held awake says that too', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, StubRunner());
+      expect(find.text('held off'), findsOneWidget);
     });
 
     testWidgets('the working directory is named, not alluded to', (

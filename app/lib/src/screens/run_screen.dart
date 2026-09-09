@@ -453,6 +453,15 @@ class _Vitals extends StatelessWidget {
                 label: 'Spent',
                 value: '\$${r.costUsd!.toStringAsFixed(2)}',
               ),
+            // Shown because a hold nobody can see is a hold nobody notices
+            // leaking, and because its absence is worth knowing before a
+            // twelve-hour run rather than after one ends at hour three.
+            if (r.isBusy)
+              _Vital(
+                label: 'Sleep',
+                value: r.holdingAwake ? 'held off' : 'not held',
+                tone: r.holdingAwake ? null : c.warning,
+              ),
           ],
         ),
         if (r.sessionId != null) ...<Widget>[

@@ -1,3 +1,6 @@
+// `AppExitResponse` is a dart:ui type; Flutter uses it without re-exporting it.
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/material.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:mp_design/mp_design.dart';
@@ -66,8 +69,67 @@ class _HomeScreenState extends State<HomeScreen> {
   /// page and the missions you were switching between disappear.
   AppDestination? _panel;
 
+  /// Intercepts closing the window while a run is going.
+  ///
+  /// A run in progress dies with the process, and the one most worth keeping
+  /// is a run paused for a five-hour limit and waiting to resume — hours of
+  /// waiting, ended by a click on the wrong corner. The engine consumes the
+  /// first WM_CLOSE precisely so the framework can answer, but only when
+  /// something has registered for `didRequestAppExit`; nothing had, so the
+  /// close was a one-click unconfirmed kill.
+  ///
+  /// This is the whole of it, and none of it is native: the Windows runner
+  /// already routes the message.
+  AppLifecycleListener? _exit;
+
+  @override
+  void initState() {
+    super.initState();
+    if (DesktopRunner.isSupported) {
+      _exit = AppLifecycleListener(onExitRequested: _onExitRequested);
+    }
+  }
+
+  Future<AppExitResponse> _onExitRequested() async {
+    if (!_runner.isBusy) return AppExitResponse.exit;
+    final bool leave = await _confirmClose() ?? false;
+    return leave ? AppExitResponse.exit : AppExitResponse.cancel;
+  }
+
+  Future<bool?> _confirmClose() {
+    final DateTime? resumeAt = _runner.resumeAt;
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('A run is still going'),
+        content: Text(
+          resumeAt != null
+              ? 'It is waiting out a usage limit and is due to resume at '
+                    '${resumeAt.toLocal().hour.toString().padLeft(2, '0')}:'
+                    '${resumeAt.toLocal().minute.toString().padLeft(2, '0')}. '
+                    'Closing now ends it — the schedule is on disk and the '
+                    'run can be continued from the Run screen, but nothing '
+                    'will happen while the app is shut.'
+              : 'Closing now ends it. The run is saved and can be continued '
+                    'from the Run screen, but the work in flight stops here.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Keep running'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Close anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _exit?.dispose();
     _flow.dispose();
     if (widget.runner == null) _runner.dispose();
     if (widget.chat == null) _chat.dispose();

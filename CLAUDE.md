@@ -216,6 +216,68 @@ which is built into every reader and carries no Unicode, so a middle dot inside
 a fence would vanish from the document silently. `brief_preview_test.dart`
 holds that as a contract rather than a coincidence.
 
+**A status a screen probes on arrival is a status a screen can destroy.** The
+Run pane called `detect` in `initState`, which set the runner to `locating` and
+then `idle` — so closing the pane and opening it again mid-run, or switching
+missions in the rail, which closes it for you, made `isBusy` false with the
+supervisor still running. Stop left the screen, Run came back enabled, and a
+second click launched a second agent into the same directory under
+`bypassPermissions` with nothing left holding the first. Anything that writes
+status now checks `isBusy` first.
+
+**Cancellation has to reach the thing that is actually waiting.** `cancel()`
+killed the process, and during a five-hour limit pause there is no process — the
+supervisor is inside `clock.waitUntil`, which polled in one-minute slices and
+never looked. `paused` counts as busy, so Stop stayed inert and Run stayed
+disabled for the length of the pause. `waitUntil` now takes an `interrupted`
+future and races it. The paired rule: **a stop is a fact about the user, not a
+diagnosis about the run.** A killed process exits non-zero, which the detector
+reads as `unknown`, so a deliberate stop was recorded as `stalled` and painted
+red with a signal number in it. Check `_cancelled` before consulting a verdict.
+
+**A wire format nothing parses is a wire format that does not exist.** The
+compiled brief demands an `mpstate` heartbeat on every reply and says twice why
+it matters on the CLI transport. `StateParser` had exactly one call site in the
+app, behind the manual paste button, so during a desktop run the block scrolled
+past in the log unread and the Progress panel said "nothing recorded yet" for
+twelve hours. `RunHeartbeat` lives in `mp_core` rather than as a method on
+`DesktopRunner` for the usual reason: the runner cannot be driven without a real
+process, so a reader living inside it is a reader no test can reach.
+
+**`completed` from the supervisor means the process exited zero.** It is not a
+claim about the mission, and painting it green was a silently wrong answer,
+which is worse than a missing one. `MissionCheck` compares the brief's own
+commitments — the named evidence set, the exit threshold, the minimum cycles —
+against what the run reported and what is on disk. Two judgements in it are
+deliberate: a run that never reported a score cannot pass, because nothing
+checked; and a mission that fixed no gates is not judged at all.
+
+**Writing a file nothing reads back is the same as not writing it.**
+`RunStore` wrote a record after every transition and `pendingResumes` carried a
+comment saying it was called on every app launch. It had no caller. Separately,
+`RunRecord.fromJson` dropped `attempts` and `lastVerdict`, so the attempt
+ceiling that stops a pathological loop reset to zero on every reload. If a field
+is persisted, something must read it, and a test must prove the round trip.
+
+**Sleep inhibition leaks, and a leak here is a real harm** — a laptop that never
+sleeps again because the app crashed holding the lock. `KeepAwake` derives the
+hold from `isBusy` inside `notifyListeners` rather than taking it at the places
+a run starts and ends, so a throw or an early return cannot strand it; the calls
+are serialised, so a release cannot overtake a hold; a failed hold is not
+remembered as held; and the run panel shows whether it is actually held, because
+a hold nobody can see is a leak nobody notices. The native half is one method on
+`masterprompt/platform` and decides nothing.
+
+**Closing the window needed no native code.** The Windows embedder consumes the
+first `WM_CLOSE` precisely so the framework can answer, but only when something
+has registered for `didRequestAppExit`. Nothing had, so quitting mid-run was a
+one-click unconfirmed kill. An `AppLifecycleListener` in `_HomeScreenState` is
+the whole fix. `AppExitResponse` is a `dart:ui` type and Flutter does not
+re-export it.
+
+**`MpField` uppercases its label**, which is right for `NEXT ACTION` and
+unreadable for a sentence. A line of prose is a `Text`, not a field label.
+
 **The Windows binary can only be built on Windows.** It exists solely as a CI
 job on `windows-latest`. That is why the supervisor lives in a plain `dart:io`
 package: nearly all of it is provable on Linux first.

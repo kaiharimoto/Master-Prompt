@@ -4,14 +4,71 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that made the desktop interview actually work, and
-gave Windows a real installer._
+_Last updated: the commit that made a desktop run survivable — a run that can
+be stopped, resumed, watched, and judged against the brief rather than against
+the exit code._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
 button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
+
+### The desktop run, audited and repaired
+
+The supervisor in `mp_runner` was always the strong half — the resume ladder,
+the limit detector's four-channel fusion, the `--session-id`/`--resume`
+invariants, the atomic store writes. Almost none of it reached the user. An
+audit of the run experience found thirteen faults; the six that could end or
+misreport a real twelve-hour run are fixed.
+
+**Opening the Run pane twice cost the run.** The pane probes on arrival and
+`detect` set the status unconditionally, so closing it and reopening it — or
+switching missions in the rail, which closes it for you — walked a live run's
+status back to `idle`. Stop left the screen, Run came back, and a second click
+launched a second agent into the same directory under `bypassPermissions`,
+orphaning the first. `detect` now returns early while busy.
+
+**Stop did nothing inside a limit pause.** The wait polled in one-minute slices
+and never looked at cancellation, and the process is already dead during a
+pause, so `kill()` reached nothing. Up to five hours in a state with no exit but
+killing the app. The wait now races an interrupt. A stop was also reported as a
+red `stalled` failure with `process exited with -15` in it, because the verdict
+on a killed process is its exit code; `cancelled` was reachable only from the
+top of the loop.
+
+**Nothing on screen said what the run was doing.** The brief demands an
+`mpstate` heartbeat on every reply and nothing parsed it, so the whole Progress
+section said "nothing recorded yet" for twelve hours while the run reported its
+score, its phase, what it was blocked on and what it wanted to ask, every turn.
+`RunHeartbeat` reads it. Elapsed, attempt, spend, session id and working
+directory were all computed, persisted and then dropped before they reached a
+widget.
+
+**"Finished" meant the process exited zero.** A run that produced three of
+eleven artifacts, ran one review cycle of four and scored itself 61 against a
+threshold of 90 was painted the same green as one that met every gate.
+`MissionCheck` compares the brief's own commitments against what the run
+reported and what is on disk.
+
+**A run was never offered back.** `pendingResumes` had no caller: every restart
+was a cold start with a new id and no session, while the panel promised that
+closing the app was safe. `RunStore.resumable` is broader on purpose — a run
+whose app was closed mid-attempt has no scheduled time at all, which is exactly
+when a resume is most wanted.
+
+**And the machine could sleep through it.** `KeepAwake` holds
+`ES_SYSTEM_REQUIRED` for exactly as long as `isBusy`, derived from run status
+rather than set at call sites, so a run that ends by a throw cannot leave a
+laptop awake forever. Closing the window mid-run now asks first, which needs no
+native code: the Windows embedder already routes `WM_CLOSE` to
+`didRequestAppExit`, and nothing had registered for it.
+
+Seven of the audit's findings are open and none of them ends a run: the log
+rebuilds 500 `SelectableText` widgets in a `shrinkWrap` list on every event,
+`stepDownOnOpusLimit` is a setting nothing reads, there is no run indicator
+outside the pane, and the brief's directive files and subagent critics are still
+unverified after a run.
 
 The guided flow has been used on an Android phone for a full interview round,
 and two things came back from it. Both are fixed in this build and neither is
@@ -508,16 +565,42 @@ correctly. Now it shows the questions.
 
 - The `.mpx` bundle round-trips and is fully tested but is not wired to a file
   picker in the UI.
-- Windows sleep inhibition, tray presence and launch-at-login are designed but
-  unimplemented. A scheduled resume currently relies on the app being open, or
-  is re-armed at next launch.
+- Tray presence is designed but unimplemented, and deliberately: it is the
+  largest native surface of the three, and confirm-on-close removes the data
+  loss on its own. Sleep inhibition and launch-at-login are done — the first as
+  one method channel, the second as an optional Inno Setup task, since a resume
+  scheduled five hours out does not survive a reboot.
 - Support for API keys other than Anthropic's is scaffolded by the transport
   seam but not built.
 
 ## Next
 
-This build has to be installed the old way, by hand, because the copy on the
-phone predates the updater. Then, in this order:
+On the desktop, in this order — every one of these is a question only the
+machine can answer:
+
+1. **A run that holds the machine awake.** Start one, leave the laptop alone
+   past its sleep timer, and check it is still going. Then check the machine
+   sleeps normally once the run ends: a program that never lets a laptop sleep
+   again is a worse fault than the one this fixes, which is why the run panel
+   shows whether the hold is actually held.
+2. **Closing the window mid-run.** It should ask, and name the resume time if
+   one is scheduled. This is pure Dart but the message that triggers it is
+   handled by the Windows embedder, so it has never executed here.
+3. **Resuming after a close.** Reopen, and the Run screen should offer to
+   continue rather than only to start over — with a session id shown, which is
+   the difference between reattaching and sending the whole brief again.
+4. **What the heartbeat actually looks like over hours.** The Progress panel is
+   now fed by the run itself. Whether the model keeps sending `mpstate` on every
+   reply for twelve hours, unprompted, is the open question — and if it stops,
+   the panel will show the last thing it said with no indication that it has
+   gone quiet.
+5. **Whether the outcome check is right.** A run marked "finished, but" when it
+   is genuinely done would be worse than the green it replaces. The evidence
+   check matches by file name anywhere under the working directory.
+6. **Startup at sign-in**, from the installer's tick box, if a run is ever to
+   survive a reboot.
+
+And on the phone, still unconfirmed from the last round:
 
 1. **A full round with the new prompt.** The reply should end in one `json`
    block; copy it with the block's own button, paste, and Apply should report

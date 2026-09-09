@@ -84,6 +84,14 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; \
   GroupDescription: "Shortcuts:"; Flags: unchecked
 
+; A resume scheduled five hours out does not survive a reboot, and nothing
+; happens while the app is shut. Starting with Windows is the whole fix, it
+; needs no code at all, and this is where people expect to find the choice.
+; Unticked, because an app that adds itself to startup uninvited is a
+; different kind of rude.
+Name: "startup"; Description: "Start Master Prompt when I sign in"; \
+  GroupDescription: "Long runs:"; Flags: unchecked
+
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
@@ -92,6 +100,8 @@ Source: "{#BuildDir}\*"; DestDir: "{app}"; \
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
   Tasks: desktopicon
+Name: "{autostartup}\{#AppName}"; Filename: "{app}\{#AppExe}"; \
+  Tasks: startup
 
 [Run]
 ; The ordinary end-of-wizard tick box. Suppressed in a silent install.

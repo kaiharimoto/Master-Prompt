@@ -2,7 +2,9 @@
 #define RUNNER_FLUTTER_WINDOW_H_
 
 #include <flutter/dart_project.h>
+#include <flutter/encodable_value.h>
 #include <flutter/flutter_view_controller.h>
+#include <flutter/method_channel.h>
 
 #include <memory>
 
@@ -28,6 +30,11 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // The whole native surface on Windows: one channel with one method.
+  // Everything about *when* to hold the machine awake is Dart, where a Linux
+  // runner can test it.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> platform_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
