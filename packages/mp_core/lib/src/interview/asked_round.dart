@@ -71,7 +71,7 @@ class AskedRound {
 
 /// Reads the `mpask` block a questioning round ends with.
 ///
-/// A round comes back at four or five thousand characters — two to four
+/// A round comes back at four or five thousand characters — up to six
 /// questions, each with two to four options and a line on what each would
 /// mean. Reading all of it and then typing "1, 2, 3" into a box is the slowest
 /// part of the whole interview, and it is the part a machine can do.

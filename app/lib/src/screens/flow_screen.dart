@@ -345,11 +345,15 @@ class _FlowScreenState extends State<FlowScreen> {
       key: const ValueKey<String>('beat-ask'),
       eyebrow: _stageEyebrow(report),
       question: report.currentStage.question,
+      // The count follows the prompt, which now asks for up to six per round
+      // because answering is a tap: a further question costs a moment and a
+      // further round trip costs a minute.
       supporting: connected
-          ? 'Claude will ask you two to four questions about this. Answer them '
-                'here; nothing leaves the app.'
-          : 'Claude will ask you two to four questions about this. Answer them '
-                'in the chat, then bring its reply back here.',
+          ? 'Claude will ask a few questions about this, most of them with '
+                'options to tap. Answer them here; nothing leaves the app.'
+          : 'Claude will ask a few questions about this, most of them with '
+                'options to tap. Answer them in the chat, then bring its '
+                'reply back here.',
       primary: connected
           ? MpButton(
               label: _busy ? 'Asking Claude…' : 'Ask Claude',

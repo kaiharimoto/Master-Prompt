@@ -231,7 +231,10 @@ class ClaudeChat extends ChangeNotifier {
       model: s.model.trim().isEmpty ? null : s.model.trim(),
       // The launch plan degrades this to whatever the build accepts, so a
       // preference the CLI has never heard of costs a note rather than a run.
-      effortPreference: <String>[s.effort, 'high', 'medium', 'low'],
+      // Downward only: this list used to put `high` second, so a build that
+      // did not accept the chosen level would upgrade the turn rather than
+      // reduce it.
+      effortPreference: effortLadder(s.effort),
     );
   }
 }
