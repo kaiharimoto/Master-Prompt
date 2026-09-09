@@ -10,6 +10,7 @@ import '../store/app_store.dart';
 import '../store/claude_chat.dart';
 import '../store/diagnostics.dart';
 import '../store/project.dart';
+import '../widgets/asked_questions.dart';
 import 'destinations.dart';
 
 /// The whole app, most of the time: one question, one action.
@@ -45,6 +46,14 @@ class FlowScreen extends StatefulWidget {
 class _FlowScreenState extends State<FlowScreen> {
   static const InterviewEngine _engine = InterviewEngine();
   static const SpecPatchParser _patcher = SpecPatchParser();
+  static const AskedRoundParser _asker = AskedRoundParser();
+
+  /// The questions the last reply asked, if it asked any.
+  ///
+  /// Held here rather than in `FlowController` because it is derived from a
+  /// reply rather than from the spec, and the controller's rule is that it
+  /// holds only what the spec cannot know.
+  AskedRound? _asked;
 
   final TextEditingController _seedField = TextEditingController();
   final TextEditingController _replyField = TextEditingController();
@@ -130,6 +139,11 @@ class _FlowScreenState extends State<FlowScreen> {
   /// stands between both of them and an unattended run.
   Future<bool> _read(Project p, String reply, {required bool viaCli}) async {
     final SpecPatchResult r = _patcher.parse(reply, p.spec);
+
+    // Over the prose rather than the raw reply: the patch block has been taken
+    // out of it, so nothing inside a settled answer can be read as a question.
+    final AskedRound asked = _asker.parse(r.prose ?? reply);
+    _asked = asked.found ? asked : null;
     Diagnostics.instance.log(
       'Reply ${viaCli ? 'from the CLI' : 'pasted'} (${reply.length} chars): '
       '${r.found ? '${r.applied.length} applied' : 'no mpspec block'}.',
@@ -148,7 +162,7 @@ class _FlowScreenState extends State<FlowScreen> {
       // Down the CLI route the answer is already on screen with a box under
       // it, so a round of questions is the conversation working rather than
       // something that went wrong. Only the clipboard route needs telling.
-      if (!viaCli) {
+      if (!viaCli && !asked.found) {
         widget.flow.rejected(
           r.found
               ? 'That reply had a block, but nothing in it changed the mission. '
@@ -159,9 +173,16 @@ class _FlowScreenState extends State<FlowScreen> {
                     'reply back.',
         );
       }
+      if (asked.found) {
+        // The pasted route lands here too, so the phone gets the buttons as
+        // well: the reply it pastes is the same reply, block and all.
+        setState(() => _viaCli = true);
+        widget.flow.handedOff();
+      }
       return false;
     }
 
+    _asked = null;
     widget.flow.received(r);
     return true;
   }
@@ -512,6 +533,9 @@ class _FlowScreenState extends State<FlowScreen> {
     // the round can be sent a second time or copied instead.
     final bool failed = !busy && reply == null;
     final int seconds = widget.chat.elapsed.inSeconds;
+    // Nothing to tap while a new turn is in flight: the questions on screen
+    // belong to the reply that has already been answered.
+    final AskedRound? asked = busy ? null : _asked;
 
     return MpFocal(
       key: const ValueKey<String>('beat-chat'),
@@ -540,7 +564,30 @@ class _FlowScreenState extends State<FlowScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (reply != null)
+          // The questions come first when there are any, because they are
+          // what the screen is for. The reply itself goes one level down: it
+          // is worth reading, and it is not worth scrolling five thousand
+          // characters of before you can answer.
+          if (asked != null) ...<Widget>[
+            AskedQuestions(
+              key: ValueKey<String>(
+                'asked-${asked.questions.length}-'
+                '${asked.raw.length}',
+              ),
+              round: asked,
+              busy: busy,
+              onSend: (String answer) => _askClaude(p, answer),
+            ),
+            const SizedBox(height: MpSpace.md),
+            MpDisclosure(
+              label: 'What Claude said',
+              trailingNote: '${reply?.length ?? 0} chars',
+              child: SelectableText(
+                reply ?? asked.raw,
+                style: MpType.prose.copyWith(color: c.inkMuted),
+              ),
+            ),
+          ] else if (reply != null)
             MpPanel(
               child: SelectableText(
                 reply,
@@ -570,7 +617,7 @@ class _FlowScreenState extends State<FlowScreen> {
               ),
             ),
           ],
-          if (reply != null) ...<Widget>[
+          if (reply != null && asked == null) ...<Widget>[
             const SizedBox(height: MpSpace.md),
             MpSubmit(
               // This was the only way into the conversation and it could only

@@ -166,6 +166,28 @@ class InterviewEngine {
         'brief yet.',
       )
       ..writeln()
+      ..writeln('## Index your questions so I can answer by tapping')
+      ..writeln()
+      ..writeln(
+        'After the questions, add one fenced `mpask` block listing them. One '
+        'line per question, one per option, `|` between fields, and the word '
+        '`recommended` as the last field on the one you recommend:',
+      )
+      ..writeln()
+      ..writeln('```mpask')
+      ..writeln('q1=How many seats should the room hold?')
+      ..writeln('q1a=Twelve|a private room, and the pass can stay open')
+      ..writeln('q1b=Twenty|the brief already says intimate|recommended')
+      ..writeln('q1c=Forty|the bar stops being the point')
+      ..writeln('```')
+      ..writeln()
+      ..writeln(
+        'Keep the reasoning in the prose above — the block is an index to it, '
+        'not a replacement, and it is read by the app rather than by me. Write '
+        'it as lines exactly like that, never as JSON, and put it **before** '
+        'the answer block below if you are sending both.',
+      )
+      ..writeln()
       ..writeln('## How to hand the answers back')
       ..writeln()
       ..writeln(
@@ -224,7 +246,8 @@ class InterviewEngine {
       ..writeln(
         'Same as before: two to four questions on these, each with numbered '
         'options I can answer by number, one of them recommended with a '
-        'reason, nothing in the block I have not picked, and then end your '
+        'reason, an `mpask` block indexing them so I can tap rather than type, '
+        'nothing in the answer block I have not picked, and then end your '
         'reply with one fenced `json` block and nothing after it.',
       )
       ..writeln();
@@ -285,7 +308,8 @@ class InterviewEngine {
         'only the fixes you would make, and nothing after it. Where a fix is a '
         'judgement call I should make, ask instead of guessing — and ask it '
         'the same way: numbered options, one of them recommended with a '
-        'reason, and nothing in the block until I have picked it.',
+        'reason, an `mpask` block indexing them, and nothing in the block '
+        'until I have picked it.',
       )
       ..writeln();
     _patchFormat(b, InterviewStage.ready);

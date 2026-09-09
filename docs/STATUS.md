@@ -349,6 +349,40 @@ any one of which was enough. Every emit is guarded now, and `dispose` kills the
 child *before* closing the stream rather than leaving it writing into a pipe
 nobody holds.
 
+Then the thing the desktop was really missing. A round comes back at four to
+five thousand characters — the real ones logged were 4237, 4872 and 5395 — and
+answering it meant reading all of that, scrolling to the bottom, and typing
+"1, 2, 3" into a box. The reading is the work; the typing is not.
+
+**The questions are now buttons.** The prompt asks each round to end with an
+`mpask` block indexing what it asked — one line per question, one per option,
+`|` between fields, `recommended` on the one it recommends — and the app renders
+that as cards you tap. The prose above it still carries the reasoning and sits
+one level down under "What Claude said". It works on **both** routes, because
+the phone pastes the same reply.
+
+Two rules survive intact, and a button makes both easy to break. **A
+recommendation is marked and never pre-selected**: nothing is chosen when the
+questions appear, because a pre-pressed button is exactly the presumption the
+proposed/confirmed gate exists to stop. And there is **no "take all the
+recommendations"** — the saving is in not typing, not in not deciding. "You
+choose" is offered per question, because the user electing to defer is a
+different act from the model assuming, and the value still arrives proposed
+either way.
+
+**The block is line-oriented, and that is load-bearing rather than stylistic.**
+`SpecPatchParser` finds a patch by brace-matching *with no fence at all* —
+because a chat app's copy button strips the backticks — so a questions block
+written as JSON would have been applied as a patch of answers nobody had given.
+There is a test that asserts exactly that cannot happen. The same reasoning
+already keeps `mpstate` line-oriented, and it buys the same thing here: a
+truncated block costs one option rather than the whole round.
+
+It also fixes a smaller thing that read badly. A questions-only reply is the
+*normal* first round, and on the pasted route the app answered it with "No
+settled answers in that reply yet" — a warning, for the interview working
+correctly. Now it shows the questions.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -435,7 +469,7 @@ nobody holds.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-360 tests: 151 in `mp_core`, 103 in `mp_runner`, 106 in the app.
+378 tests: 166 in `mp_core`, 103 in `mp_runner`, 109 in the app.
 
 ### Not yet proven
 

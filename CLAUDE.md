@@ -305,6 +305,22 @@ one level, because the CLI can be missing, logged out or rate-limited.
   is not an answer**: it may not enter the patch block until the user picks it,
   which is presumption rather than invention and needed saying separately. There
   is deliberately no "just take all your recommendations" shortcut.
+- **The questions a round asks are read, not just displayed.** A round comes
+  back at four or five thousand characters, and reading it then typing
+  "1, 2, 3" into a box was the slowest part of the interview and the part with
+  no thinking left in it. The prompt asks for an `mpask` block indexing the
+  questions; `AskedRoundParser` reads it and the app renders buttons. **The
+  block is line-oriented and must never become JSON** — `SpecPatchParser`
+  brace-matches with no fence at all, so a JSON questions block would be
+  applied as a patch of answers nobody had given. Same reasoning that keeps
+  `mpstate` line-oriented. The block is an index into the prose, not a
+  replacement: the reasoning stays above it, and the free-text box stays for a
+  reply that had no block at all.
+- **A recommendation is marked, never pre-selected, and there is no "take all
+  the recommendations" button.** The saving is in not typing, not in not
+  deciding. "You choose" exists as an explicit per-question option because the
+  *user* electing to defer is a different act from the model assuming — and the
+  value still arrives `proposed` and still has to be accepted either way.
 - **The interview assumes one continuing chat.** `nextTurn` takes a
   `TurnStyle`: `standalone` carries the framing, everything settled and the
   format rules; `continuing` carries only the round and its schema, roughly a

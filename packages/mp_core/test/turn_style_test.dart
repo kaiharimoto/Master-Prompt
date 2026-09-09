@@ -99,11 +99,18 @@ void main() {
       );
       expect(
         text,
-        contains('nothing in the block I have not picked'),
+        contains('I have not picked'),
         reason:
             'the guard against a recommendation being treated as an answer '
             'matters most in the terse turn, where there is least room for the '
             'model to be reminded of anything',
+      );
+      expect(
+        text,
+        contains('mpask'),
+        reason:
+            'a round from two onward is where tapping matters most, and this '
+            'is the turn that carries every later round',
       );
       expect(
         text,

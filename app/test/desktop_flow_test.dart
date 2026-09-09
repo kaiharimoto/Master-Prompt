@@ -95,6 +95,25 @@ class _ScriptedChat extends ClaudeChat {
   }
 }
 
+/// The same round with the `mpask` index the prompt now asks for, which is
+/// what turns five thousand characters of reading into two taps.
+const String questionsIndexed = '''
+Two things to settle before I can write this down.
+
+1. Twenty seats, or forty?
+2. Real service depth behind the bar, or a facade?
+
+```mpask
+q1=How many seats should the room hold?
+q1a=Twelve|a private room, and the pass can stay open
+q1b=Twenty|the brief already says intimate|recommended
+q1c=Forty|the bar stops being the point
+q2=Real service depth behind the bar, or a facade?
+q2a=Real depth|every bottle and tool modelled|recommended
+q2b=Facade|reads at distance, falls apart in close-ups
+```
+''';
+
 /// A reply with the questions and no patch — the normal first round.
 const String questionsOnly = '''
 Two things to settle before I can write this down.
@@ -372,6 +391,79 @@ void main() {
           'these are paragraphs, not search boxes; sending on Enter would cut '
           'an answer off mid-thought',
     );
+  });
+
+  testWidgets('an indexed round becomes something to tap', (
+    WidgetTester tester,
+  ) async {
+    await seedDesktop(tester, <String>[questionsIndexed]);
+    await tester.tap(find.text('Ask Claude'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('How many seats'), findsOneWidget);
+    expect(find.text('Twenty'), findsOneWidget);
+    expect(
+      find.text('RECOMMENDED'),
+      findsNWidgets(2),
+      reason: 'one per question, marked and nothing more',
+    );
+    expect(
+      find.text('Pick an answer'),
+      findsOneWidget,
+      reason:
+          'nothing is chosen when the questions appear — a pre-pressed button '
+          'is the presumption the whole proposed/confirmed rule exists to stop',
+    );
+  });
+
+  testWidgets('tapping composes the answer and sends it', (
+    WidgetTester tester,
+  ) async {
+    final _ScriptedChat chat = await seedDesktop(tester, <String>[
+      questionsIndexed,
+      shapeReply,
+    ]);
+    await tester.tap(find.text('Ask Claude'));
+    await tester.pumpAndSettle();
+
+    // Two questions with three and two options do not fit an 800x600 tester
+    // window, which is the size every widget test runs at.
+    Future<void> tapVisible(String label) async {
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    await tapVisible('Twenty');
+    await tapVisible('Real depth');
+
+    expect(find.text('Send all 2'), findsOneWidget);
+    await tapVisible('Send all 2');
+
+    expect(chat.asked, hasLength(2));
+    expect(
+      chat.asked.last,
+      allOf(contains('1. (b) Twenty'), contains('2. (a) Real depth')),
+      reason:
+          'the label goes with the key, because a bare "1, 2" depends on the '
+          'model recalling what it offered thousands of characters ago',
+    );
+  });
+
+  testWidgets('a round with no index still has a box to type in', (
+    WidgetTester tester,
+  ) async {
+    await seedDesktop(tester, <String>[questionsOnly]);
+    await tester.tap(find.text('Ask Claude'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Twenty seats, or forty?'),
+      findsOneWidget,
+      reason: 'the reply is still the reply when nothing could be parsed',
+    );
+    expect(find.text('Send'), findsOneWidget);
   });
 
   testWidgets('without a CLI the desktop behaves exactly as the phone does', (
