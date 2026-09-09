@@ -10,8 +10,10 @@ import '../flow/flow_controller.dart';
 import '../store/app_store.dart';
 import '../store/claude_chat.dart';
 import '../store/desktop_runner.dart';
+import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../update/updater.dart';
+import '../widgets/exchange.dart';
 import 'destinations.dart';
 import 'present.dart';
 import 'flow_screen.dart';
@@ -646,15 +648,59 @@ class _RailItem extends StatelessWidget {
   }
 }
 
-class _MissionPicker extends StatelessWidget {
+class _MissionPicker extends StatefulWidget {
   const _MissionPicker({required this.store, required this.onPicked});
 
   final AppStore store;
   final VoidCallback onPicked;
 
   @override
+  State<_MissionPicker> createState() => _MissionPickerState();
+}
+
+class _MissionPickerState extends State<_MissionPicker> {
+  String? _note;
+  Color? _noteTone;
+
+  /// Read a mission sent from another device.
+  ///
+  /// A paste rather than a file picker, deliberately: opening a file is the one
+  /// thing `masterprompt/platform` cannot do, and adding it would be new native
+  /// code on two platforms that no test on a Linux runner could execute. The
+  /// text of an `.mpx` is the whole bundle, so a paste carries everything a
+  /// file would.
+  ///
+  /// A paste is never discarded: a bundle that cannot be read says what was
+  /// seen instead, and leaves the text where it is.
+  Future<void> _import(String text) async {
+    final MpColors c = MpTheme.colorsOf(context);
+    try {
+      final MissionBundle b = MissionBundle.decode(text);
+      final Project p = await widget.store.importBundle(b);
+      if (!mounted) return;
+      widget.onPicked();
+      Navigator.of(context).pop();
+      Diagnostics.instance.log('Imported "${p.spec.taskId}".');
+    } on BundleFormatException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _note = '$e';
+        _noteTone = c.danger;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _note = 'That did not read as a mission file. $e';
+        _noteTone = c.danger;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
+    final AppStore store = widget.store;
+    final Project? current = store.current;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -669,6 +715,10 @@ class _MissionPicker extends StatelessWidget {
           children: <Widget>[
             Text('Missions', style: MpType.title.copyWith(color: c.ink)),
             const SizedBox(height: MpSpace.md),
+            // Everything below the title scrolls together. The list used to be
+            // the only scrollable part, with the controls fixed beneath it, so
+            // opening the transfer disclosure overflowed the sheet by 384px on
+            // a phone.
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -684,31 +734,97 @@ class _MissionPicker extends StatelessWidget {
                         p.spec.taskId,
                         style: MpType.caption.copyWith(color: c.inkFaint),
                       ),
-                      selected: p.id == store.current?.id,
+                      selected: p.id == current?.id,
                       onTap: () {
                         store.select(p.id);
-                        onPicked();
+                        widget.onPicked();
                         Navigator.of(context).pop();
                       },
                     ),
+                  const SizedBox(height: MpSpace.md),
+                  MpButton(
+                    label: 'New mission',
+                    icon: Icons.add,
+                    expand: true,
+                    kind: MpButtonKind.primary,
+                    onPressed: () {
+                      store.deselect();
+                      widget.onPicked();
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  const SizedBox(height: MpSpace.md),
+                  // The bundle has round-tripped and been fully tested
+                  // since it was written, and nothing in the app could
+                  // produce or read one — so a mission started on the phone
+                  // and continued at the desk had no route between the two at
+                  // all. Behind a disclosure because most openings of this
+                  // sheet are just switching mission.
+                  MpDisclosure(
+                    label: 'Move a mission between devices',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (current != null) ...<Widget>[
+                          MpOutbound(
+                            title: 'This mission as a file',
+                            subtitle:
+                                'The spec, the brief, the last reported '
+                                'progress and the exchanges. Nothing '
+                                'device-specific travels — no session, no '
+                                'paths — so it opens cleanly wherever it '
+                                'lands.',
+                            document: _bundleFor(current).encode(),
+                            note:
+                                'A Master Prompt mission file. Open Master '
+                                'Prompt on the other device, choose Missions, '
+                                'and paste it under "Move a mission between '
+                                'devices".',
+                            fileName: _bundleFor(current).suggestedFileName,
+                            limit: store.settings.pasteLimit,
+                          ),
+                          const SizedBox(height: MpSpace.md),
+                        ],
+                        MpInbound(
+                          onSubmit: _import,
+                          hint: 'Paste a mission file from another device',
+                          actionLabel: 'Bring it in',
+                        ),
+                        if (_note != null) ...<Widget>[
+                          const SizedBox(height: MpSpace.md),
+                          MpPanel(
+                            accent: _noteTone,
+                            child: Text(
+                              _note!,
+                              style: MpType.prose.copyWith(color: c.inkMuted),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: MpSpace.md),
-            MpButton(
-              label: 'New mission',
-              icon: Icons.add,
-              expand: true,
-              kind: MpButtonKind.primary,
-              onPressed: () {
-                store.deselect();
-                onPicked();
-                Navigator.of(context).pop();
-              },
             ),
           ],
         ),
       ),
     );
   }
+
+  MissionBundle _bundleFor(Project p) => MissionBundle.from(
+    spec: p.spec,
+    compiled: p.compiled,
+    state: p.lastState,
+    producedArtifacts: p.producedArtifacts,
+    history: <BundleExchange>[
+      for (final TranscriptEntry e in p.transcript)
+        BundleExchange(
+          sent: e.direction == TranscriptDirection.sent,
+          text: e.text,
+          at: e.at,
+          note: e.note,
+        ),
+    ],
+  );
 }

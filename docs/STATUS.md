@@ -603,8 +603,13 @@ correctly. Now it shows the questions.
 
 ### Known gaps, deliberately deferred
 
-- The `.mpx` bundle round-trips and is fully tested but is not wired to a file
-  picker in the UI.
+- The `.mpx` bundle now has a route: Missions carries "Move a mission between
+  devices", which saves the current mission as a file and reads one back from a
+  paste. Import is a **paste rather than a file picker** on purpose — opening a
+  file is the one thing `masterprompt/platform` cannot do, and adding it would
+  be new native code on two platforms that no Linux runner could execute. The
+  text of an `.mpx` is the whole bundle, so a paste carries everything a file
+  would, and saving already works through the existing channel.
 - Tray presence is designed but unimplemented, and deliberately: it is the
   largest native surface of the three, and confirm-on-close removes the data
   loss on its own. Sleep inhibition and launch-at-login are done — the first as

@@ -127,6 +127,50 @@ class AppStore extends ChangeNotifier {
     return p;
   }
 
+  /// Bring a mission in from another device.
+  ///
+  /// The bundle round-trips and has been fully tested since it was written,
+  /// and nothing in the app could produce or read one — so a mission started
+  /// on the phone and continued at the desk had no route between them at all,
+  /// which is the workflow this program is for.
+  ///
+  /// The project gets a **fresh local id**. Ids here are minted from the
+  /// clock, so an imported one could collide with something already on this
+  /// device, and the imported mission would overwrite it. The bundle
+  /// deliberately carries nothing device-scoped — no session id, no binary
+  /// path, no working directory — so an import cannot "resume" into a
+  /// conversation that does not exist on this machine.
+  Future<Project> importBundle(MissionBundle b) async {
+    final String id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final Project p = Project(
+      id: id,
+      spec: b.spec,
+      lastState: b.state,
+      producedArtifacts: List<String>.from(b.producedArtifacts),
+      transcript: <TranscriptEntry>[
+        for (final BundleExchange e in b.history)
+          TranscriptEntry(
+            direction: e.sent
+                ? TranscriptDirection.sent
+                : TranscriptDirection.received,
+            text: e.text,
+            at: e.at,
+            note: e.note,
+          ),
+      ],
+      updatedAt: DateTime.now().toUtc(),
+    );
+    _projects.insert(0, p);
+    _currentId = id;
+    Diagnostics.instance.log(
+      'Imported mission "${p.spec.taskId}" '
+      '(${b.history.length} exchanges, exported ${b.exportedAt.toIso8601String()}).',
+    );
+    await save(p);
+    notifyListeners();
+    return p;
+  }
+
   void select(String id) {
     _currentId = id;
     notifyListeners();
