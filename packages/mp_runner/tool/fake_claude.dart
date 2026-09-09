@@ -17,6 +17,7 @@
 //
 // Scenario is chosen with FAKE_CLAUDE_SCENARIO. Attempt counting persists in
 // FAKE_CLAUDE_STATE so a scenario can behave differently on the resume.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -102,7 +103,37 @@ Never _die(String message, [int code = 1]) {
   exit(code);
 }
 
-void main(List<String> args) {
+/// How long to wait for a piped stdin to reach EOF before giving up on it.
+///
+/// The real binary waits about three seconds. A quarter of that is plenty to
+/// catch a caller who never closes the pipe, and keeps the suite quick: a
+/// correct caller closes at once and pays nothing at all.
+const Duration _stdinGrace = Duration(milliseconds: 250);
+
+/// Reproduces the one piece of the real CLI's behaviour that had no double.
+///
+/// `Process.run` closes the child's stdin; `Process.start` does not. When the
+/// conversation moved to `Process.start` for streaming, the close went with it,
+/// and every real turn — and every launch of a twelve-hour run — began by
+/// waiting three seconds for input that was never coming, then printing a
+/// warning about redirecting stdin into a window belonging to someone who has
+/// never seen a shell. Nothing caught it, because this file did not read stdin
+/// at all.
+Future<void> _awaitStdin() async {
+  try {
+    await stdin.drain<void>().timeout(_stdinGrace);
+  } on TimeoutException {
+    stderr.writeln(
+      'Warning: no stdin data received in ${_stdinGrace.inMilliseconds}ms, '
+      'proceeding without it. If piping from a slow command, redirect stdin '
+      'explicitly: < /dev/null to skip, or wait longer.',
+    );
+  } on Object {
+    // No stdin to read at all. That is the ordinary case and not a problem.
+  }
+}
+
+Future<void> main(List<String> args) async {
   final Map<String, String> env = Platform.environment;
 
   // Before anything else, and before the attempt counter — a capability probe
@@ -208,6 +239,10 @@ void main(List<String> args) {
       '--fork-session is also specified.',
     );
   }
+
+  // After the arguments are settled and before any work, which is where the
+  // real binary looks for piped input.
+  await _awaitStdin();
 
   final String scenario = env['FAKE_CLAUDE_SCENARIO'] ?? 'success';
   final int attempt = _attempt(env['FAKE_CLAUDE_STATE']);

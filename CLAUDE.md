@@ -133,6 +133,21 @@ parameter: `Updater` has `UpdatePlatform`, `CliConversation` has
 `roaming`. Do the same for the next one. `Platform.isWindows` belongs only where
 it *chooses* a default, never where it guards logic worth testing.
 
+**`Process.run` closes the child's stdin; `Process.start` does not.** Streaming
+needs `Process.start`, so the close has to be explicit — `unawaited(
+process.stdin.close())` — or the CLI waits three seconds for piped input on
+*every* turn and every run attempt, then writes a warning about redirecting
+stdin into a window belonging to someone who has never seen a shell.
+`fake_claude.dart` now waits for stdin to reach EOF and emits the same warning
+if it does not, so forgetting the close fails on the Linux runner.
+
+**Never `add` to `_events` directly, and never close it out from under a live
+turn.** `CliConversation.dispose()` is called whenever the mission changes; a
+turn still streaming at that moment crashed the whole app with *"Bad state:
+Cannot add new events after calling close"*. Every emit goes through `_say`,
+which checks, and `dispose` kills the child before closing the stream — in that
+order, or the child writes into a pipe nobody is holding.
+
 **There is one code path to a process, on purpose.** `CliConversation` used to
 take an injectable `ProcessRunner`; every test used it, so `_defaultRunner`,
 `needsShell` and the session-id generator had **zero executions in the whole

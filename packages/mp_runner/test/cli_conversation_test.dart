@@ -365,6 +365,71 @@ Options:
       );
     });
 
+    test('a clean turn leaves nothing on stderr, and starts at once', () async {
+      // `Process.run` closes the child's stdin; `Process.start` does not, and
+      // the rewrite to streaming lost the close. Every real turn then began
+      // with three seconds of silence and a warning about redirecting stdin,
+      // shown to someone writing a brief. Nothing caught it because the fake
+      // never read stdin — the same hole as the invalid session id.
+      final Stopwatch clock = Stopwatch()..start();
+      final ConversationReply r = await live().ask('Round one.');
+      clock.stop();
+
+      expect(r.ok, isTrue, reason: r.error ?? '');
+      expect(
+        r.stderrText,
+        isEmpty,
+        reason:
+            'an open pipe makes the CLI wait for input that is never coming, '
+            'and say so',
+      );
+      expect(
+        clock.elapsed,
+        lessThan(const Duration(milliseconds: 200)),
+        reason:
+            'the fake waits 250ms for a stdin that never closes, so a stalled '
+            'turn cannot come in under that',
+      );
+    });
+
+    test(
+      'closing a conversation mid-turn does not take the app down',
+      () async {
+        // Reported from a real desktop:
+        //   Bad state: Cannot add new events after calling close
+        //   CliConversation.ask.<anonymous closure>
+        // `dispose()` closed the event stream while the child was still writing
+        // into it, which the app does whenever the mission changes. Six
+        // unguarded `add` calls, any one of which crashed the process.
+        final CliConversation c = live(scenario: 'slow');
+        final Future<ConversationReply> pending = c.ask('Round one.');
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        await c.dispose();
+        final ConversationReply r = await pending;
+
+        expect(r.ok, isFalse);
+        expect(
+          c.turns,
+          isEmpty,
+          reason: 'a turn that was abandoned settled nothing',
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'a disposed conversation refuses a turn instead of half-starting one',
+      () async {
+        final CliConversation c = live();
+        await c.dispose();
+
+        final ConversationReply r = await c.ask('Round one.');
+        expect(r.ok, isFalse);
+        expect(r.error, contains('closed'));
+      },
+    );
+
     test('the transcript keeps both sides in order', () async {
       final CliConversation c = live();
       await c.ask('Round one.');

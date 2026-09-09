@@ -132,7 +132,37 @@ It keys off the `CLAUDECODE` environment variable. The runner strips `CLAUDECODE
 `CLAUDE_CODE_ENTRYPOINT` from the child environment so Master Prompt can drive the CLI even when
 Master Prompt itself was launched from one.
 
-## 9. Finding the binary is its own problem
+## 9. `--print` waits for stdin before it does anything
+
+Observed on a real Windows desktop, on every single turn:
+
+```
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command,
+redirect stdin explicitly: < /dev/null to skip, or wait longer.
+```
+
+With `--print` and a **piped** stdin, the CLI waits about three seconds for input to arrive before
+proceeding without it. It does proceed — this is a stall and a warning, not a failure — but three
+seconds is added to every launch and every resume, and the warning is written to stderr, which is
+the one channel a usage limit is reported on.
+
+**The consequence for any caller: `Process.run` closes the child's stdin, and `Process.start` does
+not.** Streaming requires `Process.start`, so the close has to be explicit:
+
+```dart
+final Process process = await Process.start(exe, args, ...);
+unawaited(process.stdin.close());   // or the CLI waits three seconds, every time
+```
+
+Both `CliConversation.ask` and `RunSupervisor._runOnce` do this. `tool/fake_claude.dart` waits
+250ms for stdin to reach EOF and emits the same warning if it does not, so a caller that forgets
+fails on the Linux runner rather than on somebody's desktop.
+
+The prompt itself travels as an operand after `--`, so there is nothing to write; closing simply
+says "no piped input". Whether the prompt *could* travel on stdin instead — which would sidestep
+the Windows command-line limits entirely — is one of the things `tool/probe_cli.dart` reports.
+
+## 10. Finding the binary is its own problem
 
 Not a property of the CLI, but of the platforms it installs on, and it produced the same class of
 failure — a confident wrong answer where there should have been a question.

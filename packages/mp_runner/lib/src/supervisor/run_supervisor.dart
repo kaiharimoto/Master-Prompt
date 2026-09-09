@@ -295,6 +295,13 @@ class RunSupervisor {
     );
     _current = process;
 
+    // `Process.run` closes the child's stdin; `Process.start` does not. Left
+    // open, the CLI waits three seconds for piped input that is never coming
+    // and warns about redirecting stdin — into a window belonging to someone
+    // who has never seen a shell. The prompt travels as an argument after
+    // `--`, so there is nothing to write: closing says "no piped input".
+    unawaited(process.stdin.close());
+
     final List<CliEvent> events = <CliEvent>[];
     final StringBuffer assistantText = StringBuffer();
     final StringBuffer stderrBuffer = StringBuffer();

@@ -525,8 +525,11 @@ class _FlowScreenState extends State<FlowScreen> {
           ? 'That turn did not go through'
           : 'Claude answered',
       supporting: busy
+          // The elapsed count is always here. It used to be replaced by the
+          // first line of activity and never came back, so the moment anything
+          // looked wrong was the moment the only sign of life disappeared.
           ? (widget.chat.activity.isNotEmpty
-                ? widget.chat.activity
+                ? '${seconds}s · ${widget.chat.activity}'
                 : '${seconds}s so far. A round takes about as long as it '
                       'would in the chat app.')
           : failed

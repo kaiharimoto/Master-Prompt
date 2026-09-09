@@ -314,6 +314,41 @@ when a run goes wrong. And **the working directory silently discarded whatever
 you typed unless you pressed Enter**, which meant the next run went somewhere
 else entirely with no indication.
 
+Then, from the desktop, with the interview finally working: **every turn opened
+with three seconds of nothing**, and this as the app's own status line —
+*"Warning: no stdin data received in 3s, proceeding without it. If piping from a
+slow command, redirect stdin explicitly: `< /dev/null` to skip."*
+
+`Process.run` closes the child's stdin. `Process.start` does not. The rewrite to
+streaming — so text could arrive as it was written instead of the window sitting
+frozen — moved to `Process.start` and lost the close, in **two** places: the
+interview, and the supervisor, where every launch and every resume of a
+twelve-hour run paid the same three seconds and wrote the same warning into the
+run log. `grep stdin` over both files returned nothing.
+
+Nothing could have caught it, which is the familiar half: `fake_claude` never
+read stdin, so the double did not behave like the binary. It waits for EOF now
+and emits the same warning if it never comes — and reproducing the stall on the
+Linux runner, at 291ms instead of 3s, is what turned it into a failing test
+before it was a fix.
+
+**And the screen made it look worse than it was.** The first line of stderr set
+the activity string and nothing ever cleared it, so a CLI warning replaced the
+elapsed counter for the rest of the turn: the one moment you most need "still
+working, 42s" was the moment it disappeared. Rounds take 33 to 76 seconds
+against the real binary, so that counter is not decoration. The elapsed time is
+always shown now, and raw stderr is not treated as the app's status at all — it
+reaches the diagnostics log, and the reason for a *failed* turn still reaches
+the screen through `error`.
+
+The same diagnostics carried a crash nobody had reported: **"Bad state: Cannot
+add new events after calling close"**, twice. `CliConversation.dispose()` closes
+the event stream, the app calls it whenever the mission changes, and a turn
+still streaming at that moment took the process down. Six unguarded `add` calls,
+any one of which was enough. Every emit is guarded now, and `dispose` kills the
+child *before* closing the stream rather than leaving it writing into a pipe
+nobody holds.
+
 ### Works, and is verified
 
 - **The compiler.** A `MissionSpec` renders to a ten-section brief. The
@@ -400,7 +435,7 @@ else entirely with no indication.
   disk → launch → session limit → wait → resume on the same session → complete →
   parse state back → build a capsule. `packages/mp_runner/test/end_to_end_test.dart`.
 
-356 tests: 151 in `mp_core`, 99 in `mp_runner`, 106 in the app.
+360 tests: 151 in `mp_core`, 103 in `mp_runner`, 106 in the app.
 
 ### Not yet proven
 

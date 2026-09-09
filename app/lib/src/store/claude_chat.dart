@@ -157,7 +157,13 @@ class ClaudeChat extends ChangeNotifier {
       case ConversationEventKind.tool:
         _activity = 'Using ${e.text}';
       case ConversationEventKind.stderr:
-        _activity = e.text;
+        // Not shown as the app's own status. A line addressed to someone at a
+        // shell — "redirect stdin explicitly: < /dev/null" — told the person
+        // writing a brief nothing they could act on, and displaced the elapsed
+        // count for the rest of the turn. It reaches the diagnostics log,
+        // which is where a report is built from, and the reason for a failed
+        // turn still reaches the screen through `error`.
+        return;
       case ConversationEventKind.started:
       case ConversationEventKind.done:
         return;
@@ -169,12 +175,23 @@ class ClaudeChat extends ChangeNotifier {
   /// resuming the last one would carry another mission's settled answers into
   /// it as if they were this one's.
   void reset() {
+    // Dropped before anything is torn down, so a turn that is still streaming
+    // cannot find its way back to a screen about a different mission.
     unawaited(_listening?.cancel());
     _listening = null;
+
+    // `dispose` kills the child and closes the stream, in that order. Doing it
+    // the other way round is what crashed the app with "Cannot add new events
+    // after calling close" when a mission changed mid-turn.
     unawaited(_conversation?.dispose());
     _conversation = null;
+
+    _tick?.cancel();
+    _tick = null;
+    _startedAt = null;
     _error = null;
     _notes = const <String>[];
+    _activity = '';
     _live.clear();
     _busy = false;
     notifyListeners();

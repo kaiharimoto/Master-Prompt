@@ -190,7 +190,33 @@ class CliConversation {
     _current?.kill();
   }
 
-  Future<void> dispose() async => _events.close();
+  /// Emits, unless there is no longer anyone to emit to.
+  ///
+  /// A closed controller throws on `add`, and this one is closed by `dispose`
+  /// — which the app calls when the mission changes. A turn still streaming at
+  /// that moment would take the whole app down with
+  /// *"Bad state: Cannot add new events after calling close"*, which is
+  /// exactly what happened on a real desktop.
+  void _say(ConversationEvent event) {
+    if (_disposed || _events.isClosed) return;
+    _events.add(event);
+  }
+
+  bool _disposed = false;
+
+  /// Ends the conversation and stops anything still running in it.
+  ///
+  /// The kill is not tidiness: closing the stream while the child is still
+  /// writing into it is precisely the setup for the crash above, and it would
+  /// otherwise leave a `claude` process running with nowhere to send its
+  /// answer.
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _cancelled = true;
+    _current?.kill();
+    await _events.close();
+  }
 
   /// The exact invocation [ask] would make, without making it.
   ///
@@ -223,6 +249,12 @@ class CliConversation {
 
   /// Puts [prompt] to the CLI and waits for the whole reply.
   Future<ConversationReply> ask(String prompt) async {
+    if (_disposed) {
+      return const ConversationReply(
+        text: '',
+        error: 'This conversation has been closed.',
+      );
+    }
     if (_current != null) {
       return const ConversationReply(
         text: '',
@@ -252,7 +284,7 @@ class CliConversation {
       List<String> notes = const <String>[],
     }) {
       _turns.remove(asked);
-      _events.add(ConversationEvent(ConversationEventKind.done, message));
+      _say(ConversationEvent(ConversationEventKind.done, message));
       return ConversationReply(
         text: partial,
         sessionId: _sessionId,
@@ -288,6 +320,13 @@ class CliConversation {
     }
     _current = process;
 
+    // `Process.run` closes the child's stdin; `Process.start` does not. Left
+    // open, the CLI waits three seconds for piped input that is never coming
+    // and warns about redirecting stdin — into a window belonging to someone
+    // who has never seen a shell. The prompt travels as an argument after
+    // `--`, so there is nothing to write: closing says "no piped input".
+    unawaited(process.stdin.close());
+
     final StringBuffer said = StringBuffer();
     final StringBuffer errText = StringBuffer();
     final StringBuffer plain = StringBuffer();
@@ -313,7 +352,7 @@ class CliConversation {
           final String? id = _sessionIdOf(event);
           if (id != null && reported == null) {
             reported = id;
-            _events.add(
+            _say(
               ConversationEvent(
                 ConversationEventKind.started,
                 'Session $id.',
@@ -325,10 +364,10 @@ class CliConversation {
             final String text = event.text;
             if (text.trim().isNotEmpty) {
               said.write(text);
-              _events.add(ConversationEvent(ConversationEventKind.text, text));
+              _say(ConversationEvent(ConversationEventKind.text, text));
             }
             for (final String tool in event.toolUses) {
-              _events.add(ConversationEvent(ConversationEventKind.tool, tool));
+              _say(ConversationEvent(ConversationEventKind.tool, tool));
             }
           } else if (event is ResultEvent) {
             resultText = event.text;
@@ -345,7 +384,7 @@ class CliConversation {
           errText.write(chunk);
           final String line = chunk.trimRight();
           if (line.isNotEmpty) {
-            _events.add(ConversationEvent(ConversationEventKind.stderr, line));
+            _say(ConversationEvent(ConversationEventKind.stderr, line));
           }
         })
         .asFuture<void>()
@@ -429,7 +468,7 @@ class CliConversation {
     _turns.add(
       ChatTurn(fromUser: false, text: text, at: DateTime.now().toUtc()),
     );
-    _events.add(ConversationEvent(ConversationEventKind.done, 'Answered.'));
+    _say(ConversationEvent(ConversationEventKind.done, 'Answered.'));
 
     return ConversationReply(
       text: text,

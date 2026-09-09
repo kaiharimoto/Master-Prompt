@@ -85,6 +85,37 @@ void main() {
       expect(out.attempts.single.costUsd, 0.42);
       expect(clock.waitedUntil, isEmpty, reason: 'nothing to wait for');
     });
+
+    test('says nothing on stderr, so the log stays worth reading', () async {
+      // `Process.start` leaves the child's stdin open where `Process.run`
+      // closes it. Left open, every launch and every resume of a twelve-hour
+      // run began by waiting three seconds for input that was never coming,
+      // then writing a warning about redirecting stdin into the run log.
+      final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+      final RunStore store = RunStore(Directory('${tmp.path}/store-stderr'));
+      final RunSupervisor s = supervisorFor(
+        'success',
+        clock: clock,
+        store: store,
+        stateKey: 'stderr',
+      );
+
+      final List<String> noise = <String>[];
+      s.events
+          .where((SupervisorEvent e) => e.kind == 'stderr')
+          .listen((SupervisorEvent e) => noise.add(e.message));
+
+      await s.execute(newRun('success'));
+      await s.dispose();
+
+      expect(
+        noise,
+        isEmpty,
+        reason:
+            'a run that logs a warning on every attempt teaches you to skim '
+            'the one channel a usage limit is reported on',
+      );
+    });
   });
 
   group('a session limit is a pause, not a failure', () {
