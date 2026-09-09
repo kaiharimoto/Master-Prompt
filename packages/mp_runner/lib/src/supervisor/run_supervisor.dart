@@ -64,9 +64,15 @@ class RunSupervisor {
   Process? _current;
   bool _cancelled = false;
 
+  /// Completed by [cancel], so a wait can be cut short rather than served out.
+  /// A limit pause is five hours long and `_current` is null throughout it, so
+  /// killing a process was never going to reach it.
+  final Completer<void> _stopping = Completer<void>();
+
   /// Ask the running process to stop. The record is left resumable.
   Future<void> cancel() async {
     _cancelled = true;
+    if (!_stopping.isCompleted) _stopping.complete();
     _current?.kill();
   }
 
@@ -136,6 +142,20 @@ class RunSupervisor {
         attempts: <RunAttempt>[...record.attempts, r.attempt],
         sessionId: r.attempt.sessionId ?? record.sessionId,
       );
+
+      // However the attempt ended, a stop that has been asked for ends the run
+      // here. Read as a verdict instead, a killed process is an exit code and
+      // nothing else: `unknown`, which is not waitable, so a run the user
+      // deliberately ended was written down as `stalled` and painted red with
+      // `process exited with -15` in it. Succeeding without finishing was
+      // worse — it ignored the stop and launched the next resume. Only an
+      // attempt that actually completed the mission outranks it, because then
+      // there is nothing left to stop.
+      if (_cancelled && !r.completed) {
+        _emit('cancelled', 'Stopped. The run is saved and can be resumed.');
+        record = record.copyWith(conclusion: RunConclusion.cancelled);
+        break;
+      }
 
       if (r.attempt.succeeded) {
         final bool progressed = r.madeProgress;
@@ -225,7 +245,7 @@ class RunSupervisor {
         record: record,
       );
 
-      await clock.waitUntil(resumeAt);
+      await clock.waitUntil(resumeAt, interrupted: _stopping.future);
       if (_cancelled) {
         record = record.copyWith(conclusion: RunConclusion.cancelled);
         break;
@@ -294,6 +314,12 @@ class RunSupervisor {
       runInShell: needsShell(plan.executable),
     );
     _current = process;
+
+    // A stop can arrive in the window between the launch event and the process
+    // existing — which is exactly where a user watching the log presses it.
+    // `cancel()` found `_current` still null, killed nothing, and the stop was
+    // lost for the length of the attempt.
+    if (_cancelled) process.kill();
 
     // `Process.run` closes the child's stdin; `Process.start` does not. Left
     // open, the CLI waits three seconds for piped input that is never coming

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:mp_runner/mp_runner.dart';
@@ -399,6 +400,182 @@ void main() {
       await s.dispose();
 
       expect(await RunStore(dir).pendingResumes(), isEmpty);
+    });
+  });
+
+  group('stopping is something the user did, not something that failed', () {
+    test('Stop is felt inside a limit pause, not five hours later', () async {
+      // The worst state this program could put someone in. `_current` is null
+      // throughout a pause, so `kill()` reached nothing, and the only
+      // cancellation check ran after the wait returned. `paused` counts as
+      // busy, so Run stayed disabled and Stop went on doing nothing — for up
+      // to five hours, with no way out but killing the app.
+      final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+      final RunStore store = RunStore(Directory('${tmp.path}/store-stopwait'));
+      final RunSupervisor s = supervisorFor(
+        'always_limit',
+        clock: clock,
+        store: store,
+        stateKey: 'stopwait',
+      );
+
+      s.events
+          .where((SupervisorEvent e) => e.kind == 'limited')
+          .take(1)
+          .listen((_) => s.cancel());
+
+      final RunRecord out = await s.execute(newRun('always_limit'));
+      await s.dispose();
+
+      expect(
+        clock.wasInterrupted,
+        isTrue,
+        reason:
+            'the conclusion alone would be the same if the wait were served '
+            'out in full, so this is the assertion that proves Stop reaches '
+            'inside it',
+      );
+      expect(out.conclusion, RunConclusion.cancelled);
+    });
+
+    test('a stop mid-attempt is not written down as a stall', () async {
+      // A killed process exits non-zero, which the detector reads as
+      // `unknown`, which is not waitable — so a deliberate stop was recorded
+      // as `stalled` and painted red with `process exited with -15` in it.
+      final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+      final RunStore store = RunStore(Directory('${tmp.path}/store-stopmid'));
+      final RunSupervisor s = RunSupervisor(
+        executable: fakeClaude,
+        capabilities: profileFor(fakeClaude),
+        store: store,
+        clock: clock,
+        environmentOverrides: <String, String>{
+          'FAKE_CLAUDE_SCENARIO': 'slow',
+          'FAKE_CLAUDE_STATE': '${tmp.path}/state-stopmid',
+          'FAKE_CLAUDE_SLEEP_MS': '30000',
+        },
+      );
+
+      final List<String> kinds = <String>[];
+      s.events.listen((SupervisorEvent e) => kinds.add(e.kind));
+      s.events
+          .where((SupervisorEvent e) => e.kind == 'launch')
+          .take(1)
+          .listen((_) => s.cancel());
+
+      final RunRecord out = await s.execute(newRun('slow'));
+      await s.dispose();
+
+      expect(out.conclusion, RunConclusion.cancelled);
+      expect(
+        kinds,
+        isNot(contains('stalled')),
+        reason:
+            'a stall is a diagnosis about the run; a stop is a fact about the '
+            'user, and reporting one as the other sends them looking for a '
+            'fault that is not there',
+      );
+    });
+
+    test('a stopped run is still offered for resume', () async {
+      final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+      final Directory dir = Directory('${tmp.path}/store-stopresume');
+      final RunSupervisor s = supervisorFor(
+        'always_limit',
+        clock: clock,
+        store: RunStore(dir),
+        stateKey: 'stopresume',
+      );
+      s.events
+          .where((SupervisorEvent e) => e.kind == 'limited')
+          .take(1)
+          .listen((_) => s.cancel());
+
+      final RunRecord out = await s.execute(newRun('always_limit'));
+      await s.dispose();
+
+      final RunRecord? reloaded = await RunStore(dir).load(out.runId);
+      expect(
+        reloaded!.sessionId,
+        isNotNull,
+        reason:
+            'Stop says "the run is saved and can be resumed", and the session '
+            'id is the whole of what makes that true',
+      );
+    });
+  });
+
+  group('the record on disk is the record that comes back', () {
+    test('a reloaded run remembers its attempts and why it paused', () async {
+      // The ceiling that stops a pathological loop is counted from
+      // `attempts.length`, and the verdict is what the screen uses to say why
+      // a run is paused. Both were written by `toJson` and dropped by
+      // `fromJson`, so every restart reset the ceiling to zero and every
+      // reloaded pause could say only that it was paused.
+      final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+      final Directory dir = Directory('${tmp.path}/store-roundtrip');
+      final RunSupervisor s = supervisorFor(
+        'limit_then_success',
+        clock: clock,
+        store: RunStore(dir),
+        stateKey: 'roundtrip',
+      );
+
+      final RunRecord out = await s.execute(newRun('limit_then_success'));
+      await s.dispose();
+      final RunRecord reloaded = (await RunStore(dir).load(out.runId))!;
+
+      expect(out.attempts, hasLength(greaterThan(1)));
+      expect(reloaded.attempts, hasLength(out.attempts.length));
+      expect(
+        reloaded.attempts.first.exitCode,
+        out.attempts.first.exitCode,
+        reason: 'an attempt that is back but empty counts the same as gone',
+      );
+      expect(reloaded.lastVerdict?.kind, out.lastVerdict?.kind);
+    });
+  });
+
+  group('the clock that actually waits', () {
+    test('cuts a long wait short the moment Stop arrives', () async {
+      // TestClock is a stand-in; this is the implementation that will be
+      // holding a real five-hour pause, and its slice loop is where the
+      // interrupt has to be honoured.
+      const SystemClock clock = SystemClock();
+      final Completer<void> stop = Completer<void>();
+      final Stopwatch watch = Stopwatch()..start();
+
+      final Future<void> waiting = clock.waitUntil(
+        DateTime.now().toUtc().add(const Duration(hours: 5)),
+        interrupted: stop.future,
+      );
+      stop.complete();
+      await waiting;
+
+      expect(
+        watch.elapsed,
+        lessThan(const Duration(seconds: 2)),
+        reason: 'the alternative is five hours',
+      );
+    });
+
+    test('waits out a short one when nothing interrupts', () async {
+      const SystemClock clock = SystemClock();
+      final Completer<void> never = Completer<void>();
+      final Stopwatch watch = Stopwatch()..start();
+
+      await clock.waitUntil(
+        DateTime.now().toUtc().add(const Duration(milliseconds: 120)),
+        interrupted: never.future,
+      );
+
+      expect(
+        watch.elapsedMilliseconds,
+        greaterThanOrEqualTo(100),
+        reason:
+            'an interrupt that is never signalled must not turn every pause '
+            'into no pause at all',
+      );
     });
   });
 }

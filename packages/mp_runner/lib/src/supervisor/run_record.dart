@@ -64,6 +64,31 @@ class RunAttempt {
     'eventCount': eventCount,
     'costUsd': costUsd,
   };
+
+  /// The assistant's own text is deliberately not persisted — a twelve-hour
+  /// run's worth of it would dwarf the record, and the full stream is already
+  /// on disk beside it.
+  static RunAttempt fromJson(Map<String, Object?> j) => RunAttempt(
+    index: (j['index'] as num?)?.toInt() ?? 0,
+    startedAt: RunRecord._date(j['startedAt']) ?? DateTime.utc(1970),
+    endedAt: RunRecord._date(j['endedAt']) ?? DateTime.utc(1970),
+    exitCode: (j['exitCode'] as num?)?.toInt() ?? 0,
+    sessionId: j['sessionId'] as String?,
+    strategy: '${j['strategy'] ?? 'unknown'}',
+    verdict: _verdict(j['verdict'], j['resetAt']),
+    eventCount: (j['eventCount'] as num?)?.toInt() ?? 0,
+    costUsd: (j['costUsd'] as num?)?.toDouble(),
+  );
+
+  static LimitVerdict? _verdict(Object? kind, Object? resetAt) {
+    if (kind == null) return null;
+    for (final LimitKind k in LimitKind.values) {
+      if (k.name == kind) {
+        return LimitVerdict(kind: k, resetAt: RunRecord._date(resetAt));
+      }
+    }
+    return null;
+  }
 }
 
 /// The durable record of a run, written to disk after every transition.
@@ -155,22 +180,56 @@ class RunRecord {
     'blockStartedAt': blockStartedAt?.toIso8601String(),
     'conclusion': conclusion?.name,
     'lastLimitKind': lastVerdict?.kind.name,
+    'lastLimitResetAt': lastVerdict?.resetAt?.toIso8601String(),
+    'lastLimitEvidence': lastVerdict?.evidence,
     'consecutiveNoProgress': consecutiveNoProgress,
     'createdAt': createdAt?.toIso8601String(),
   };
 
+  /// The inverse of [toJson], and it has to be exact.
+  ///
+  /// `attempts` and `lastVerdict` were written and never read back. The
+  /// attempt ceiling exists so a pathological loop cannot run forever, and it
+  /// is counted from `attempts.length` — so a run reloaded from disk started
+  /// again from zero, and the ceiling reset every time the app was restarted.
+  /// The verdict is the other half: it is what the screen uses to say *why*
+  /// the run is paused, and a reloaded run could only say that it was.
   static RunRecord fromJson(Map<String, Object?> j) => RunRecord(
     runId: '${j['runId']}',
     taskId: '${j['taskId']}',
     workingDirectory: '${j['workingDirectory']}',
     prompt: '${j['prompt']}',
     sessionId: j['sessionId'] as String?,
+    attempts: <RunAttempt>[
+      for (final Object? a in (j['attempts'] as List<Object?>?) ?? const [])
+        if (a is Map<String, Object?>) RunAttempt.fromJson(a),
+    ],
     scheduledResumeAt: _date(j['scheduledResumeAt']),
     blockStartedAt: _date(j['blockStartedAt']),
     conclusion: _conclusion(j['conclusion']),
+    lastVerdict: _lastVerdict(j),
     consecutiveNoProgress: (j['consecutiveNoProgress'] as num?)?.toInt() ?? 0,
     createdAt: _date(j['createdAt']),
   );
+
+  static LimitVerdict? _lastVerdict(Map<String, Object?> j) {
+    final Object? kind = j['lastLimitKind'];
+    if (kind == null) return null;
+    for (final LimitKind k in LimitKind.values) {
+      if (k.name == kind) {
+        return LimitVerdict(
+          kind: k,
+          resetAt: _date(j['lastLimitResetAt']),
+          evidence: <String>[
+            for (final Object? e
+                in (j['lastLimitEvidence'] as List<Object?>?) ?? const [])
+              '$e',
+          ],
+        );
+      }
+    }
+    return null;
+  }
 
   static DateTime? _date(Object? v) =>
       v == null ? null : DateTime.tryParse('$v')?.toUtc();

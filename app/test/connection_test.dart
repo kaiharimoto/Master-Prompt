@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/store/app_store.dart';
 import 'package:master_prompt/src/store/desktop_runner.dart';
+import 'package:master_prompt/src/store/settings.dart';
 import 'package:master_prompt/src/widgets/connection_panel.dart';
 import 'package:mp_runner/mp_runner.dart';
 
@@ -42,6 +45,25 @@ class FakeLocator extends CliLocator {
   static const List<ProbeAttempt> _found = <ProbeAttempt>[
     ProbeAttempt('claude', ProbeOutcome.found, '2.1.42 (Claude Code)'),
   ];
+}
+
+/// A search that parks until it is let go, so the runner can be held in a busy
+/// state without a real process — which the tester's fake-async zone could not
+/// complete anyway.
+class GatedLocator extends CliLocator {
+  GatedLocator(this.gate);
+
+  final Completer<ClaudeInstall> gate;
+  int calls = 0;
+
+  @override
+  Future<ClaudeInstall> locate({
+    String? explicitPath,
+    List<ProbeAttempt>? attempts,
+  }) {
+    calls++;
+    return gate.future;
+  }
 }
 
 ClaudeInstall fakeInstall({
@@ -173,5 +195,41 @@ void main() {
           'the field would otherwise test a path it never kept, and the next '
           'launch would search again',
     );
+  });
+
+  group('a probe must not walk over a run', () {
+    test('detecting again while busy changes nothing', () async {
+      // The Run pane probes on arrival, so closing and reopening it — or
+      // switching missions in the rail, which closes it for you — used to walk
+      // a live run's status back to `locating` and then `idle`. `isBusy` went
+      // false with the supervisor still running: Stop left the screen, Run
+      // came back, and a second click launched a second agent into the same
+      // working directory while the first went on working unreachable.
+      //
+      // `running` is the state that costs a run, and no test can reach it
+      // without a real process. `locating` is the same guard on the same
+      // getter, and it is reachable.
+      final Completer<ClaudeInstall> gate = Completer<ClaudeInstall>();
+      final GatedLocator locator = GatedLocator(gate);
+      final DesktopRunner runner = DesktopRunner(locator: locator);
+      const AppSettings settings = AppSettings();
+
+      final Future<void> first = runner.detect(settings);
+      expect(runner.isBusy, isTrue, reason: 'a search is in flight');
+
+      await runner.detect(settings);
+
+      expect(
+        locator.calls,
+        1,
+        reason: 'the second arrival must not start a second search',
+      );
+      expect(runner.status, DesktopRunStatus.locating);
+
+      gate.complete(fakeInstall());
+      await first;
+      expect(runner.status, DesktopRunStatus.idle);
+      expect(runner.install, isNotNull);
+    });
   });
 }

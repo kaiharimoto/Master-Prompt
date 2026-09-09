@@ -75,7 +75,17 @@ class DesktopRunner extends ChangeNotifier {
   }
 
   /// Find the CLI and read what it supports.
+  ///
+  /// Does nothing while a run is in flight, and that guard is the whole of a
+  /// fix for something close to fatal. The Run pane probes on arrival, so
+  /// closing it and opening it again mid-run — or switching missions in the
+  /// rail, which closes it for you — walked the status back to `locating` and
+  /// then `idle`. `isBusy` went false with the supervisor still running, which
+  /// took Stop off the screen, put Run back, and let a second click launch a
+  /// second agent into the same directory under `bypassPermissions` while the
+  /// first went on working with nothing left holding a handle to it.
   Future<void> detect(AppSettings settings) async {
+    if (isBusy) return;
     _status = DesktopRunStatus.locating;
     _error = null;
     notifyListeners();
