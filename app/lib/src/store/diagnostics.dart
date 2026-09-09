@@ -7,6 +7,7 @@ import 'package:mp_core/mp_core.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'build_info.dart';
+import 'desktop_runner.dart';
 import 'project.dart';
 import 'settings.dart';
 
@@ -109,7 +110,11 @@ class Diagnostics {
   ///
   /// Written to be read by a person as much as parsed by one: the build and the
   /// mission state come first, because they answer most questions on their own.
-  String report({Project? project, AppSettings? settings}) {
+  String report({
+    Project? project,
+    AppSettings? settings,
+    DesktopRunner? runner,
+  }) {
     final StringBuffer b = StringBuffer()
       ..writeln('--- MASTER PROMPT DIAGNOSTICS ---')
       ..writeln('build     ${BuildInfo.label}')
@@ -174,6 +179,65 @@ class Diagnostics {
         if (s.isBlocked) b.writeln('blocked     ${s.blocked}');
       } else {
         b.writeln('state       none recorded');
+      }
+    }
+
+    if (runner != null && DesktopRunner.isSupported) {
+      // Everything below was computed by the run and reached only the screen.
+      // A pasted report is the one channel this project's feedback actually
+      // arrives on, so a run that went wrong was described from memory.
+      b
+        ..writeln()
+        ..writeln('[run]')
+        ..writeln('status      ${runner.status.name}')
+        ..writeln(
+          'cli         '
+          '${runner.install == null ? 'not connected' : '${runner.install!.version} · ${runner.install!.authMode.name}'}',
+        );
+      if (runner.attempt > 0) b.writeln('attempt     ${runner.attempt}');
+      if (runner.elapsed > Duration.zero) {
+        b.writeln('elapsed     ${runner.elapsed.inMinutes}m');
+      }
+      if (runner.costUsd != null) {
+        b.writeln('spent       ${runner.costUsd!.toStringAsFixed(2)}');
+      }
+      if (runner.sessionId != null) {
+        b.writeln('session     ${runner.sessionId}');
+      }
+      if (runner.criticsSeen > 0) {
+        b.writeln('critics     ${runner.criticsSeen} subagents seen');
+      }
+      // The one that matters most before a long run, and the one nothing else
+      // would report: a machine that will sleep through hour three.
+      if (runner.isBusy) {
+        b.writeln(
+          'sleep       ${runner.holdingAwake ? 'held off' : 'NOT held — the machine may sleep'}',
+        );
+      }
+      // The path is omitted on purpose, like every other path here: it can
+      // carry a user name.
+      if (runner.workingDirectory != null) {
+        b.writeln('workingDir  set');
+      }
+      if (runner.resumable != null) {
+        b.writeln(
+          'resumable   ${runner.resumable!.runId} '
+          '(${runner.resumable!.attempts.length} attempts, '
+          '${runner.resumable!.sessionId == null ? 'no session' : 'session held'})',
+        );
+      }
+      final MissionOutcome? o = runner.outcome;
+      if (o != null && o.hasGates) {
+        b.writeln(
+          'outcome     ${o.met ? 'met the brief' : 'finished short'} — '
+          '${o.produced.length}/${o.expected.length} artifacts',
+        );
+        for (final Shortfall f in o.shortfalls) {
+          b.writeln('  not met   ${f.what}');
+        }
+      }
+      if (runner.error != null) {
+        b.writeln('error       ${_clip(runner.error!, 300)}');
       }
     }
 

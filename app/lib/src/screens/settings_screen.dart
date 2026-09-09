@@ -343,7 +343,7 @@ class SettingsScreen extends StatelessWidget {
                       'including anything captured from a crash.',
                 ),
                 const SizedBox(height: MpSpace.md),
-                _DiagnosticsPanel(store: store),
+                _DiagnosticsPanel(store: store, runner: runner),
                 const SizedBox(height: MpSpace.xxl),
               ],
             ),
@@ -355,9 +355,13 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _DiagnosticsPanel extends StatefulWidget {
-  const _DiagnosticsPanel({required this.store});
+  const _DiagnosticsPanel({required this.store, required this.runner});
 
   final AppStore store;
+
+  /// So a pasted report carries what the run was doing, not only what the
+  /// mission was. It is the one channel a problem actually arrives on.
+  final DesktopRunner runner;
 
   @override
   State<_DiagnosticsPanel> createState() => _DiagnosticsPanelState();
@@ -415,6 +419,7 @@ class _DiagnosticsPanelState extends State<_DiagnosticsPanel> {
                     final String text = Diagnostics.instance.report(
                       project: widget.store.current,
                       settings: widget.store.settings,
+                      runner: widget.runner,
                     );
                     await Clipboard.setData(ClipboardData(text: text));
                     if (!context.mounted) return;
