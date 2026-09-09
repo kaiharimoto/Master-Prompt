@@ -77,11 +77,17 @@ shrink-wrapped list, laid out again on every event for twelve hours, and is now
 one `SelectionArea` over a builder; and a run is visible from anywhere in the
 app rather than only from inside its own pane.
 
-Three findings are open and none of them ends a run. The brief's directive
-files (`DIRECTION.md`, `PLAN.md`, `TASK_STATE.md`, `checkpoints/`) are never
-checked for after a run; distinct subagent critics are distinguishable in the
-event stream but never counted against what the brief asked for; and the
-cold-start validation the brief demands is not observed at all.
+The outcome check now covers the two remaining commitments it could reach: the
+brief's working files (`DIRECTION.md`, `PLAN.md`, `INVENTORY.md`,
+`TASK_STATE.md`), whose absence also makes a resume hollow since those are what
+a resumed session is told to re-read; and the fresh-context critics, counted
+from distinct `parent_tool_use_id`s in the event stream — a signal that had
+always been there and was used only to keep subagent chatter out of the log, so
+a review that never happened looked exactly like one that did.
+
+One commitment is still unobserved: the cold-start validation the brief demands
+before completion. There is no signal for it in the event stream, so it would
+need the agent to report it through the heartbeat.
 
 The guided flow has been used on an Android phone for a full interview round,
 and two things came back from it. Both are fixed in this build and neither is

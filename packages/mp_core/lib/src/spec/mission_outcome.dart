@@ -34,8 +34,11 @@ class MissionOutcome {
     required this.exitThreshold,
     required this.rubricTotal,
     required this.cyclesRequired,
+    required this.criticsRequired,
     this.score,
     this.cyclesRun = 0,
+    this.criticsSeen = 0,
+    this.directivesMissing = const <String>[],
   });
 
   /// The fixed evidence set, by file name. The brief names these exactly so a
@@ -55,6 +58,26 @@ class MissionOutcome {
 
   final int cyclesRun;
 
+  /// How many fresh-context critics the brief asked for.
+  final int criticsRequired;
+
+  /// How many distinct subagents the run actually spawned.
+  ///
+  /// `AssistantEvent.isSubagent` has always distinguished this traffic, and it
+  /// was used only to keep subagent chatter out of the log. A brief that asks
+  /// for four critics and gets none is a review that did not happen, and
+  /// nothing could tell.
+  final int criticsSeen;
+
+  /// The working files the brief tells the agent to maintain, that are not
+  /// there. `DIRECTION.md` and `TASK_STATE.md` are what a resumed session is
+  /// told to re-read, so their absence is also the resume being hollow.
+  final List<String> directivesMissing;
+
+  bool get criticsMet => criticsSeen >= criticsRequired;
+
+  bool get directivesMet => directivesMissing.isEmpty;
+
   List<String> get missing => <String>[
     for (final String f in expected)
       if (!produced.contains(f)) f,
@@ -70,12 +93,20 @@ class MissionOutcome {
 
   /// True only when every gate the brief set was actually met. A run that
   /// reported no score at all cannot clear this, because nothing checked it.
-  bool get met => artifactsComplete && (scoreMet ?? false) && cyclesMet;
+  bool get met =>
+      artifactsComplete &&
+      (scoreMet ?? false) &&
+      cyclesMet &&
+      criticsMet &&
+      directivesMet;
 
   /// Whether anything is known well enough to be worth saying. A mission with
   /// no evidence set, no rubric and no review loop has nothing to check.
   bool get hasGates =>
-      expected.isNotEmpty || rubricTotal > 0 || cyclesRequired > 0;
+      expected.isNotEmpty ||
+      rubricTotal > 0 ||
+      cyclesRequired > 0 ||
+      criticsRequired > 0;
 
   /// What is not right, in words worth showing to the person who waited.
   List<Shortfall> get shortfalls => <Shortfall>[
@@ -107,6 +138,26 @@ class MissionOutcome {
                   '$cyclesRequired'
             : 'Ran $cyclesRun review cycles of $cyclesRequired',
       ),
+    if (!criticsMet)
+      Shortfall(
+        criticsSeen == 0
+            ? 'No fresh-context critic ran, and the brief names '
+                  '$criticsRequired'
+            : 'Saw $criticsSeen of $criticsRequired fresh-context critics',
+        detail:
+            'A critic reviews from a context that never built the thing. One '
+            'that never ran is a review the builder gave itself.',
+      ),
+    if (directivesMissing.isNotEmpty)
+      Shortfall(
+        directivesMissing.length == 1
+            ? 'One working file the brief asks for is not there'
+            : '${directivesMissing.length} working files the brief asks for '
+                  'are not there',
+        detail:
+            '${directivesMissing.join(', ')}. A resumed session is told to '
+            're-read these, so without them a resume starts from nothing.',
+      ),
   ];
 }
 
@@ -117,10 +168,21 @@ class MissionOutcome {
 /// that needs a filesystem, and it is three lines; everything worth being
 /// wrong about is here, where a test can reach it.
 abstract final class MissionCheck {
+  /// The working files the brief tells the agent to maintain. Named here
+  /// rather than in the app so the compiler and the check cannot drift: these
+  /// are the ones `prompt_compiler` writes into every brief.
+  static const List<String> directiveFiles = <String>[
+    'DIRECTION.md',
+    'PLAN.md',
+    'INVENTORY.md',
+    'TASK_STATE.md',
+  ];
+
   static MissionOutcome inspect({
     required MissionSpec spec,
     required Set<String> filesPresent,
     MpState? reported,
+    int criticsSeen = 0,
   }) => MissionOutcome(
     expected: <String>[
       for (final EvidenceArtifact e in spec.evidence) e.fileName,
@@ -137,5 +199,11 @@ abstract final class MissionCheck {
     cyclesRequired: spec.review.minimumCycles,
     score: reported?.score,
     cyclesRun: reported?.cycle ?? 0,
+    criticsRequired: spec.review.critics.length,
+    criticsSeen: criticsSeen,
+    directivesMissing: <String>[
+      for (final String f in directiveFiles)
+        if (!filesPresent.contains(f)) f,
+    ],
   );
 }

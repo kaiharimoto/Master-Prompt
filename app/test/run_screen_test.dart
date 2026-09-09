@@ -359,8 +359,14 @@ void main() {
           stubStatus: DesktopRunStatus.finished,
           stubOutcome: MissionCheck.inspect(
             spec: project.spec,
-            filesPresent: const <String>{'01_arrival.png'},
+            filesPresent: <String>{
+              '01_arrival.png',
+              ...MissionCheck.directiveFiles,
+            },
             reported: beat(score: 96, phase: MissionPhase.done, cycle: 4),
+            // The seed brief names one critic, and a review nobody
+            // independent did is a review the builder gave itself.
+            criticsSeen: 1,
           ),
         ),
       );

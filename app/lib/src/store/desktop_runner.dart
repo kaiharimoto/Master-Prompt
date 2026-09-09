@@ -50,6 +50,16 @@ class DesktopRunner extends ChangeNotifier {
   List<ProbeAttempt> _attempts = const <ProbeAttempt>[];
 
   RunHeartbeat? _heartbeat;
+
+  /// Distinct subagents this run spawned, by the tool use that owns them.
+  ///
+  /// `isSubagent` has always distinguished this traffic and was used only to
+  /// keep subagent chatter out of the log. The brief names critics by name and
+  /// asks for a fresh context per critic — a review that never happened was
+  /// indistinguishable from one that did.
+  final Set<String> _critics = <String>{};
+  int get criticsSeen => _critics.length;
+
   int _attempt = 0;
   double? _costUsd;
   String? _sessionId;
@@ -265,6 +275,7 @@ class DesktopRunner extends ChangeNotifier {
     _record = null;
     _outcome = null;
     _resumable = null;
+    _critics.clear();
     _heartbeat = RunHeartbeat(expectedTaskId: project.spec.taskId);
     _onState = onState;
     _workingDirectory = wd.path;
@@ -312,6 +323,9 @@ class DesktopRunner extends ChangeNotifier {
           _sessionId = c?.sessionId ?? _sessionId;
           if (c is ResultEvent && c.costUsd != null) {
             _costUsd = (_costUsd ?? 0) + c.costUsd!;
+          }
+          if (c is AssistantEvent && c.isSubagent) {
+            _critics.add(c.parentToolUseId!);
           }
           if (c is AssistantEvent &&
               !c.isSubagent &&
@@ -400,6 +414,7 @@ class DesktopRunner extends ChangeNotifier {
       spec: spec,
       filesPresent: present,
       reported: state,
+      criticsSeen: criticsSeen,
     );
   }
 

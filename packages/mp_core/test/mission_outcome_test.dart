@@ -5,6 +5,7 @@ MissionSpec specWith({
   int evidence = 3,
   int exitThreshold = 90,
   int minimumCycles = 4,
+  int critics = 2,
 }) => MissionSpec(
   id: 'p',
   taskId: 'cocktail_bar',
@@ -19,7 +20,13 @@ MissionSpec specWith({
         proves: 'coverage',
       ),
   ],
-  review: ReviewLoopSpec(minimumCycles: minimumCycles),
+  review: ReviewLoopSpec(
+    minimumCycles: minimumCycles,
+    critics: <Critic>[
+      for (int i = 0; i < critics; i++)
+        Critic(id: 'c$i', name: 'Critic $i', judges: 'whether it holds up'),
+    ],
+  ),
   rubric: Rubric(
     categories: const <RubricCategory>[
       RubricCategory(
@@ -41,8 +48,14 @@ void main() {
     test('a run that met every gate says so', () {
       final MissionOutcome o = MissionCheck.inspect(
         spec: specWith(),
-        filesPresent: <String>{'01.png', '02.png', '03.png', 'notes.md'},
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
         reported: said(score: 93, cycle: 4),
+        criticsSeen: 2,
       );
 
       expect(o.met, isTrue);
@@ -54,8 +67,9 @@ void main() {
       // `completed` means the process exited zero and the CLI said `success`.
       final MissionOutcome o = MissionCheck.inspect(
         spec: specWith(),
-        filesPresent: <String>{'01.png'},
+        filesPresent: <String>{'01.png', ...MissionCheck.directiveFiles},
         reported: said(score: 93, cycle: 4),
+        criticsSeen: 2,
       );
 
       expect(o.met, isFalse);
@@ -67,8 +81,14 @@ void main() {
         'numbers', () {
       final MissionOutcome o = MissionCheck.inspect(
         spec: specWith(),
-        filesPresent: <String>{'01.png', '02.png', '03.png'},
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
         reported: said(score: 61, cycle: 4),
+        criticsSeen: 2,
       );
 
       expect(o.scoreMet, isFalse);
@@ -82,7 +102,13 @@ void main() {
       // either. Nothing checked the threshold, so nothing may claim it.
       final MissionOutcome o = MissionCheck.inspect(
         spec: specWith(),
-        filesPresent: <String>{'01.png', '02.png', '03.png'},
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
+        criticsSeen: 2,
       );
 
       expect(o.scoreMet, isNull);
@@ -93,8 +119,14 @@ void main() {
     test('a review loop that ran once of four is counted', () {
       final MissionOutcome o = MissionCheck.inspect(
         spec: specWith(),
-        filesPresent: <String>{'01.png', '02.png', '03.png'},
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
         reported: said(score: 93, cycle: 1),
+        criticsSeen: 2,
       );
 
       expect(o.cyclesMet, isFalse);
@@ -109,8 +141,51 @@ void main() {
         // The caller filters by length; this is the contract that says so.
         filesPresent: const <String>{},
         reported: said(score: 93, cycle: 4),
+        criticsSeen: 2,
       );
       expect(o.missing, <String>['01.png']);
+    });
+
+    test('a review nobody independent did is a shortfall', () {
+      // The brief names critics and asks for a fresh context per critic — one
+      // that reviews from a context that never built the thing. `isSubagent`
+      // has always distinguished that traffic and was used only to keep it out
+      // of the log, so a review that never happened looked like one that did.
+      final MissionOutcome o = MissionCheck.inspect(
+        spec: specWith(critics: 3),
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          ...MissionCheck.directiveFiles,
+        },
+        reported: said(score: 93, cycle: 4),
+      );
+
+      expect(o.criticsMet, isFalse);
+      expect(o.met, isFalse);
+      expect(o.shortfalls.single.what, contains('No fresh-context critic'));
+    });
+
+    test('the working files the brief asks for are checked', () {
+      // DIRECTION.md and TASK_STATE.md are what a resumed session is told to
+      // re-read, so their absence is also the resume being hollow.
+      final MissionOutcome o = MissionCheck.inspect(
+        spec: specWith(),
+        filesPresent: <String>{
+          '01.png',
+          '02.png',
+          '03.png',
+          'DIRECTION.md',
+          'PLAN.md',
+        },
+        reported: said(score: 93, cycle: 4),
+        criticsSeen: 2,
+      );
+
+      expect(o.directivesMet, isFalse);
+      expect(o.shortfalls.single.detail, contains('TASK_STATE.md'));
+      expect(o.shortfalls.single.detail, contains('INVENTORY.md'));
     });
 
     test('a mission with no gates is not judged', () {
@@ -122,7 +197,7 @@ void main() {
           taskId: 't',
           title: 'T',
           presetId: 'generic',
-          review: const ReviewLoopSpec(minimumCycles: 0),
+          review: const ReviewLoopSpec(minimumCycles: 0, critics: <Critic>[]),
           rubric: const Rubric(categories: <RubricCategory>[]),
         ),
         filesPresent: const <String>{},
