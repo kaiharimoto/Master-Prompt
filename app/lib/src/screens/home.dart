@@ -673,6 +673,20 @@ class _MissionPickerState extends State<_MissionPicker> {
   /// seen instead, and leaves the text where it is.
   Future<void> _import(String text) async {
     final MpColors c = MpTheme.colorsOf(context);
+
+    // A pitch from Master Idea is the other thing a paste here can be, and it
+    // is tried first because it is cheap to recognise: no version block, not a
+    // pitch, and the bundle path runs exactly as before. The two halves of the
+    // pair hand work to each other through this box.
+    final IdeaPitch? pitch = IdeaPitch.read(text);
+    if (pitch != null && pitch.isUsable) {
+      await widget.store.importPitch(pitch);
+      if (!mounted) return;
+      widget.onPicked();
+      Navigator.of(context).pop();
+      return;
+    }
+
     try {
       final MissionBundle b = MissionBundle.decode(text);
       await widget.store.importBundle(b);

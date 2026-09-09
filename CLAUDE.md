@@ -366,6 +366,27 @@ same accept step either way — **a reply that arrived down a pipe has no more
 authority than one that was pasted.** Copy-paste is never removed, only demoted
 one level, because the CLI can be missing, logged out or rate-limited.
 
+## The other half of the pair
+
+**Master Idea** (github.com/kaiharimoto/Master-Idea) decides *what* should be
+built; this program decides how it gets built. Its pitch prompt is the opening
+input to a mission here, read by `IdeaPitch` in `mp_core` and imported through
+the same paste box that takes `.mpx` bundles — a pitch is tried first, and a
+paste with no versioned `mi-pitch` block falls through to the bundle path
+untouched.
+
+**A pitch arrives `proposed`, all of it.** The prose was written by that
+program's council, however carefully its client chose which directions to keep,
+so an imported mission passes through the same readiness gate as a typed one.
+And the **whole document** is kept as a received exchange rather than only the
+four values in the block: the block is a summary, and the reasoning, the
+computed integration and the run's marked assumptions are the part worth having
+in front of you while the interview runs.
+
+The fixture in `idea_pitch_test.dart` is a pitch that program actually
+produced. A hand-written one drifts the moment the other half changes a
+heading, and the seam is then tested against a format nothing emits.
+
 ## Conventions
 
 - A value the model proposed is `proposed`, never `confirmed`. Only a confirmed

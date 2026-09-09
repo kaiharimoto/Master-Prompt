@@ -226,6 +226,53 @@ class AppStore extends ChangeNotifier {
     return p;
   }
 
+  /// Open a mission from a Master Idea pitch.
+  ///
+  /// The other half of this pair hands back a launch document: the directions
+  /// its client selected, what they become combined, and the assumptions its
+  /// council made while nobody was watching. That is a better start than one
+  /// typed sentence, and it should not have to be retyped to get here.
+  ///
+  /// **Everything it carries arrives proposed.** The prose was written by a
+  /// model, however carefully its client chose which directions to keep, so it
+  /// goes through the same gate a typed mission does — see `IdeaPitch.seed`.
+  /// The whole document is kept as a received exchange rather than only the
+  /// values, because the reasoning and the marked assumptions are the part
+  /// worth having in front of you while the interview runs.
+  Future<Project> importPitch(IdeaPitch pitch) async {
+    final String id = _mintId();
+    final Project p = Project(
+      id: id,
+      spec: pitch.seed(
+        MissionSpec(
+          id: id,
+          taskId: pitch.taskId.isEmpty ? _slug(pitch.title) : pitch.taskId,
+          title: pitch.title.isEmpty ? 'Untitled mission' : pitch.title,
+          presetId: 'generic',
+          createdAt: DateTime.now().toUtc(),
+        ),
+      ),
+      transcript: <TranscriptEntry>[
+        TranscriptEntry(
+          direction: TranscriptDirection.received,
+          text: pitch.document,
+          at: DateTime.now().toUtc(),
+          note: pitch.provenance,
+        ),
+      ],
+      updatedAt: DateTime.now().toUtc(),
+    );
+    _projects.insert(0, p);
+    _currentId = id;
+    Diagnostics.instance.log(
+      'Opened mission "${p.spec.taskId}" from a Master Idea pitch '
+      '(session ${pitch.sessionId}, ${pitch.directionIds.length} direction(s)).',
+    );
+    await save(p);
+    notifyListeners();
+    return p;
+  }
+
   void select(String id) {
     _currentId = id;
     notifyListeners();

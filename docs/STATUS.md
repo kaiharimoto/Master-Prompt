@@ -14,6 +14,45 @@ button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
 
+### Master Idea hands work to this program
+
+The other half of the pair now exists: **Master Idea**
+(github.com/kaiharimoto/Master-Idea) takes one raw idea, interviews its client
+once, and lets a council argue unattended until it has nothing left to say. Its
+export is a pitch prompt — the directions its client selected and what they
+become combined — and that pitch is the opening input to a mission here.
+
+The seam is the paste box in the mission picker, which already read `.mpx`
+bundles. A pitch is tried first because it is cheap to recognise: no `mi-pitch`
+block with a version, not a pitch, and the bundle path runs exactly as before.
+
+`IdeaPitch` in `mp_core` reads it, and two things about that are deliberate:
+
+- **The whole document is kept**, not only the four values the block carries.
+  The block is a summary; the prose holds the reasoning, the computed
+  integration and the assumptions that run made while nobody was watching. An
+  import that kept only the block would start a mission from four sentences.
+- **Everything arrives `proposed`.** The council that wrote those sentences is a
+  model, however carefully its client chose which directions to keep, so an
+  imported mission goes through the same gate as a typed one. `idea_pitch_test`
+  asserts the readiness gate still refuses to compile.
+
+The block is line-oriented for the reason `mpstate` is: a document that exceeds
+a chat's paste ceiling is cut without warning, and a test cuts a real pitch
+mid-block and checks the fields before the cut still arrive.
+
+The fixture in both tests is a pitch that program actually produced, run through
+`mi run` and `mi select`. A hand-written one would drift the moment the other
+half changed a heading, and the seam would then be tested against a format
+nothing emits.
+
+**Not verified here:** `app/` was changed (`AppStore.importPitch`, one branch in
+the mission picker, one new test) in a session with no Flutter SDK, so
+`flutter analyze` and `flutter test` have not been run against it. The files
+parse and `mp_core` is green at 194 tests; CI is the first thing that will
+actually exercise the app side.
+
+
 ### Reading the diff back, which found six more
 
 Every fix above went in green, and a deliberate adversarial read of the whole

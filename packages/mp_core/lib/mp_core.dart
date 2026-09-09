@@ -25,3 +25,4 @@ export 'src/interview/readiness.dart';
 export 'src/interview/spec_patch.dart';
 export 'src/continuity/bundle.dart';
 export 'src/continuity/handover.dart';
+export 'src/continuity/idea_pitch.dart';
