@@ -273,7 +273,10 @@ first `WM_CLOSE` precisely so the framework can answer, but only when something
 has registered for `didRequestAppExit`. Nothing had, so quitting mid-run was a
 one-click unconfirmed kill. An `AppLifecycleListener` in `_HomeScreenState` is
 the whole fix. `AppExitResponse` is a `dart:ui` type and Flutter does not
-re-export it.
+re-export it. Because it is pure Dart it is also the one piece of the
+unattended-run work a test can *execute* rather than only compile:
+`await WidgetsBinding.instance.handleRequestAppExit()` drives it end to end,
+dialog and all.
 
 **Two screens talk to the CLI, and there is one opener.** `openConversation`
 in `cli_session.dart` is it. A second copy would be free to disagree about a
