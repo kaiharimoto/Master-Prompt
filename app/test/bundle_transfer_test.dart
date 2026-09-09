@@ -83,6 +83,54 @@ void main() {
       expect(store.projects, hasLength(2));
     });
 
+    test('ids stay distinct on a clock that does not move', () async {
+      // The version that actually bites. A loop against the real clock passed
+      // on Linux, which has microsecond resolution, while the same code lost a
+      // mission on Windows, where the clock advances in ticks of a millisecond
+      // or more — so two missions made inside one tick were handed the same id,
+      // and `save` writes each project to `<id>.json`.
+      //
+      // Freezing the clock is the coarse platform taken to its limit, and it
+      // makes the property testable on the runner rather than only on the
+      // machine that broke.
+      final DateTime stopped = DateTime.utc(2026, 9, 9, 10);
+      final AppStore store = AppStore(inMemory: true, now: () => stopped);
+      await store.load();
+      addTearDown(store.dispose);
+
+      final MissionBundle b = MissionBundle.from(spec: seeded());
+      final Set<String> ids = <String>{};
+      for (int i = 0; i < 50; i++) {
+        ids.add((await store.importBundle(b)).id);
+      }
+
+      expect(
+        ids,
+        hasLength(50),
+        reason:
+            'an id that repeats is a mission silently overwritten on disk, '
+            'and a clock is not a source of unique values',
+      );
+    });
+
+    test('create and import cannot collide with each other', () async {
+      // Two different call sites, one mint. `create` is the one a double-tap on
+      // the seed screen reaches, and it had this bug long before the import
+      // path existed.
+      final DateTime stopped = DateTime.utc(2026, 9, 9, 10);
+      final AppStore store = AppStore(inMemory: true, now: () => stopped);
+      await store.load();
+      addTearDown(store.dispose);
+
+      final Project a = await store.create(title: 'One');
+      final Project b = await store.create(title: 'Two');
+      final Project c = await store.importBundle(
+        MissionBundle.from(spec: seeded()),
+      );
+
+      expect(<String>{a.id, b.id, c.id}, hasLength(3));
+    });
+
     test('nothing device-specific travels', () async {
       // A stale session id imported onto another machine would "resume" into
       // a conversation that is not there, which is worse than starting clean.

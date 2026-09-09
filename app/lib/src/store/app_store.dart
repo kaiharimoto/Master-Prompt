@@ -16,7 +16,19 @@ import 'settings.dart';
 /// database on purpose: a mission that took hours of discussion to produce
 /// should be recoverable with a text editor if this app ever fails to start.
 class AppStore extends ChangeNotifier {
-  AppStore({Directory? root, this.inMemory = false}) : _root = root;
+  AppStore({Directory? root, this.inMemory = false, DateTime Function()? now})
+    : _root = root,
+      _now = now ?? DateTime.now;
+
+  /// Where the time for a new id comes from.
+  ///
+  /// Injected for one reason: the bug this guards against only appears on a
+  /// platform whose clock is coarse, and the runner the tests run on has a
+  /// fine one. A test against the real clock passed on Linux while the same
+  /// code lost a mission on Windows — so the clock is a parameter, the same
+  /// way `RunSupervisor` takes one, and a frozen clock proves the property on
+  /// every platform.
+  final DateTime Function() _now;
 
   /// Skip the filesystem entirely.
   ///
@@ -103,11 +115,35 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  int _lastMintedMicros = 0;
+
+  /// A mission id that cannot collide with the one before it.
+  ///
+  /// Ids are minted from the clock, and the clock is not fine-grained
+  /// everywhere: Windows advances it in ticks of a millisecond or more, so two
+  /// missions made inside one tick were handed the *same* id — and `save`
+  /// writes each project to `<id>.json`, so the second silently overwrote the
+  /// first on disk, while `delete` would then take both.
+  ///
+  /// Caught by a Windows CI run, on a test written for the import path against
+  /// a bug that had always been in `create` — where a double-tap on the seed
+  /// screen is enough to reach it.
+  ///
+  /// Monotonic within the process, so a tight loop cannot repeat. Across a
+  /// restart the wall clock has long passed anything issued before, so the
+  /// property this always had between sessions is unchanged.
+  String _mintId() {
+    int micros = _now().microsecondsSinceEpoch;
+    if (micros <= _lastMintedMicros) micros = _lastMintedMicros + 1;
+    _lastMintedMicros = micros;
+    return micros.toRadixString(36);
+  }
+
   Future<Project> create({
     String title = 'Untitled mission',
     String preset = 'generic',
   }) async {
-    final String id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final String id = _mintId();
     final Project p = Project(
       id: id,
       spec: MissionSpec(
@@ -141,7 +177,7 @@ class AppStore extends ChangeNotifier {
   /// path, no working directory — so an import cannot "resume" into a
   /// conversation that does not exist on this machine.
   Future<Project> importBundle(MissionBundle b) async {
-    final String id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final String id = _mintId();
     final Project p = Project(
       id: id,
       spec: b.spec,

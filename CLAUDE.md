@@ -290,6 +290,19 @@ depends on. On a `.cmd` install the command-line budget is 7,800 characters, so
 the pass refuses the pipe there — which is why the clipboard route is demoted
 one level rather than removed.
 
+**A clock is not a source of unique values, and the platform that proves it is
+not the one you develop on.** `AppStore` minted mission ids from
+`microsecondsSinceEpoch`; Windows advances its clock in ticks of a millisecond
+or more, so two missions made inside one tick were handed the *same* id — and
+`save` writes each project to `<id>.json`, so the second silently overwrote the
+first, while `delete` would then take both. It reached CI as one Windows-only
+failure among 147 green, and the next push passed by luck of tick timing, which
+is exactly why "flaky" was the wrong reading. `_mintId` is monotonic within the
+process, and `AppStore` takes its clock as a parameter so a *frozen* one — the
+coarse platform taken to its limit — proves the property on the Linux runner.
+The first version of that test used the real clock, passed on Linux, and proved
+nothing.
+
 **`MpField` uppercases its label**, which is right for `NEXT ACTION` and
 unreadable for a sentence. A line of prose is a `Text`, not a field label.
 
