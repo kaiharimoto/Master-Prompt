@@ -576,7 +576,7 @@ void main() {
     });
 
     test(
-      'a run stopped by hand is offered, and a finished one is not',
+      'a run that needs the user is offered; a finished one is not',
       () async {
         final Directory dir = Directory('${tmp.path}/store-stopped');
         final RunStore store = RunStore(dir);
@@ -593,6 +593,7 @@ void main() {
         await store.save(base('stopped', RunConclusion.cancelled));
         await store.save(base('done', RunConclusion.completed));
         await store.save(base('stalled', RunConclusion.stalled));
+        await store.save(base('spent', RunConclusion.exhausted));
 
         final List<String> ids = <String>[
           for (final RunRecord r in await store.resumable(now: now)) r.runId,
@@ -602,7 +603,22 @@ void main() {
           contains('stopped'),
           reason: 'Stop says the run can be resumed, so it had better be',
         );
+        expect(
+          ids,
+          contains('stalled'),
+          reason:
+              'the supervisor itself says "sign in again, then resume this '
+              'run", which was a promise nothing could keep',
+        );
         expect(ids, isNot(contains('done')));
+        expect(
+          ids,
+          isNot(contains('spent')),
+          reason:
+              'the attempt ceiling is counted from a history that now '
+              'survives a reload, so resuming an exhausted run hits it again '
+              'at once',
+        );
       },
     );
 

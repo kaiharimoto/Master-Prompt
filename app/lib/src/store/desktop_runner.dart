@@ -397,6 +397,13 @@ class DesktopRunner extends ChangeNotifier {
       _tick?.cancel();
       _tick = null;
       _endedAt = DateTime.now();
+      // Look again now the run is over. Stop says "the run is saved and can be
+      // resumed", and without this the offer to do so did not appear until the
+      // pane was closed and opened again — so the sentence was true and the
+      // screen did not show it.
+      unawaited(
+        lookForResumable(project: project, stateDirectory: stateDirectory),
+      );
       notifyListeners();
     }
   }

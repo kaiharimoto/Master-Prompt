@@ -303,8 +303,15 @@ class RunStore {
     final DateTime at = now ?? DateTime.now().toUtc();
     final List<RunRecord> out = <RunRecord>[];
     for (final RunRecord r in await _all()) {
+      // `stalled` counts, and it is the case the supervisor itself points at:
+      // "Authentication failed. Sign in again, then resume this run." A
+      // billing decision is the same shape. `exhausted` does not — the attempt
+      // ceiling is counted from a history that now survives a reload, so
+      // resuming one would hit the ceiling again on the first check.
       final bool open =
-          !r.isFinished || r.conclusion == RunConclusion.cancelled;
+          !r.isFinished ||
+          r.conclusion == RunConclusion.cancelled ||
+          r.conclusion == RunConclusion.stalled;
       if (!open) continue;
       final DateTime? made = r.createdAt;
       if (made != null && at.difference(made) > within) continue;
