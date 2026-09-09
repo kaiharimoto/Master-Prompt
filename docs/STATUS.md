@@ -14,6 +14,34 @@ button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
 
+### Reading the diff back, which found six more
+
+Every fix above went in green, and a deliberate adversarial read of the whole
+change afterwards still found six real defects. Worth recording as a habit
+rather than as a list:
+
+- **A finished run counted up forever.** `elapsed` was taken against the wall
+  clock with no end recorded, so a forty-minute run read as four hours by the
+  time anyone looked again — and the number went into the diagnostics report.
+- **The first test for that was worthless**, and is the more useful lesson: it
+  drove the runner through `detect`, which never sets a start time, so it
+  compared zero against zero and passed. The computation is now a static taking
+  both times and `now`; reverting the formula makes the test fail, which is the
+  only evidence a test tests anything.
+- **The step-down skipped the wait path's session bookkeeping**, so a run with
+  no session yet would relaunch `fresh` carrying the pinned id the refused
+  attempt had already used. The fake succeeds on the second attempt whatever id
+  it gets, so the original test passed through the bug.
+- **A stalled run was not offered back**, while the supervisor's own message
+  says "Sign in again, then resume this run".
+- **The resume offer did not appear until the pane was reopened**, so Stop's
+  promise that the run is saved was true and invisible.
+- **The transfer panel encoded the whole mission twice per frame**, with two
+  different timestamps.
+
+And one caught by a test as it was written: the mission sheet fixed its controls
+beneath a scrolling list, so opening the new disclosure overflowed it by 384px.
+
 ### The red-team pass goes down the pipe too
 
 It was copy-paste on every platform, including one with the CLI sitting right

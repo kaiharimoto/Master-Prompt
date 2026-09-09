@@ -10,7 +10,6 @@ import '../flow/flow_controller.dart';
 import '../store/app_store.dart';
 import '../store/claude_chat.dart';
 import '../store/desktop_runner.dart';
-import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../update/updater.dart';
 import '../widgets/exchange.dart';
@@ -676,11 +675,10 @@ class _MissionPickerState extends State<_MissionPicker> {
     final MpColors c = MpTheme.colorsOf(context);
     try {
       final MissionBundle b = MissionBundle.decode(text);
-      final Project p = await widget.store.importBundle(b);
+      await widget.store.importBundle(b);
       if (!mounted) return;
       widget.onPicked();
       Navigator.of(context).pop();
-      Diagnostics.instance.log('Imported "${p.spec.taskId}".');
     } on BundleFormatException catch (e) {
       if (!mounted) return;
       setState(() {
