@@ -237,6 +237,29 @@ void main() {
     );
   });
 
+  testWidgets('a follow-up with no fixes does not take the fixes away', (
+    WidgetTester tester,
+  ) async {
+    // The pass is a conversation now — it asks a judgement call, you answer,
+    // it replies — so a middle turn that is prose plus questions is ordinary.
+    // It used to clear a set of fixes nobody had accepted yet.
+    await pasteReply(tester);
+    expect(find.textContaining('waiting'), findsOneWidget);
+
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Good question. Let me think about the glassware.',
+    );
+    await tapVisible(tester, find.text('Read the fixes'));
+
+    expect(
+      find.textContaining('waiting'),
+      findsOneWidget,
+      reason: 'the fixes from the previous turn are still there to accept',
+    );
+    expect(find.textContaining('No patch block'), findsOneWidget);
+  });
+
   group('the pass on a machine that has the CLI', () {
     testWidgets('is offered down the pipe, with the clipboard demoted', (
       WidgetTester tester,

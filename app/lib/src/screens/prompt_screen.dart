@@ -162,7 +162,12 @@ class _PromptScreenState extends State<PromptScreen> {
     );
     final AskedRound asked = _asker.parse(r.prose ?? reply);
     setState(() {
-      _pending = r.found && r.hasChanges ? r : null;
+      // Fixes already on screen are only replaced by newer ones, never
+      // cleared by a reply that carried none. The pass is a conversation now —
+      // it asks a judgement call, you answer, it replies — and a middle turn
+      // that is prose plus questions used to take a set of unaccepted fixes
+      // down with it.
+      if (r.found && r.hasChanges) _pending = r;
       _asked = asked.found ? asked : null;
       _redTeamNote = r.found || asked.found
           ? null
