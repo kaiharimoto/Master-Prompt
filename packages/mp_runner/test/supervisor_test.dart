@@ -655,6 +655,126 @@ void main() {
     });
   });
 
+  group('what the user chose reaches the run', () {
+    test(
+      'the model, the effort and the permission mode are all sent',
+      () async {
+        // The request used to be built with the prompt and the session and
+        // nothing else, so every run took `LaunchRequest`'s defaults whatever
+        // Settings said — the permission mode included, which means someone who
+        // had deliberately narrowed it had it widened back for them.
+        final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+        final RunSupervisor s = RunSupervisor(
+          executable: fakeClaude,
+          capabilities: profileFor(fakeClaude),
+          store: RunStore(Directory('${tmp.path}/store-settings')),
+          clock: clock,
+          model: 'sonnet',
+          effortPreference: effortLadder('low'),
+          permissionMode: 'default',
+          environmentOverrides: <String, String>{
+            'FAKE_CLAUDE_SCENARIO': 'echo_prompt',
+            'FAKE_CLAUDE_STATE': '${tmp.path}/state-settings',
+          },
+        );
+
+        final List<String> launches = <String>[];
+        s.events
+            .where((SupervisorEvent e) => e.kind == 'launch')
+            .listen((SupervisorEvent e) => launches.add(e.message));
+
+        await s.execute(newRun('echo_prompt'));
+        await s.dispose();
+
+        expect(launches.single, contains('--model sonnet'));
+        expect(launches.single, contains('--effort low'));
+        expect(launches.single, contains('--permission-mode default'));
+      },
+    );
+
+    test('effort degrades downward, never upward', () {
+      // A build that lacks the chosen level should do less work than was asked
+      // for. A ladder that always began at high would quietly upgrade a run
+      // someone had deliberately set to low.
+      expect(effortLadder('high'), <String>['high', 'medium', 'low']);
+      expect(effortLadder('medium'), <String>['medium', 'low']);
+      expect(effortLadder('low'), <String>['low']);
+      expect(
+        effortLadder('max').first,
+        'max',
+        reason:
+            'a level this list does not know is still worth asking for first; '
+            'the probe is what decides whether the build accepts it',
+      );
+    });
+
+    test(
+      'a weekly Opus limit steps down rather than waiting out the week',
+      () async {
+        // Seven days is not a wait, it is a stop. The setting behind this has
+        // existed, been rendered and been persisted while nothing read it, and
+        // the panel meanwhile told the user a smaller model might still work.
+        final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+        final RunSupervisor s = RunSupervisor(
+          executable: fakeClaude,
+          capabilities: profileFor(fakeClaude),
+          store: RunStore(Directory('${tmp.path}/store-stepdown')),
+          clock: clock,
+          stepDownModel: 'sonnet',
+          environmentOverrides: <String, String>{
+            'FAKE_CLAUDE_SCENARIO': 'weekly_opus_then_success',
+            'FAKE_CLAUDE_STATE': '${tmp.path}/state-stepdown',
+          },
+        );
+
+        final List<String> launches = <String>[];
+        s.events
+            .where((SupervisorEvent e) => e.kind == 'launch')
+            .listen((SupervisorEvent e) => launches.add(e.message));
+
+        final RunRecord out = await s.execute(newRun('weekly_opus'));
+        await s.dispose();
+
+        expect(out.conclusion, RunConclusion.completed);
+        expect(launches.first, isNot(contains('--model')));
+        expect(launches.last, contains('--model sonnet'));
+        expect(
+          clock.waitedUntil,
+          isEmpty,
+          reason: 'the whole point is not spending the week',
+        );
+      },
+    );
+
+    test(
+      'without the setting it waits, because the model is the result',
+      () async {
+        final TestClock clock = TestClock(DateTime.utc(2026, 9, 2, 12));
+        final RunSupervisor s = RunSupervisor(
+          executable: fakeClaude,
+          capabilities: profileFor(fakeClaude),
+          store: RunStore(Directory('${tmp.path}/store-nostep')),
+          clock: clock,
+          environmentOverrides: <String, String>{
+            'FAKE_CLAUDE_SCENARIO': 'weekly_opus_then_success',
+            'FAKE_CLAUDE_STATE': '${tmp.path}/state-nostep',
+          },
+        );
+
+        await s.execute(newRun('weekly_opus'));
+        await s.dispose();
+
+        expect(
+          clock.waitedUntil,
+          isNotEmpty,
+          reason:
+              'silently changing which model does the work is a decision about '
+              'the result, so it stays something the user opts into',
+        );
+      },
+    );
+  });
+
   group('the clock that actually waits', () {
     test('cuts a long wait short the moment Stop arrives', () async {
       // TestClock is a stand-in; this is the implementation that will be

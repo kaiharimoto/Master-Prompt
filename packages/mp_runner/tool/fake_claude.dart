@@ -399,6 +399,18 @@ Future<void> main(List<String> args) async {
       init();
       limit(stderrText: "Error: You've hit your weekly limit.");
 
+    case 'weekly_opus_then_success':
+      // The limit that is seven days of waiting rather than five hours of it,
+      // and the one a smaller model can walk around. The second attempt
+      // succeeds, so a run that stepped down finishes and a run that waited
+      // spent the week to get to the same place.
+      init();
+      if (attempt == 1) {
+        limit(stderrText: "Error: You've hit your Opus limit for this week.");
+      }
+      assistant('Continuing on a smaller model.');
+      success('Mission complete.');
+
     case 'resume_rejected':
       // Establishes a session and makes progress, but does not finish, so the
       // supervisor resumes. That resume is rejected, forcing the ladder down to

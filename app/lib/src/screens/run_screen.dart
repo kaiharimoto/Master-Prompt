@@ -810,39 +810,49 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
 
               if (r.log.isNotEmpty) ...<Widget>[
                 const SizedBox(height: MpSpace.md),
-                Container(
+                SizedBox(
                   // A twelve-hour run against a 220px window is a keyhole.
                   // Taller where there is room, and never taller than half the
-                  // window, so the controls under it stay in view.
-                  constraints: BoxConstraints(
-                    maxHeight: (MediaQuery.sizeOf(context).height * 0.4).clamp(
-                      220.0,
-                      520.0,
+                  // window, so the controls under it stay in view. Fixed rather
+                  // than hugging, so the buttons underneath do not walk down
+                  // the screen as output arrives.
+                  height: (MediaQuery.sizeOf(context).height * 0.4).clamp(
+                    220.0,
+                    520.0,
+                  ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: c.canvas,
+                      borderRadius: MpRadius.card,
+                      border: Border.all(color: c.line),
                     ),
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.canvas,
-                    borderRadius: MpRadius.card,
-                    border: Border.all(color: c.line),
-                  ),
-                  padding: const EdgeInsets.all(MpSpace.sm + 2),
-                  child: Scrollbar(
-                    child: ListView(
-                      reverse: true,
-                      shrinkWrap: true,
-                      children: <Widget>[
-                        for (final String line in r.log.reversed)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            // Selectable: the log is the first thing anyone
-                            // asks about when a run goes wrong, and it could
-                            // not be copied out of.
-                            child: SelectableText(
-                              line,
-                              style: MpType.mono.copyWith(color: c.inkMuted),
-                            ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(MpSpace.sm + 2),
+                      child: Scrollbar(
+                        // One SelectionArea rather than a SelectableText per
+                        // line. The log is the first thing anyone asks about
+                        // when a run goes wrong so it has to be copyable, but
+                        // five hundred SelectableTexts in a shrink-wrapped list
+                        // laid every one of them out on every event — and a
+                        // chatty agent produces events for twelve hours, on the
+                        // one screen that has to stay watchable.
+                        child: SelectionArea(
+                          child: ListView.builder(
+                            reverse: true,
+                            itemCount: r.log.length,
+                            itemBuilder: (BuildContext context, int i) =>
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Text(
+                                    r.log[r.log.length - 1 - i],
+                                    style: MpType.mono.copyWith(
+                                      color: c.inkMuted,
+                                    ),
+                                  ),
+                                ),
                           ),
-                      ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

@@ -279,6 +279,17 @@ class DesktopRunner extends ChangeNotifier {
       executable: install.path,
       capabilities: install.capabilities,
       store: RunStore(_runsIn(stateDirectory)),
+      // None of these reached a run before. The launch request was built with
+      // the prompt and the session and nothing else, so every run took
+      // `LaunchRequest`'s defaults — including a user who had deliberately
+      // narrowed the permission mode and had it widened back for them.
+      model: settings.model.trim().isEmpty ? null : settings.model.trim(),
+      effortPreference: effortLadder(settings.effort),
+      permissionMode: settings.permissionMode,
+      // A weekly Opus limit is seven days. The setting has existed, been
+      // rendered, been persisted and been read by nothing this whole time,
+      // while the panel told the user a smaller model might still work.
+      stepDownModel: settings.stepDownOnOpusLimit ? 'sonnet' : null,
     );
     _supervisor = supervisor;
 

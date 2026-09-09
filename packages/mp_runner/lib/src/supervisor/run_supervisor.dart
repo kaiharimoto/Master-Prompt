@@ -39,7 +39,11 @@ class RunSupervisor {
     this.maxAttempts = 40,
     this.maxNoProgressResumes = 3,
     this.environmentOverrides = const <String, String>{},
-  });
+    this.model,
+    this.effortPreference = const <String>['high', 'medium'],
+    this.permissionMode = 'bypassPermissions',
+    this.stepDownModel,
+  }) : _model = model;
 
   final String executable;
   final CapabilityProfile capabilities;
@@ -55,6 +59,26 @@ class RunSupervisor {
   final int maxNoProgressResumes;
 
   final Map<String, String> environmentOverrides;
+
+  /// What the user actually chose, rather than whatever `LaunchRequest`
+  /// defaults to. None of these reached a run: the request was built with the
+  /// prompt and the session and nothing else, so a run took `bypassPermissions`
+  /// and `high` from the defaults whatever Settings said — including from
+  /// someone who had deliberately narrowed the permission mode.
+  final String? model;
+  final List<String> effortPreference;
+  final String permissionMode;
+
+  /// Model to continue on when the *model-specific* weekly limit is reached,
+  /// or null to wait it out.
+  ///
+  /// A weekly Opus limit is seven days of waiting, which is not waiting, it is
+  /// stopping. The user opts into this, because silently changing which model
+  /// does the work is a decision about the result.
+  final String? stepDownModel;
+
+  /// The model currently in use, which a step-down changes mid-run.
+  String? _model;
 
   final StreamController<SupervisorEvent> _events =
       StreamController<SupervisorEvent>.broadcast();
@@ -118,6 +142,9 @@ class RunSupervisor {
         intent: forkNext ? LaunchIntent.forkResume : intent,
         sessionId: pinnedId,
         resumeSessionId: record.sessionId,
+        model: _model,
+        effortPreference: effortPreference,
+        permissionMode: permissionMode,
       );
 
       final LaunchPlan plan;
@@ -231,6 +258,22 @@ class RunSupervisor {
         }, record: record);
         record = record.copyWith(conclusion: RunConclusion.stalled);
         break;
+      }
+
+      // A weekly limit on one model is not a wait, it is a stop: seven days.
+      // Stepping down keeps the run going on a smaller model, in the same
+      // session, and only because the user asked for that.
+      if (v.kind == LimitKind.sevenDayOpus &&
+          stepDownModel != null &&
+          _model != stepDownModel) {
+        _emit(
+          'degraded',
+          'Weekly Opus limit reached. Continuing on $stepDownModel rather '
+              'than waiting out the week.',
+          record: record,
+        );
+        _model = stepDownModel;
+        continue;
       }
 
       final DateTime resumeAt =

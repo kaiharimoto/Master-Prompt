@@ -64,11 +64,24 @@ laptop awake forever. Closing the window mid-run now asks first, which needs no
 native code: the Windows embedder already routes `WM_CLOSE` to
 `didRequestAppExit`, and nothing had registered for it.
 
-Seven of the audit's findings are open and none of them ends a run: the log
-rebuilds 500 `SelectableText` widgets in a `shrinkWrap` list on every event,
-`stepDownOnOpusLimit` is a setting nothing reads, there is no run indicator
-outside the pane, and the brief's directive files and subagent critics are still
-unverified after a run.
+**And what the user chose never reached a run.** The launch request was built
+with the prompt and the session and nothing else, so every run took
+`LaunchRequest`'s defaults — the model, the effort and the *permission mode*
+included, which means someone who had deliberately narrowed the last of those
+had it widened back for them. `stepDownOnOpusLimit` was a setting nothing read,
+while the panel told the user a smaller model might still work; a weekly Opus
+limit now steps down rather than waiting out seven days, if they asked for that.
+
+Also from the audit: the log was 500 `SelectableText` widgets in a
+shrink-wrapped list, laid out again on every event for twelve hours, and is now
+one `SelectionArea` over a builder; and a run is visible from anywhere in the
+app rather than only from inside its own pane.
+
+Three findings are open and none of them ends a run. The brief's directive
+files (`DIRECTION.md`, `PLAN.md`, `TASK_STATE.md`, `checkpoints/`) are never
+checked for after a run; distinct subagent critics are distinguishable in the
+event stream but never counted against what the brief asked for; and the
+cold-start validation the brief demands is not observed at all.
 
 The guided flow has been used on an Android phone for a full interview round,
 and two things came back from it. Both are fixed in this build and neither is

@@ -74,6 +74,22 @@ class LaunchPlanError implements Exception {
   String toString() => 'LaunchPlanError: $message';
 }
 
+/// Effort levels to try, in order, starting from the one that was chosen.
+///
+/// Degrading is downward only. `--effort` accepted `low, medium, high` in the
+/// build that was tested and not the documented `xhigh`/`max`, so a preference
+/// list is the only safe way to ask — but a build that lacks the chosen level
+/// should do *less* work than was asked for, never more. A ladder that always
+/// began at `high` would quietly upgrade a run someone had deliberately set to
+/// `low`.
+List<String> effortLadder(String chosen) {
+  const List<String> order = <String>['high', 'medium', 'low'];
+  final int i = order.indexOf(chosen);
+  // An unknown level is still worth asking for first: the probe reads what
+  // this build accepts, and a newer one may know a level this list does not.
+  return i < 0 ? <String>[chosen, ...order] : order.sublist(i);
+}
+
 /// What the caller wants, before it is reconciled against what the CLI can do.
 @immutable
 class LaunchRequest {

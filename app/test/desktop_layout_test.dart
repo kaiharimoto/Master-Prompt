@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/screens/destinations.dart';
 import 'package:master_prompt/src/screens/home.dart';
 import 'package:master_prompt/src/store/app_store.dart';
+import 'package:master_prompt/src/store/desktop_runner.dart';
+import 'package:master_prompt/src/store/settings.dart';
+import 'package:mp_runner/mp_runner.dart';
 
+import 'connection_test.dart' show GatedLocator;
 import 'widget_test.dart' show wrap;
 
 /// The wide branch of `home.dart` had **no test coverage at all**.
@@ -171,5 +177,34 @@ void main() {
       findsNothing,
       reason: 'a wider window is not a licence to put everything back',
     );
+  });
+
+  testWidgets('a run going somewhere else is visible from anywhere', (
+    WidgetTester tester,
+  ) async {
+    // Close the Run pane and a twelve-hour run was invisible. The app bar
+    // shows interview readiness, which stops moving the moment the brief is
+    // finished, so the screen looked identical whether an agent was working
+    // for hours or nothing was running at all.
+    //
+    // `locating` is a busy state a test can reach; `running` needs a real
+    // process, and the indicator reads the same getter either way.
+    final Completer<ClaudeInstall> gate = Completer<ClaudeInstall>();
+    final DesktopRunner runner = DesktopRunner(locator: GatedLocator(gate));
+    addTearDown(runner.dispose);
+
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(wrap(HomeScreen(store: store, runner: runner)));
+    await tester.pump();
+
+    expect(find.text('Running'), findsNothing, reason: 'nothing is going yet');
+
+    unawaited(runner.detect(const AppSettings()));
+    await tester.pump();
+
+    expect(find.text('Running'), findsOneWidget);
   });
 }

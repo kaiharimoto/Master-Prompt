@@ -263,6 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? Text('MASTER PROMPT', style: MpType.eyebrow.copyWith(color: c.ink))
           : _Progress(project: p),
       actions: <Widget>[
+        _RunLight(runner: _runner, onTap: () => _open(AppDestination.run)),
         _Menu(
           enabled: p != null,
           hasUpdate: _updater.hasUpdate,
@@ -333,6 +334,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   )
                                 : _Progress(project: p),
                           ),
+                          _RunLight(
+                            runner: _runner,
+                            onTap: () => _open(AppDestination.run),
+                          ),
                           _Menu(
                             enabled: p != null,
                             hasUpdate: _updater.hasUpdate,
@@ -365,6 +370,57 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: c.canvas,
       appBar: bar,
       body: SafeArea(top: false, child: flow),
+    );
+  }
+}
+
+/// That a run is going, from anywhere in the app.
+///
+/// Close the Run pane and a twelve-hour run was invisible: the app bar shows
+/// interview readiness, which stops moving the moment the brief is finished,
+/// so the screen looked identical whether an agent was working or nothing was.
+/// Quiet by design — a dot and a word, and nothing at all when nothing is
+/// running.
+class _RunLight extends StatelessWidget {
+  const _RunLight({required this.runner, required this.onTap});
+
+  final DesktopRunner runner;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+
+    return ListenableBuilder(
+      listenable: runner,
+      builder: (BuildContext context, _) {
+        if (!runner.isBusy) return const SizedBox.shrink();
+        final bool paused = runner.status == DesktopRunStatus.paused;
+
+        return Padding(
+          padding: const EdgeInsets.only(right: MpSpace.xs),
+          child: Tooltip(
+            message: paused
+                ? 'Waiting out a usage limit. Open the run to see when it '
+                      'resumes.'
+                : 'A run is going. Open it to watch.',
+            child: TextButton.icon(
+              onPressed: onTap,
+              icon: Icon(
+                paused ? Icons.pause_circle_outline : Icons.circle,
+                size: paused ? 16 : 10,
+                color: paused ? c.warning : c.success,
+              ),
+              label: Text(
+                paused ? 'Paused' : 'Running',
+                style: MpType.caption.copyWith(
+                  color: paused ? c.warning : c.inkMuted,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
