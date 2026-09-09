@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/screens/home.dart';
@@ -129,6 +131,37 @@ void main() {
       );
 
       expect(<String>{a.id, b.id, c.id}, hasLength(3));
+    });
+
+    test('an id is not reused when the clock returns to a spent instant', () async {
+      // The counter alone only holds within one run of the app. A clock
+      // corrected by NTP, set by hand, or read from a dead RTC can put the next
+      // launch back on an instant already spent — and *that* is the collision,
+      // not merely being earlier. An id that repeats is a mission overwritten,
+      // because `save` writes each project to `<id>.json`.
+      //
+      // Real files here, because the floor is read at load.
+      final Directory tmp = Directory.systemTemp.createTempSync('mp-ids-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+
+      final DateTime spent = DateTime.utc(2026, 9, 9, 10);
+      final AppStore before = AppStore(root: tmp, now: () => spent);
+      await before.load();
+      final Project first = await before.create(title: 'One');
+      before.dispose();
+
+      // The machine comes back sitting on exactly the instant it left.
+      final AppStore after = AppStore(root: tmp, now: () => spent);
+      await after.load();
+      final Project second = await after.create(title: 'Two');
+      after.dispose();
+
+      expect(second.id, isNot(first.id));
+      expect(
+        after.projects.map((Project p) => p.id).toSet(),
+        hasLength(2),
+        reason: 'the mission that was already saved must still be there',
+      );
     });
 
     test('nothing device-specific travels', () async {

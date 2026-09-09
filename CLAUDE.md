@@ -298,10 +298,18 @@ or more, so two missions made inside one tick were handed the *same* id — and
 first, while `delete` would then take both. It reached CI as one Windows-only
 failure among 147 green, and the next push passed by luck of tick timing, which
 is exactly why "flaky" was the wrong reading. `_mintId` is monotonic within the
-process, and `AppStore` takes its clock as a parameter so a *frozen* one — the
-coarse platform taken to its limit — proves the property on the Linux runner.
-The first version of that test used the real clock, passed on Linux, and proved
-nothing.
+process **and floored at load by the largest id already on disk**, since the
+counter alone dies with the process and a clock corrected backwards can land a
+later launch on an instant already spent. `AppStore` takes its clock as a
+parameter so a *frozen* one — the coarse platform taken to its limit — proves
+both properties on the Linux runner.
+
+Two of the three tests written for this proved nothing until they were checked
+by reverting the fix: the first used the real clock and passed on Linux because
+the resolution there genuinely is microseconds; the second set the second
+launch's clock *earlier*, which yields a lower id and so differs trivially. The
+collision needs the clock back on the **same** instant. **Revert the fix and
+watch the test fail, or it is not a test.**
 
 **`MpField` uppercases its label**, which is right for `NEXT ACTION` and
 unreadable for a sentence. A line of prose is a `Text`, not a field label.

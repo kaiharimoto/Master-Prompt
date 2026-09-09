@@ -73,6 +73,7 @@ class AppStore extends ChangeNotifier {
 
   Future<void> load() async {
     if (inMemory) {
+      _seedMintFloor();
       _currentId ??= _projects.isEmpty ? null : _projects.first.id;
       _loaded = true;
       notifyListeners();
@@ -109,6 +110,7 @@ class AppStore extends ChangeNotifier {
       }
     }
 
+    _seedMintFloor();
     _currentId ??= _projects.isEmpty ? null : _projects.first.id;
     _loaded = true;
     Diagnostics.instance.log('Loaded ${_projects.length} mission(s).');
@@ -129,9 +131,26 @@ class AppStore extends ChangeNotifier {
   /// a bug that had always been in `create` — where a double-tap on the seed
   /// screen is enough to reach it.
   ///
-  /// Monotonic within the process, so a tight loop cannot repeat. Across a
-  /// restart the wall clock has long passed anything issued before, so the
-  /// property this always had between sessions is unchanged.
+  /// Monotonic within the process, so a tight loop cannot repeat, and floored
+  /// at load by the largest id already on disk, so a clock that moved backwards
+  /// between launches cannot reissue one either.
+  /// Never issue an id that has already been issued, even if the clock has
+  /// moved backwards since.
+  ///
+  /// The counter alone only holds within one run of the app. A system clock
+  /// corrected backwards by NTP, or set by hand, or read from a dead RTC, puts
+  /// the next launch below ids already on disk — and an id that repeats is a
+  /// mission overwritten. Ids are base36 microseconds, so the largest one
+  /// already saved is the floor for the next.
+  void _seedMintFloor() {
+    for (final Project p in _projects) {
+      final int? issued = int.tryParse(p.id, radix: 36);
+      if (issued != null && issued > _lastMintedMicros) {
+        _lastMintedMicros = issued;
+      }
+    }
+  }
+
   String _mintId() {
     int micros = _now().microsecondsSinceEpoch;
     if (micros <= _lastMintedMicros) micros = _lastMintedMicros + 1;
