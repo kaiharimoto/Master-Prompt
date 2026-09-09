@@ -536,6 +536,125 @@ void main() {
     });
   });
 
+  group('a run left open is offered back', () {
+    test('a run interrupted mid-attempt is resumable, though nothing '
+        'scheduled it', () async {
+      // The case a resume is most wanted for, and the one `pendingResumes`
+      // cannot see: the app was closed or the machine rebooted partway
+      // through, so there is no scheduled time to be waiting for.
+      final Directory dir = Directory('${tmp.path}/store-open');
+      final RunStore store = RunStore(dir);
+      final DateTime now = DateTime.utc(2026, 9, 2, 12);
+      await store.save(
+        RunRecord(
+          runId: 'interrupted',
+          taskId: 'skyline-restaurant-bar',
+          workingDirectory: tmp.path,
+          prompt: 'Build it.',
+          sessionId: 'a0000000-0000-4000-8000-000000000000',
+          createdAt: now,
+        ),
+      );
+
+      final List<RunRecord> open = await store.resumable(now: now);
+      expect(await store.pendingResumes(), isEmpty);
+      expect(open, hasLength(1));
+      expect(
+        open.single.sessionId,
+        isNotNull,
+        reason:
+            'the session id is the difference between reattaching and sending '
+            'the whole brief again as a new conversation',
+      );
+    });
+
+    test(
+      'a run stopped by hand is offered, and a finished one is not',
+      () async {
+        final Directory dir = Directory('${tmp.path}/store-stopped');
+        final RunStore store = RunStore(dir);
+        final DateTime now = DateTime.utc(2026, 9, 2, 12);
+        RunRecord base(String id, RunConclusion? c) => RunRecord(
+          runId: id,
+          taskId: 't',
+          workingDirectory: tmp.path,
+          prompt: 'p',
+          conclusion: c,
+          createdAt: now,
+        );
+
+        await store.save(base('stopped', RunConclusion.cancelled));
+        await store.save(base('done', RunConclusion.completed));
+        await store.save(base('stalled', RunConclusion.stalled));
+
+        final List<String> ids = <String>[
+          for (final RunRecord r in await store.resumable(now: now)) r.runId,
+        ];
+        expect(
+          ids,
+          contains('stopped'),
+          reason: 'Stop says the run can be resumed, so it had better be',
+        );
+        expect(ids, isNot(contains('done')));
+      },
+    );
+
+    test('a run from three weeks ago is not an offer worth making', () async {
+      final Directory dir = Directory('${tmp.path}/store-stale');
+      final RunStore store = RunStore(dir);
+      final DateTime now = DateTime.utc(2026, 9, 2, 12);
+      await store.save(
+        RunRecord(
+          runId: 'ancient',
+          taskId: 't',
+          workingDirectory: tmp.path,
+          prompt: 'p',
+          createdAt: now.subtract(const Duration(days: 21)),
+        ),
+      );
+
+      expect(await store.resumable(now: now), isEmpty);
+      expect(
+        await store.resumable(now: now, within: const Duration(days: 30)),
+        hasLength(1),
+        reason: 'the window is a judgement, so it is a parameter',
+      );
+    });
+
+    test('a resumed record is not finished before it starts', () async {
+      // `isFinished` is the supervisor's loop condition, and a stopped record
+      // handed straight back would break out of the loop on the first check.
+      final RunRecord stopped = RunRecord(
+        runId: 'r',
+        taskId: 't',
+        workingDirectory: tmp.path,
+        prompt: 'p',
+        conclusion: RunConclusion.cancelled,
+      );
+
+      expect(stopped.isFinished, isTrue);
+      expect(stopped.copyWith(clearConclusion: true).isFinished, isFalse);
+    });
+
+    test('the newest is offered first', () async {
+      final Directory dir = Directory('${tmp.path}/store-order');
+      final RunStore store = RunStore(dir);
+      final DateTime now = DateTime.utc(2026, 9, 2, 12);
+      for (int i = 0; i < 3; i++) {
+        await store.save(
+          RunRecord(
+            runId: 'r$i',
+            taskId: 't',
+            workingDirectory: tmp.path,
+            prompt: 'p',
+            createdAt: now.subtract(Duration(hours: i)),
+          ),
+        );
+      }
+      expect((await store.resumable(now: now)).first.runId, 'r0');
+    });
+  });
+
   group('the clock that actually waits', () {
     test('cuts a long wait short the moment Stop arrives', () async {
       // TestClock is a stand-in; this is the implementation that will be

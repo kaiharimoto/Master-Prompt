@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:master_prompt/src/screens/run_screen.dart';
 import 'package:master_prompt/src/store/app_store.dart';
 import 'package:master_prompt/src/store/desktop_runner.dart';
+import 'dart:io';
+
 import 'package:master_prompt/src/store/project.dart';
 import 'package:master_prompt/src/store/settings.dart';
 import 'package:mp_core/mp_core.dart';
@@ -32,6 +34,7 @@ class StubRunner extends DesktopRunner {
     this.stubElapsed = Duration.zero,
     this.stubDirectory,
     this.stubOutcome,
+    this.stubResumable,
   });
 
   final DesktopRunStatus stubStatus;
@@ -48,6 +51,7 @@ class StubRunner extends DesktopRunner {
   final Duration stubElapsed;
   final String? stubDirectory;
   final MissionOutcome? stubOutcome;
+  final RunRecord? stubResumable;
 
   @override
   DesktopRunStatus get status => stubStatus;
@@ -81,6 +85,15 @@ class StubRunner extends DesktopRunner {
   String? get workingDirectory => stubDirectory;
   @override
   MissionOutcome? get outcome => stubOutcome;
+  @override
+  RunRecord? get resumable => stubResumable;
+
+  /// The screen sweeps the store on arrival. There is no store here.
+  @override
+  Future<void> lookForResumable({
+    required Project project,
+    required Directory stateDirectory,
+  }) async {}
 
   /// The screen probes on arrival. There is nothing to probe here, and a real
   /// one cannot complete in the tester's zone.
@@ -201,6 +214,90 @@ void main() {
     ) async {
       await show(tester, StubRunner(stubDirectory: '/home/k/missions/bar'));
       expect(find.textContaining('/home/k/missions/bar'), findsOneWidget);
+    });
+  });
+
+  group('a run left open is offered back', () {
+    testWidgets('an interrupted run is offered, not silently abandoned', (
+      WidgetTester tester,
+    ) async {
+      // Reopening the app used to show the Run screen exactly as it was before
+      // anything happened — idle, empty log, one button reading "Run this
+      // mission" — which minted a fresh id with no session and sent the whole
+      // brief again, while the panel promised that closing the app was safe.
+      await show(
+        tester,
+        StubRunner(
+          stubStatus: DesktopRunStatus.idle,
+          stubResumable: RunRecord(
+            runId: 'r',
+            taskId: 'cocktail_bar',
+            workingDirectory: '/tmp/bar',
+            prompt: 'Build it.',
+            sessionId: 'a0000000-0000-4000-8000-000000000000',
+            attempts: <RunAttempt>[
+              RunAttempt(
+                index: 1,
+                startedAt: DateTime.utc(2026),
+                endedAt: DateTime.utc(2026),
+                exitCode: 0,
+                sessionId: 'a0000000-0000-4000-8000-000000000000',
+                strategy: 'fresh',
+              ),
+            ],
+            createdAt: DateTime.utc(2026),
+          ),
+        ),
+      );
+
+      expect(find.text('A run was left unfinished.'), findsOneWidget);
+      expect(find.text('Continue this run'), findsOneWidget);
+      expect(find.textContaining('a0000000'), findsOneWidget);
+      expect(
+        find.text('Start over'),
+        findsOneWidget,
+        reason:
+            'starting again is still offered, and is now named for what it '
+            'actually does rather than being the only choice',
+      );
+    });
+
+    testWidgets('a run with no session says what continuing would cost', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        StubRunner(
+          stubStatus: DesktopRunStatus.idle,
+          stubResumable: RunRecord(
+            runId: 'r',
+            taskId: 'cocktail_bar',
+            workingDirectory: '/tmp/bar',
+            prompt: 'Build it.',
+            createdAt: DateTime.utc(2026),
+          ),
+        ),
+      );
+
+      expect(find.textContaining('no session to reattach to'), findsOneWidget);
+    });
+
+    testWidgets('nothing is offered while a run is going', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        StubRunner(
+          stubResumable: RunRecord(
+            runId: 'r',
+            taskId: 'cocktail_bar',
+            workingDirectory: '/tmp/bar',
+            prompt: 'p',
+            createdAt: DateTime.utc(2026),
+          ),
+        ),
+      );
+      expect(find.text('Continue this run'), findsNothing);
     });
   });
 

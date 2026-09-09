@@ -148,6 +148,7 @@ class RunRecord {
     List<RunAttempt>? attempts,
     DateTime? scheduledResumeAt,
     bool clearSchedule = false,
+    bool clearConclusion = false,
     DateTime? blockStartedAt,
     RunConclusion? conclusion,
     LimitVerdict? lastVerdict,
@@ -163,7 +164,10 @@ class RunRecord {
         ? null
         : (scheduledResumeAt ?? this.scheduledResumeAt),
     blockStartedAt: blockStartedAt ?? this.blockStartedAt,
-    conclusion: conclusion ?? this.conclusion,
+    // A resumed run is not finished any more, and `isFinished` is what the
+    // supervisor's loop condition reads — a stopped record handed back for
+    // resume would otherwise be over before it started.
+    conclusion: clearConclusion ? null : (conclusion ?? this.conclusion),
     lastVerdict: lastVerdict ?? this.lastVerdict,
     consecutiveNoProgress: consecutiveNoProgress ?? this.consecutiveNoProgress,
     createdAt: createdAt,
@@ -278,6 +282,54 @@ class RunStore {
       return null;
     }
     return null;
+  }
+
+  /// Every run that could be picked up again.
+  ///
+  /// Broader than [pendingResumes] on purpose, and the difference is the whole
+  /// point. That one answers "which runs are waiting on a clock", and a run
+  /// whose app was closed or whose machine rebooted mid-attempt has no
+  /// scheduled time at all — which is exactly the case a resume is most wanted
+  /// for. A run stopped by hand counts too, because Stop says the run is saved
+  /// and can be resumed and that had better be true.
+  ///
+  /// [now] is a parameter rather than a call to the clock so the staleness
+  /// window is testable; a record from three weeks ago is not an offer worth
+  /// making.
+  Future<List<RunRecord>> resumable({
+    Duration within = const Duration(days: 7),
+    DateTime? now,
+  }) async {
+    final DateTime at = now ?? DateTime.now().toUtc();
+    final List<RunRecord> out = <RunRecord>[];
+    for (final RunRecord r in await _all()) {
+      final bool open =
+          !r.isFinished || r.conclusion == RunConclusion.cancelled;
+      if (!open) continue;
+      final DateTime? made = r.createdAt;
+      if (made != null && at.difference(made) > within) continue;
+      out.add(r);
+    }
+    out.sort(
+      (RunRecord a, RunRecord b) => (b.createdAt ?? DateTime.utc(1970))
+          .compareTo(a.createdAt ?? DateTime.utc(1970)),
+    );
+    return out;
+  }
+
+  Future<List<RunRecord>> _all() async {
+    if (!directory.existsSync()) return <RunRecord>[];
+    final List<RunRecord> out = <RunRecord>[];
+    for (final FileSystemEntity e in directory.listSync()) {
+      if (e is! File || !e.path.endsWith('.json')) continue;
+      try {
+        final Object? j = jsonDecode(await e.readAsString());
+        if (j is Map<String, Object?>) out.add(RunRecord.fromJson(j));
+      } on FormatException {
+        continue;
+      }
+    }
+    return out;
   }
 
   /// Every run that is waiting for a scheduled resume.

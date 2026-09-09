@@ -168,22 +168,66 @@ class DesktopRunner extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A run on disk that could be picked up rather than started over.
+  ///
+  /// The store has always written one and nothing ever read one back, so
+  /// reopening the app after a crash, a reboot or a stop showed a Run screen
+  /// exactly as it was before anything happened: status idle, empty log, one
+  /// button reading "Run this mission". Pressing it minted a fresh id with no
+  /// session, and eleven hours of context went back to the start — while the
+  /// panel said "Closing the app is safe" and the supervisor said "Sign in
+  /// again, then resume this run".
+  RunRecord? _resumable;
+  RunRecord? get resumable => _resumable;
+
+  Directory _runsIn(Directory stateDirectory) =>
+      Directory('${stateDirectory.path}${Platform.pathSeparator}runs');
+
+  /// Look for one, for this mission. Called when the Run screen opens.
+  Future<void> lookForResumable({
+    required Project project,
+    required Directory stateDirectory,
+  }) async {
+    if (isBusy) return;
+    final List<RunRecord> open = await RunStore(
+      _runsIn(stateDirectory),
+    ).resumable();
+    RunRecord? found;
+    for (final RunRecord r in open) {
+      if (r.taskId == project.spec.taskId) {
+        found = r;
+        break;
+      }
+    }
+    if (found == _resumable) return;
+    _resumable = found;
+    notifyListeners();
+  }
+
   /// Launch the mission and supervise it until it finishes or stalls.
+  ///
+  /// Pass [resuming] to continue a run already on disk: its session id, its
+  /// attempt history and its working directory all come from the record, which
+  /// is the difference between reattaching and starting again.
   Future<void> start({
     required Project project,
     required AppSettings settings,
     required Directory stateDirectory,
     ValueChanged<MpState>? onState,
+    RunRecord? resuming,
   }) async {
     if (isBusy) return;
     if (_install == null) await detect(settings);
     final ClaudeInstall? install = _install;
     if (install == null) return;
 
+    // A resumed run continues where it was, whatever Settings says now.
     final String workingDirectory =
-        settings.workingDirectory?.trim().isNotEmpty ?? false
-        ? settings.workingDirectory!.trim()
-        : '${stateDirectory.path}${Platform.pathSeparator}${project.spec.taskId}';
+        resuming?.workingDirectory ??
+        (settings.workingDirectory?.trim().isNotEmpty ?? false
+            ? settings.workingDirectory!.trim()
+            : '${stateDirectory.path}${Platform.pathSeparator}'
+                  '${project.spec.taskId}');
     final Directory wd = Directory(workingDirectory);
     if (!wd.existsSync()) wd.createSync(recursive: true);
 
@@ -209,6 +253,7 @@ class DesktopRunner extends ChangeNotifier {
     _sessionId = null;
     _record = null;
     _outcome = null;
+    _resumable = null;
     _heartbeat = RunHeartbeat(expectedTaskId: project.spec.taskId);
     _onState = onState;
     _workingDirectory = wd.path;
@@ -222,9 +267,7 @@ class DesktopRunner extends ChangeNotifier {
     final RunSupervisor supervisor = RunSupervisor(
       executable: install.path,
       capabilities: install.capabilities,
-      store: RunStore(
-        Directory('${stateDirectory.path}${Platform.pathSeparator}runs'),
-      ),
+      store: RunStore(_runsIn(stateDirectory)),
     );
     _supervisor = supervisor;
 
@@ -266,13 +309,16 @@ class DesktopRunner extends ChangeNotifier {
 
     try {
       final RunRecord out = await supervisor.execute(
-        RunRecord(
-          runId: '${project.id}-${DateTime.now().millisecondsSinceEpoch}',
-          taskId: project.spec.taskId,
-          workingDirectory: wd.path,
-          prompt: compiled.body,
-          createdAt: DateTime.now().toUtc(),
-        ),
+        // A resumed record keeps its conclusion until the supervisor clears
+        // it; a stopped run would otherwise be finished before it started.
+        resuming?.copyWith(clearConclusion: true) ??
+            RunRecord(
+              runId: '${project.id}-${DateTime.now().millisecondsSinceEpoch}',
+              taskId: project.spec.taskId,
+              workingDirectory: wd.path,
+              prompt: compiled.body,
+              createdAt: DateTime.now().toUtc(),
+            ),
       );
       _record = out;
       _status = out.conclusion == RunConclusion.completed

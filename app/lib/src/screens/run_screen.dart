@@ -269,6 +269,70 @@ String _countdown(DateTime resumeAt) {
   return left.isNegative ? 'any moment' : 'in ${_spell(left)}';
 }
 
+/// A run left open, offered rather than silently abandoned.
+///
+/// The whole value of the state file, unspent until now: it holds the session
+/// id, the attempt history, the working directory and the point the run had
+/// reached. Without this the only recovery was "Run this mission", which mints
+/// a fresh id with no session and sends the entire brief again.
+class _ResumeOffer extends StatelessWidget {
+  const _ResumeOffer({required this.record, required this.onResume});
+
+  final RunRecord record;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final DateTime? at = record.scheduledResumeAt;
+
+    return MpPanel(
+      accent: c.accent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            at != null
+                ? 'A run is waiting to resume.'
+                : 'A run was left unfinished.',
+            style: MpType.label.copyWith(color: c.ink),
+          ),
+          const SizedBox(height: MpSpace.xs),
+          Text(
+            <String>[
+              '${record.attempts.length} attempt(s)',
+              if (record.sessionId != null)
+                'session ${record.sessionId!.substring(0, 8)}'
+              else
+                'no session to reattach to',
+              if (at != null) 'due ${_clockTime(at.toLocal())}',
+            ].join(' · '),
+            style: MpType.caption.copyWith(color: c.inkMuted),
+          ),
+          const SizedBox(height: MpSpace.md),
+          MpButton(
+            label: 'Continue this run',
+            icon: Icons.restart_alt,
+            kind: MpButtonKind.primary,
+            expand: true,
+            onPressed: onResume,
+          ),
+          const SizedBox(height: MpSpace.xs),
+          Text(
+            record.sessionId == null
+                ? 'It will start from the brief and the recorded state, in the '
+                      'same working directory.'
+                : 'It reattaches to the same Claude session, so the work so '
+                      'far is still in context. Starting over would send the '
+                      'whole brief again as a new conversation.',
+            style: MpType.caption.copyWith(color: c.inkFaint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Whether the run met what the brief actually asked for.
 ///
 /// A run was called finished on one signal — the process exited zero and the
@@ -580,19 +644,28 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
   void initState() {
     super.initState();
     // Probe the CLI on arrival so the user learns it is missing before they
-    // press anything, not after.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.runner.detect(widget.store.settings);
+    // press anything, not after — and look for a run left open, which is the
+    // sweep that makes a resume survive a reboot.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await widget.runner.detect(widget.store.settings);
+      if (!mounted) return;
+      final Directory dir = await getApplicationSupportDirectory();
+      if (!mounted) return;
+      await widget.runner.lookForResumable(
+        project: widget.project,
+        stateDirectory: dir,
+      );
     });
   }
 
-  Future<void> _start() async {
+  Future<void> _start({RunRecord? resuming}) async {
     final Directory dir = await getApplicationSupportDirectory();
     if (!mounted) return;
     await widget.runner.start(
       project: widget.project,
       settings: widget.store.settings,
       stateDirectory: dir,
+      resuming: resuming,
       // What the run says about itself is written down where everything else
       // reads it: the resume capsule, the diagnostics report and the Progress
       // panel on the next launch all go through `lastState`, and a desktop run
@@ -653,6 +726,14 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
               if (r.outcome != null && r.outcome!.hasGates) ...<Widget>[
                 const SizedBox(height: MpSpace.md),
                 _OutcomePanel(outcome: r.outcome!),
+              ],
+
+              if (!r.isBusy && r.resumable != null) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                _ResumeOffer(
+                  record: r.resumable!,
+                  onResume: () => _start(resuming: r.resumable),
+                ),
               ],
 
               if (r.error != null) ...<Widget>[
@@ -763,7 +844,11 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
                 children: <Widget>[
                   Expanded(
                     child: MpButton(
-                      label: r.isBusy ? 'Running' : 'Run this mission',
+                      label: r.isBusy
+                          ? 'Running'
+                          : r.resumable != null
+                          ? 'Start over'
+                          : 'Run this mission',
                       icon: Icons.play_arrow,
                       kind: MpButtonKind.primary,
                       expand: true,
