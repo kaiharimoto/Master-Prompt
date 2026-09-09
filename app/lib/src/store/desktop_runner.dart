@@ -65,6 +65,7 @@ class DesktopRunner extends ChangeNotifier {
   String? _sessionId;
   String? _workingDirectory;
   DateTime? _startedAt;
+  DateTime? _endedAt;
   Timer? _tick;
   ValueChanged<MpState>? _onState;
 
@@ -109,9 +110,24 @@ class DesktopRunner extends ChangeNotifier {
   /// How long the run has been going. A number that moves is the difference
   /// between "working" and "wedged", and over twelve hours it is most of what
   /// there is to look at.
-  Duration get elapsed => _startedAt == null
+  /// Frozen once the run ends. Without the second clock this kept counting off
+  /// the wall clock after the run was over, so a run that took forty minutes
+  /// read as four hours by the time anyone looked at the screen again — and
+  /// the number was in the diagnostics report too.
+  Duration get elapsed => elapsedBetween(_startedAt, _endedAt, DateTime.now());
+
+  /// Pulled out because the fields behind it are only ever set by `start`,
+  /// which spawns a process and so cannot run under the tester at all. A test
+  /// that drove this through `detect` compared zero against zero and passed
+  /// while proving nothing.
+  @visibleForTesting
+  static Duration elapsedBetween(
+    DateTime? startedAt,
+    DateTime? endedAt,
+    DateTime now,
+  ) => startedAt == null
       ? Duration.zero
-      : DateTime.now().difference(_startedAt!);
+      : (endedAt ?? now).difference(startedAt);
 
   /// Every candidate the last search tried, and what became of it.
   ///
@@ -280,6 +296,7 @@ class DesktopRunner extends ChangeNotifier {
     _onState = onState;
     _workingDirectory = wd.path;
     _startedAt = DateTime.now();
+    _endedAt = null;
     _tick = Timer.periodic(
       const Duration(seconds: 1),
       (_) => notifyListeners(),
@@ -379,6 +396,7 @@ class DesktopRunner extends ChangeNotifier {
       _supervisor = null;
       _tick?.cancel();
       _tick = null;
+      _endedAt = DateTime.now();
       notifyListeners();
     }
   }

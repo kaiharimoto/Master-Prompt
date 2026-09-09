@@ -158,6 +158,39 @@ void main() {
       expect(s.asked, <bool>[true, false]);
     });
 
+    test('a run that is over has a duration, not a running total', () {
+      // `elapsed` was computed against the wall clock with no end recorded, so
+      // a run that took forty minutes read as four hours by the time anyone
+      // looked at the screen again — and the number went into the diagnostics
+      // report as well.
+      final DateTime began = DateTime.utc(2026, 9, 9, 10);
+      final DateTime ended = began.add(const Duration(minutes: 40));
+
+      expect(
+        DesktopRunner.elapsedBetween(
+          began,
+          null,
+          began.add(const Duration(minutes: 12)),
+        ),
+        const Duration(minutes: 12),
+        reason: 'a run in flight counts up',
+      );
+      expect(
+        DesktopRunner.elapsedBetween(
+          began,
+          ended,
+          ended.add(const Duration(hours: 3)),
+        ),
+        const Duration(minutes: 40),
+        reason: 'three hours later it is still a forty minute run',
+      );
+      expect(
+        DesktopRunner.elapsedBetween(null, null, began),
+        Duration.zero,
+        reason: 'nothing has run, so there is nothing to report',
+      );
+    });
+
     test('disposing lets go even if nothing else did', () async {
       final RecordingSurface s = RecordingSurface();
       final Completer<ClaudeInstall> gate = Completer<ClaudeInstall>();
