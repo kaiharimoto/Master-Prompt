@@ -6,6 +6,7 @@ import 'package:mp_design/mp_design.dart';
 import '../store/app_store.dart';
 import '../store/diagnostics.dart';
 import '../store/project.dart';
+import '../widgets/asked_questions.dart';
 import '../widgets/exchange.dart';
 import 'brief_preview.dart';
 
@@ -26,6 +27,14 @@ class _PromptScreenState extends State<PromptScreen> {
   static const SpecPatchParser _patcher = SpecPatchParser();
 
   bool _redTeaming = false;
+
+  static const AskedRoundParser _asker = AskedRoundParser();
+
+  /// Judgement calls the pass put back to me. The red-team prompt is told to
+  /// ask rather than guess where a fix is a decision, so these are the ones
+  /// that matter most — and they were reaching the screen as a wall of prose
+  /// with no way to answer but retyping.
+  AskedRound? _asked;
   String? _redTeamNote;
 
   /// A parsed red-team reply, held rather than applied.
@@ -59,13 +68,26 @@ class _PromptScreenState extends State<PromptScreen> {
         note: 'red-team: ${r.applied.length} proposed',
       ),
     );
+    final AskedRound asked = _asker.parse(r.prose ?? reply);
     setState(() {
       _pending = r.found && r.hasChanges ? r : null;
-      _redTeamNote = r.found
+      _asked = asked.found ? asked : null;
+      _redTeamNote = r.found || asked.found
           ? null
           : 'No patch block in that reply. ${r.diagnostic ?? 'If it only '
                     'listed findings, ask Claude to end with the json block '
                     'carrying the fixes.'}';
+    });
+  }
+
+  Future<void> _copyAnswer(String answer) async {
+    await Clipboard.setData(ClipboardData(text: answer));
+    if (!mounted) return;
+    setState(() {
+      _asked = null;
+      _redTeamNote =
+          'Copied. Paste it into the same chat, and bring the next reply back '
+          'here.';
     });
   }
 
@@ -296,6 +318,24 @@ class _PromptScreenState extends State<PromptScreen> {
                     onSubmit: _applyRedTeam,
                     hint: 'Paste the findings and fixes',
                     actionLabel: 'Read the fixes',
+                  ),
+                ],
+                if (_asked != null) ...<Widget>[
+                  const SizedBox(height: MpSpace.md),
+                  MpSectionHeader(
+                    number: '--',
+                    title: 'It asked rather than guessed',
+                    subtitle:
+                        'The pass is told to put a judgement call back to you '
+                        'instead of deciding it. Answer these and paste the '
+                        'result into the same chat.',
+                  ),
+                  const SizedBox(height: MpSpace.md),
+                  AskedQuestions(
+                    round: _asked!,
+                    // Copy rather than send: the red-team pass travels by
+                    // clipboard, so the answer goes the way it came.
+                    onSend: _copyAnswer,
                   ),
                 ],
                 if (_pending != null) ...<Widget>[

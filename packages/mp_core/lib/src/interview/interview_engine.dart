@@ -133,9 +133,12 @@ class InterviewEngine {
       ..writeln('## What to do')
       ..writeln()
       ..writeln(
-        'Ask me **two to four** focused questions about the items above. Ask '
-        'about what the thing should be, not how to build it — implementation '
-        'comes later and deciding it now would anchor the whole brief.',
+        'Ask me **one or two questions per unsettled item above, up to six in '
+        'all**. I answer these by tapping, not by typing, so a further '
+        'question costs me a moment and a further round trip costs a minute — '
+        'cover the round rather than saving me questions. Ask about what the '
+        'thing should be, not how to build it: implementation comes later and '
+        'deciding it now would anchor the whole brief.',
       )
       ..writeln()
       ..writeln(
@@ -244,11 +247,11 @@ class InterviewEngine {
     b
       ..writeln()
       ..writeln(
-        'Same as before: two to four questions on these, each with numbered '
-        'options I can answer by number, one of them recommended with a '
-        'reason, an `mpask` block indexing them so I can tap rather than type, '
-        'nothing in the answer block I have not picked, and then end your '
-        'reply with one fenced `json` block and nothing after it.',
+        'Same as before: cover these in up to six questions, each with '
+        'numbered options I can answer by number, one of them recommended with '
+        'a reason, an `mpask` block indexing them so I can tap rather than '
+        'type, nothing in the answer block I have not picked, and then end '
+        'your reply with one fenced `json` block and nothing after it.',
       )
       ..writeln();
     _patchFormat(b, stage);
