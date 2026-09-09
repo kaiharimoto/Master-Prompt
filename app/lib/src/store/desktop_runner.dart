@@ -38,6 +38,50 @@ class DesktopRunner extends ChangeNotifier {
   LimitKind? _limitKind;
   List<ProbeAttempt> _attempts = const <ProbeAttempt>[];
 
+  RunHeartbeat? _heartbeat;
+  int _attempt = 0;
+  double? _costUsd;
+  String? _sessionId;
+  String? _workingDirectory;
+  DateTime? _startedAt;
+  Timer? _tick;
+  ValueChanged<MpState>? _onState;
+
+  /// What the run last said about itself.
+  ///
+  /// The brief demands an `mpstate` heartbeat on every reply and explains why
+  /// on the CLI transport in particular — it doubles as a compaction detector,
+  /// because micro-compaction is not observable from the event stream. Nothing
+  /// read it. The block scrolled past in the log as three lines of
+  /// `phase=build` among thousands, and the Progress panel said "nothing
+  /// recorded yet" for twelve hours while the run reported its score, its
+  /// phase, what it was blocked on and what it wanted to ask, every turn.
+  MpState? get state => _heartbeat?.state;
+
+  /// Which attempt is in flight. The supervisor has always emitted this and
+  /// the adapter always threw it away, so a run on its seventh resume looked
+  /// exactly like one that had just started.
+  int get attempt => _attempt;
+
+  /// Spent so far, summed over attempts. Null until the CLI reports one.
+  double? get costUsd => _costUsd;
+
+  /// The session the run is attached to — the thing that makes a resume a
+  /// resume rather than a fresh start.
+  String? get sessionId => _sessionId;
+
+  /// Where the work is happening. The panel used to promise that the brief
+  /// was written to the working directory without ever naming it, and by
+  /// default it is a path inside application support that nobody has seen.
+  String? get workingDirectory => _workingDirectory;
+
+  /// How long the run has been going. A number that moves is the difference
+  /// between "working" and "wedged", and over twelve hours it is most of what
+  /// there is to look at.
+  Duration get elapsed => _startedAt == null
+      ? Duration.zero
+      : DateTime.now().difference(_startedAt!);
+
   /// Every candidate the last search tried, and what became of it.
   ///
   /// Shown whether or not the search succeeded: someone who does not know how
@@ -119,6 +163,7 @@ class DesktopRunner extends ChangeNotifier {
     required Project project,
     required AppSettings settings,
     required Directory stateDirectory,
+    ValueChanged<MpState>? onState,
   }) async {
     if (isBusy) return;
     if (_install == null) await detect(settings);
@@ -145,6 +190,22 @@ class DesktopRunner extends ChangeNotifier {
     _error = null;
     _resumeAt = null;
     _limitKind = null;
+    // A second run used to append to the first one's output with nothing
+    // between them, so the top of the box was history and there was no way to
+    // tell where.
+    _log.clear();
+    _attempt = 0;
+    _costUsd = null;
+    _sessionId = null;
+    _record = null;
+    _heartbeat = RunHeartbeat(expectedTaskId: project.spec.taskId);
+    _onState = onState;
+    _workingDirectory = wd.path;
+    _startedAt = DateTime.now();
+    _tick = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => notifyListeners(),
+    );
     notifyListeners();
 
     final RunSupervisor supervisor = RunSupervisor(
@@ -166,14 +227,21 @@ class DesktopRunner extends ChangeNotifier {
         case 'launch':
           _status = DesktopRunStatus.running;
           _resumeAt = null;
-          _say('Launching.');
+          _attempt = (e.record?.attempts.length ?? _attempt) + 1;
+          _say(_attempt <= 1 ? 'Launching.' : 'Resuming — attempt $_attempt.');
         case 'event':
           // Only the assistant's own words go to the log; the raw stream is
           // written to disk in full by the supervisor.
           final CliEvent? c = e.cliEvent;
+          _sessionId = c?.sessionId ?? _sessionId;
+          if (c is ResultEvent && c.costUsd != null) {
+            _costUsd = (_costUsd ?? 0) + c.costUsd!;
+          }
           if (c is AssistantEvent &&
               !c.isSubagent &&
               c.text.trim().isNotEmpty) {
+            final MpState? beat = _heartbeat?.read(c.text);
+            if (beat != null) _onState?.call(beat);
             _say(c.text.trim());
           } else if (c is AssistantEvent && c.toolUses.isNotEmpty) {
             _say('· ${c.toolUses.join(', ')}');
@@ -209,6 +277,8 @@ class DesktopRunner extends ChangeNotifier {
     } finally {
       await supervisor.dispose();
       _supervisor = null;
+      _tick?.cancel();
+      _tick = null;
       notifyListeners();
     }
   }
@@ -220,6 +290,7 @@ class DesktopRunner extends ChangeNotifier {
 
   @override
   void dispose() {
+    _tick?.cancel();
     unawaited(_supervisor?.dispose());
     super.dispose();
   }

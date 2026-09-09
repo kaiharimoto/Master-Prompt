@@ -14,6 +14,7 @@ export 'src/spec/spec_field.dart';
 export 'src/spec/spec_sections.dart';
 export 'src/spec/spec_types.dart';
 export 'src/continuity/mp_state.dart';
+export 'src/continuity/run_heartbeat.dart';
 export 'src/continuity/state_parser.dart';
 export 'src/continuity/resume_capsule.dart';
 export 'src/interview/asked_round.dart';

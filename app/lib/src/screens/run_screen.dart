@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:mp_design/mp_design.dart';
+import 'package:mp_runner/mp_runner.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../store/app_store.dart';
@@ -119,7 +121,6 @@ class _RunScreenState extends State<RunScreen> {
       p.spec,
       profile: TransportProfile.paste,
     );
-    final MpState? state = p.lastState;
 
     return ListView(
       padding: const EdgeInsets.all(MpSpace.md),
@@ -132,7 +133,15 @@ class _RunScreenState extends State<RunScreen> {
               children: <Widget>[
                 const MpSectionHeader(number: '01', title: 'Progress'),
                 const SizedBox(height: MpSpace.md),
-                _StatePanel(state: state, spec: p.spec),
+                // Listening to the runner, because on desktop this panel is
+                // now fed by the run itself rather than only by a hand-paste.
+                ListenableBuilder(
+                  listenable: _runner,
+                  builder: (BuildContext context, _) => _StatePanel(
+                    state: _runner.state ?? p.lastState,
+                    spec: p.spec,
+                  ),
+                ),
 
                 const SizedBox(height: MpSpace.xl),
                 MpSectionHeader(
@@ -169,11 +178,28 @@ class _RunScreenState extends State<RunScreen> {
                   ),
 
                 const SizedBox(height: MpSpace.md),
-                MpInbound(
-                  onSubmit: _applyState,
-                  hint: "Paste Claude's reply, including its mpstate block",
-                  actionLabel: 'Record progress',
-                ),
+                if (_canRunLocally)
+                  // Kept, never removed — the same rule as copy-paste in the
+                  // interview. The CLI reads the heartbeat out of the run
+                  // itself now, so pasting one by hand is the fallback for a
+                  // mission carried on a phone and brought back here, not the
+                  // only way progress is ever recorded.
+                  MpDisclosure(
+                    label: 'Record progress by hand',
+                    child: MpInbound(
+                      onSubmit: _applyState,
+                      hint:
+                          'Paste a reply from elsewhere, including its mpstate '
+                          'block',
+                      actionLabel: 'Record progress',
+                    ),
+                  )
+                else
+                  MpInbound(
+                    onSubmit: _applyState,
+                    hint: "Paste Claude's reply, including its mpstate block",
+                    actionLabel: 'Record progress',
+                  ),
 
                 if (_note != null) ...<Widget>[
                   const SizedBox(height: MpSpace.md),
@@ -208,7 +234,7 @@ class _RunScreenState extends State<RunScreen> {
                   _Capsule(
                     capsule: _capsules.build(
                       spec: p.spec,
-                      state: state,
+                      state: _runner.state ?? p.lastState,
                       compiled: compiled,
                       producedArtifacts: p.producedArtifacts,
                     ),
@@ -219,6 +245,102 @@ class _RunScreenState extends State<RunScreen> {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Wall-clock, to the minute. `DateTime.toString()` printed microseconds at
+/// someone waiting five hours.
+String _clockTime(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+/// How long a duration reads as, at a glance and at every scale a run reaches.
+String _spell(Duration d) {
+  if (d.inSeconds < 60) return '${d.inSeconds}s';
+  if (d.inMinutes < 60) return '${d.inMinutes}m';
+  return '${d.inHours}h ${d.inMinutes.remainder(60)}m';
+}
+
+/// A timestamp five hours out is indistinguishable from a hang. A number that
+/// counts down is not.
+String _countdown(DateTime resumeAt) {
+  final Duration left = resumeAt.difference(DateTime.now().toUtc());
+  return left.isNegative ? 'any moment' : 'in ${_spell(left)}';
+}
+
+/// What the run costs and how far into it you are.
+///
+/// Every number here was already computed, persisted to JSON, and then
+/// dropped before it reached a widget. Over twelve hours the screen offered a
+/// status word and a scrolling log, which cannot answer "is it still working"
+/// or "how much has this cost".
+class _Vitals extends StatelessWidget {
+  const _Vitals({required this.runner});
+
+  final DesktopRunner runner;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    final DesktopRunner r = runner;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Wrap(
+          spacing: MpSpace.md,
+          runSpacing: MpSpace.xs,
+          children: <Widget>[
+            if (r.elapsed > Duration.zero)
+              _Vital(label: 'Elapsed', value: _spell(r.elapsed)),
+            if (r.attempt > 0)
+              _Vital(
+                label: 'Attempt',
+                value: '${r.attempt}',
+                // A run on its seventh resume looked exactly like one that had
+                // just started.
+                tone: r.attempt > 1 ? c.warning : null,
+              ),
+            if (r.costUsd != null)
+              _Vital(
+                label: 'Spent',
+                value: '\$${r.costUsd!.toStringAsFixed(2)}',
+              ),
+          ],
+        ),
+        if (r.sessionId != null) ...<Widget>[
+          const SizedBox(height: MpSpace.xs),
+          Text(
+            'Session ${r.sessionId}',
+            style: MpType.caption.copyWith(color: c.inkFaint),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _Vital extends StatelessWidget {
+  const _Vital({required this.label, required this.value, this.tone});
+
+  final String label;
+  final String value;
+  final Color? tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final MpColors c = MpTheme.colorsOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          label.toUpperCase(),
+          style: MpType.eyebrow.copyWith(color: c.inkFaint),
+        ),
+        Text(value, style: MpType.numeric.copyWith(color: tone ?? c.ink)),
       ],
     );
   }
@@ -389,6 +511,14 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
       project: widget.project,
       settings: widget.store.settings,
       stateDirectory: dir,
+      // What the run says about itself is written down where everything else
+      // reads it: the resume capsule, the diagnostics report and the Progress
+      // panel on the next launch all go through `lastState`, and a desktop run
+      // used to leave all three empty.
+      onState: (MpState s) {
+        widget.project.lastState = s;
+        unawaited(widget.store.save(widget.project));
+      },
     );
   }
 
@@ -427,9 +557,42 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
                 ],
               ),
 
+              if (r.isBusy || r.record != null || r.attempt > 0) ...<Widget>[
+                const SizedBox(height: MpSpace.md),
+                _Vitals(runner: r),
+              ],
+
               if (r.error != null) ...<Widget>[
                 const SizedBox(height: MpSpace.md),
                 Text(r.error!, style: MpType.caption.copyWith(color: c.danger)),
+                const SizedBox(height: MpSpace.sm),
+                // The search reports every candidate and what became of it,
+                // and that list was reachable only from Settings. Being told
+                // one sentence and left with nowhere to go is how a fixable
+                // install reads as a broken program.
+                if (r.attempts.isNotEmpty)
+                  MpDisclosure(
+                    label: 'Where it looked',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        for (final ProbeAttempt a in r.attempts)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              '${a.outcome.name}  ${a.path}'
+                              '${a.detail.isEmpty ? '' : '  — ${a.detail}'}',
+                              style: MpType.mono.copyWith(color: c.inkMuted),
+                            ),
+                          ),
+                        const SizedBox(height: MpSpace.sm),
+                        Text(
+                          'Settings takes an explicit path, and uses it alone.',
+                          style: MpType.caption.copyWith(color: c.inkFaint),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
 
               if (r.status == DesktopRunStatus.paused &&
@@ -443,7 +606,8 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Resuming at ${r.resumeAt!.toLocal()}',
+                        'Resuming at ${_clockTime(r.resumeAt!.toLocal())}'
+                        ' — ${_countdown(r.resumeAt!)}',
                         style: MpType.numeric.copyWith(color: c.ink),
                       ),
                       const SizedBox(height: MpSpace.xs),
@@ -521,9 +685,13 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
               ),
               const SizedBox(height: MpSpace.sm),
               Text(
-                'The brief is written to the working directory as '
-                'MASTER_PROMPT.md, so the run stays auditable and recoverable '
-                'without this app.',
+                r.workingDirectory == null
+                    ? 'The brief is written to the working directory as '
+                          'MASTER_PROMPT.md, so the run stays auditable and '
+                          'recoverable without this app.'
+                    : 'Working in ${r.workingDirectory}. The brief is there as '
+                          'MASTER_PROMPT.md, so the run stays auditable and '
+                          'recoverable without this app.',
                 style: MpType.caption.copyWith(color: c.inkFaint),
               ),
             ],

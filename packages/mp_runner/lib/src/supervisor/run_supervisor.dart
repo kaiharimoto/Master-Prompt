@@ -288,7 +288,13 @@ class RunSupervisor {
   Future<_AttemptResult> _runOnce(LaunchPlan plan, RunRecord record) async {
     final DateTime started = clock.nowUtc();
     final int index = record.attempts.length + 1;
-    _emit('launch', 'Attempt $index: ${plan.arguments.join(' ')}');
+    // The record rides along so a screen can say which attempt this is without
+    // parsing it back out of the message.
+    _emit(
+      'launch',
+      'Attempt $index: ${plan.arguments.join(' ')}',
+      record: record,
+    );
 
     final Map<String, String> env = <String, String>{
       ...Platform.environment,
