@@ -273,6 +273,17 @@ class RunSupervisor {
           record: record,
         );
         _model = stepDownModel;
+        // The same session bookkeeping the wait path does, because this is
+        // the same thing minus the waiting. Without it a run that had not yet
+        // established a session would relaunch `fresh` carrying the pinned id
+        // the refused attempt already used, and the CLI refuses a session id
+        // it has seen.
+        intent = record.sessionId == null
+            ? LaunchIntent.fresh
+            : LaunchIntent.resume;
+        forkNext = false;
+        pinnedId = record.sessionId == null ? newSessionId() : null;
+        await store.save(record);
         continue;
       }
 

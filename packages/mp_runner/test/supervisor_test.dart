@@ -48,6 +48,13 @@ RunSupervisor supervisorFor(
   },
 );
 
+/// The `--session-id` value in a launch message, or null if there was none.
+String? _sessionIdIn(String launch) {
+  final List<String> parts = launch.split(' ');
+  final int i = parts.indexOf('--session-id');
+  return i < 0 || i + 1 >= parts.length ? null : parts[i + 1];
+}
+
 void main() {
   setUpAll(() async {
     tmp = Directory.systemTemp.createTempSync('mp_supervisor_');
@@ -738,6 +745,14 @@ void main() {
         expect(out.conclusion, RunConclusion.completed);
         expect(launches.first, isNot(contains('--model')));
         expect(launches.last, contains('--model sonnet'));
+        expect(
+          _sessionIdIn(launches.last),
+          isNot(equals(_sessionIdIn(launches.first))),
+          reason:
+              'the refused attempt used its pinned id, and the CLI refuses '
+              'one it has already seen — so a step-down needs the same '
+              'session bookkeeping as a wait, minus the waiting',
+        );
         expect(
           clock.waitedUntil,
           isEmpty,
