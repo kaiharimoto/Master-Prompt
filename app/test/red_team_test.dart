@@ -6,7 +6,10 @@ import 'package:master_prompt/src/screens/prompt_screen.dart';
 import 'package:master_prompt/src/store/app_store.dart';
 import 'package:master_prompt/src/store/project.dart';
 import 'package:mp_core/mp_core.dart';
+import 'package:master_prompt/src/store/desktop_runner.dart';
 import 'package:mp_design/mp_design.dart';
+
+import 'run_screen_test.dart' show StubRunner;
 
 Widget wrap(Widget child) => MaterialApp(
   theme: buildMpTheme(MpColors.light, dark: false),
@@ -232,5 +235,63 @@ void main() {
       findsOneWidget,
       reason: 'a paste is never discarded, even when its changes are',
     );
+  });
+
+  group('the pass on a machine that has the CLI', () {
+    testWidgets('is offered down the pipe, with the clipboard demoted', (
+      WidgetTester tester,
+    ) async {
+      // The pass was copy-paste on every platform, including one with the CLI
+      // sitting right there: finish the interview down a pipe, then be told to
+      // carry twenty-two thousand characters into a chat app by hand.
+      await tester.pumpWidget(
+        wrap(
+          PromptScreen(
+            store: store,
+            project: project,
+            runner: StubRunner(stubStatus: DesktopRunStatus.idle),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Generate the red-team pass'));
+
+      expect(find.text('Run the pass here'), findsOneWidget);
+      expect(
+        find.text('Carry it across by hand instead'),
+        findsOneWidget,
+        reason:
+            'demoted one level, never removed — the CLI can be logged out or '
+            'rate limited, and this is the longest thing the app ever asks '
+            'anyone to carry by hand',
+      );
+      expect(
+        find.text('Read the fixes'),
+        findsNothing,
+        reason: 'the paste route is behind the disclosure, not beside it',
+      );
+    });
+
+    testWidgets('is the clipboard alone when nothing is connected', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          PromptScreen(
+            store: store,
+            project: project,
+            runner: StubRunner(
+              stubStatus: DesktopRunStatus.idle,
+              stubInstall: false,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Generate the red-team pass'));
+
+      expect(find.text('Run the pass here'), findsNothing);
+      expect(find.text('Read the fixes'), findsOneWidget);
+    });
   });
 }

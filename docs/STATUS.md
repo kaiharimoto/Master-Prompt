@@ -14,6 +14,27 @@ button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
 
+### The red-team pass goes down the pipe too
+
+It was copy-paste on every platform, including one with the CLI sitting right
+there: finish the interview down a pipe, then be told to carry twenty-two
+thousand characters into a chat app by hand — the very length that needed the
+splitter and the save-as-a-file route in the first place. On a connected
+desktop it now runs through Claude Code, in a session of its own rather than
+the interview's, since sending the whole compiled brief into the chat
+conducting the interview would bury the round-to-round context it depends on.
+Its follow-up questions go back the way the round came.
+
+The clipboard route is demoted one level, never removed — the same rule as the
+interview, and it is what the command-line budget falls back to: an npm install
+runs through a `.cmd`, where the budget is 7,800 characters, so the pass will
+refuse the pipe there and say so.
+
+`openConversation` is now the one place that opens a conversation, so the
+interview and the pass cannot drift apart on the three things that were each
+decided the hard way — a directory of its own, `permissionMode: default`
+whatever the run setting says, and effort that degrades downward only.
+
 ### The desktop run, audited and repaired
 
 The supervisor in `mp_runner` was always the strong half — the resume ladder,

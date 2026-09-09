@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:mp_runner/mp_runner.dart';
-import 'package:path_provider/path_provider.dart';
 
+import 'cli_session.dart';
 import 'desktop_runner.dart';
 import 'diagnostics.dart';
 import 'settings.dart';
@@ -207,34 +206,10 @@ class ClaudeChat extends ChangeNotifier {
 
   /// The real thing: a session-backed conversation in a directory of its own.
   ///
-  /// Not the mission's working directory. An interview turn asks about what to
-  /// build and touches nothing, and a CLAUDE.md sitting in the project the
-  /// mission is *about* would join the conversation uninvited.
+  /// Shared with the red-team pass, which is the other screen that talks to
+  /// the CLI — one opener, so the two cannot drift apart on what a turn is.
   static Future<CliConversation> _openWithCli(
     ClaudeInstall install,
     AppSettings s,
-  ) async {
-    final Directory support = await getApplicationSupportDirectory();
-    final Directory dir = Directory(
-      '${support.path}${Platform.pathSeparator}interview',
-    );
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-
-    return CliConversation(
-      executable: install.path,
-      capabilities: install.capabilities,
-      workingDirectory: dir.path,
-      // Empty means no --model at all, leaving the CLI on whatever the user
-      // chose with /model. The flag refuses anything that is not an alias or a
-      // full dated name, and it enumerates no choices, so the capability probe
-      // cannot catch a bad one before it fails the turn.
-      model: s.model.trim().isEmpty ? null : s.model.trim(),
-      // The launch plan degrades this to whatever the build accepts, so a
-      // preference the CLI has never heard of costs a note rather than a run.
-      // Downward only: this list used to put `high` second, so a build that
-      // did not accept the chosen level would upgrade the turn rather than
-      // reduce it.
-      effortPreference: effortLadder(s.effort),
-    );
-  }
+  ) => openConversation(install: install, settings: s, named: 'interview');
 }

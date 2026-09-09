@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mp_core/mp_core.dart';
 import 'package:mp_design/mp_design.dart';
+import 'package:mp_runner/mp_runner.dart';
 
 import '../store/app_store.dart';
+import '../store/cli_session.dart';
+import '../store/desktop_runner.dart';
 import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../widgets/asked_questions.dart';
@@ -13,10 +18,20 @@ import 'brief_preview.dart';
 /// The compiled brief: what it says, what is missing from it, and the
 /// adversarial pass over it before anything runs.
 class PromptScreen extends StatefulWidget {
-  const PromptScreen({required this.store, required this.project, super.key});
+  const PromptScreen({
+    required this.store,
+    required this.project,
+    this.runner,
+    super.key,
+  });
 
   final AppStore store;
   final Project project;
+
+  /// The shell's shared runner, so a connection tested in Settings is the one
+  /// that runs the pass. Optional so a test can render the screen alone — and
+  /// null on a phone, where the pass travels by clipboard and always did.
+  final DesktopRunner? runner;
 
   @override
   State<PromptScreen> createState() => _PromptScreenState();
@@ -46,6 +61,83 @@ class _PromptScreenState extends State<PromptScreen> {
   /// meant the gate could then refuse to compile, replacing this whole screen
   /// with the not-ready notice and taking the red-team panel with it.
   SpecPatchResult? _pending;
+
+  /// The pass's own conversation, held open so its follow-up questions can be
+  /// answered into the same session.
+  ///
+  /// **Not the interview's session.** The pass carries the whole compiled
+  /// brief — around twenty thousand characters — and sending that into the
+  /// chat that is conducting the interview would bury the round-to-round
+  /// context the interview depends on, in the middle of it.
+  CliConversation? _review;
+  bool _asking = false;
+  Timer? _tick;
+  DateTime? _askedAt;
+
+  bool get _connected =>
+      DesktopRunner.isSupported && widget.runner?.install != null;
+
+  int get _seconds =>
+      _askedAt == null ? 0 : DateTime.now().difference(_askedAt!).inSeconds;
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    unawaited(_review?.dispose());
+    super.dispose();
+  }
+
+  /// Put a turn of the pass through the CLI.
+  ///
+  /// The pass was copy-paste on every platform, including one with the CLI
+  /// sitting right there: finish the interview down a pipe, then be told to
+  /// carry twenty-two thousand characters into a chat app by hand. The
+  /// splitter and the save-as-a-file route exist for the machines that have no
+  /// other option, and they stay for them.
+  Future<void> _sendToClaude(String prompt) async {
+    final ClaudeInstall? install = widget.runner?.install;
+    if (install == null || _asking || prompt.trim().isEmpty) return;
+
+    setState(() {
+      _asking = true;
+      _redTeamNote = null;
+      _askedAt = DateTime.now();
+    });
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+
+    try {
+      final CliConversation c = _review ??= await openConversation(
+        install: install,
+        settings: widget.store.settings,
+        named: 'review',
+      );
+      final ConversationReply reply = await c.ask(prompt);
+      Diagnostics.instance.log(
+        'Red-team turn (${prompt.length} chars, ${_seconds}s): '
+        '${reply.ok ? '${reply.text.length} chars back' : 'failed'}.',
+      );
+      if (!mounted) return;
+      if (!reply.ok) {
+        setState(() {
+          _redTeamNote =
+              reply.error ??
+              'The CLI answered with nothing. Nothing was applied, and the '
+                  'prompt is still here to copy across by hand.';
+        });
+        return;
+      }
+      await _applyRedTeam(reply.text);
+    } on Object catch (e) {
+      if (mounted) setState(() => _redTeamNote = '$e');
+    } finally {
+      _tick?.cancel();
+      _tick = null;
+      _askedAt = null;
+      if (mounted) setState(() => _asking = false);
+    }
+  }
 
   CompiledPrompt _compile(TransportProfile profile) =>
       const PromptCompiler().compile(widget.project.spec, profile: profile);
@@ -291,51 +383,110 @@ class _PromptScreenState extends State<PromptScreen> {
                     expand: true,
                     onPressed: () => setState(() => _redTeaming = true),
                   )
-                else ...<Widget>[
+                else
                   Builder(
                     builder: (BuildContext context) {
                       final InterviewTurn red = _engine.redTeamTurn(
                         p.spec,
                         cli,
                       );
-                      return MpOutbound(
+                      // The instruction fits in a message; the brief it
+                      // attacks does not. Separating them is what makes the
+                      // clipboard route one tap rather than four.
+                      final MpOutbound outbound = MpOutbound(
                         title: 'Red-team prompt',
                         subtitle:
                             'Hunts ambiguities, unmeasurable criteria, '
                             'coverage holes and cheap escapes.',
-                        // The instruction fits in a message; the brief it
-                        // attacks does not. Separating them is what makes this
-                        // one tap rather than four.
                         document: red.document,
                         note: red.note,
                         fileName: '${p.spec.taskId}-red-team.md',
                         limit: widget.store.settings.pasteLimit,
                       );
+                      final MpInbound inbound = MpInbound(
+                        onSubmit: _applyRedTeam,
+                        hint: 'Paste the findings and fixes',
+                        actionLabel: 'Read the fixes',
+                      );
+
+                      if (!_connected) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            outbound,
+                            const SizedBox(height: MpSpace.md),
+                            inbound,
+                          ],
+                        );
+                      }
+
+                      // Demoted one level, never removed — the same rule as
+                      // the interview. The CLI can be logged out or rate
+                      // limited, and the pass is the longest thing this app
+                      // ever asks anyone to carry by hand.
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          MpButton(
+                            label: _asking
+                                ? 'Reviewing… ${_seconds}s'
+                                : 'Run the pass here',
+                            icon: Icons.bolt,
+                            kind: MpButtonKind.primary,
+                            expand: true,
+                            onPressed: _asking
+                                ? null
+                                : () => _sendToClaude(red.text),
+                          ),
+                          const SizedBox(height: MpSpace.xs),
+                          Text(
+                            _asking
+                                ? 'It is reading the whole brief, so this one '
+                                      'takes longer than a round.'
+                                : 'Sends the brief and this instruction to '
+                                      'Claude Code in a session of its own, '
+                                      'and reads the fixes back here.',
+                            style: MpType.caption.copyWith(color: c.inkFaint),
+                          ),
+                          const SizedBox(height: MpSpace.md),
+                          MpDisclosure(
+                            label: 'Carry it across by hand instead',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                outbound,
+                                const SizedBox(height: MpSpace.md),
+                                inbound,
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
                     },
                   ),
-                  const SizedBox(height: MpSpace.md),
-                  MpInbound(
-                    onSubmit: _applyRedTeam,
-                    hint: 'Paste the findings and fixes',
-                    actionLabel: 'Read the fixes',
-                  ),
-                ],
                 if (_asked != null) ...<Widget>[
                   const SizedBox(height: MpSpace.md),
                   MpSectionHeader(
                     number: '--',
                     title: 'It asked rather than guessed',
-                    subtitle:
-                        'The pass is told to put a judgement call back to you '
-                        'instead of deciding it. Answer these and paste the '
-                        'result into the same chat.',
+                    subtitle: _connected && _review != null
+                        ? 'The pass is told to put a judgement call back to '
+                              'you instead of deciding it. Answer these and '
+                              'they go straight back to it.'
+                        : 'The pass is told to put a judgement call back to '
+                              'you instead of deciding it. Answer these and '
+                              'paste the result into the same chat.',
                   ),
                   const SizedBox(height: MpSpace.md),
                   AskedQuestions(
                     round: _asked!,
-                    // Copy rather than send: the red-team pass travels by
-                    // clipboard, so the answer goes the way it came.
-                    onSend: _copyAnswer,
+                    busy: _asking,
+                    // The answer goes the way the round came: down the pipe
+                    // into the same session, or to the clipboard for the chat
+                    // it was pasted into.
+                    onSend: _connected && _review != null
+                        ? _sendToClaude
+                        : _copyAnswer,
                   ),
                 ],
                 if (_pending != null) ...<Widget>[

@@ -181,7 +181,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _closePanel() => setState(() => _panel = null);
 
   Widget _screenFor(AppDestination d, Project? p) => switch (d) {
-    AppDestination.brief => PromptScreen(store: widget.store, project: p!),
+    AppDestination.brief => PromptScreen(
+      store: widget.store,
+      project: p!,
+      runner: _runner,
+    ),
     AppDestination.run => RunScreen(
       store: widget.store,
       project: p!,
