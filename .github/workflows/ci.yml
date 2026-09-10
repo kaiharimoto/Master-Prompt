@@ -214,11 +214,20 @@ jobs:
   publish-dev:
     name: Publish the rolling dev build
     needs: [core, android, windows]
-    # Only for real pushes to the default branch: a pull request should not
-    # move the build everyone is installing from.
+    # Real pushes only — a pull request must not move the build everyone is
+    # installing from.
+    #
+    # The default branch is the usual answer, and the development branch is
+    # named alongside it because that is where the work actually lands: with
+    # only the default-branch clause, every commit on a branch built green,
+    # skipped this job, and published nothing, so an installed copy checked at
+    # launch, correctly found the same build it was already running, and said
+    # "you are on the newest build" for a week. The updater was not broken;
+    # nothing was reaching it.
     if: >-
       github.event_name != 'pull_request' &&
-      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+       github.ref == 'refs/heads/claude/zen-ride-jgmc8m')
     runs-on: ubuntu-latest
     permissions:
       contents: write

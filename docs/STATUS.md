@@ -14,6 +14,24 @@ button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
 
+### Builds stopped reaching anyone, and the updater was not at fault
+
+`publish-dev` fired only on pushes to the default branch. Everything since
+build 54 has landed on a development branch, so every push built green, skipped
+the publish job, and left the release page untouched. The app checked at launch,
+found build 54, and reported the truth: you are on the newest build there is.
+
+The condition now names the development branch as well. The lesson is worth
+more than the fix: **when updates appear to stop, check what was published
+before checking the thing that reads it.** The updater is the last link in that
+chain and the least likely to be broken.
+
+The icon changed at the same time and for a related reason — both halves of the
+pair drew an M, so two programs meant to be run side by side had the same mark
+in the taskbar. Master Prompt is P; Master Idea is I; everything else about the
+two icons stays identical, because they are one family.
+
+
 ### Master Idea hands work to this program
 
 The other half of the pair now exists: **Master Idea**

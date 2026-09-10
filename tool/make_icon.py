@@ -10,13 +10,20 @@ licence and the keystore carries a note about what it may not sign.
 The app shipped the stock Flutter template icon on both platforms until this
 existed. The mark is deliberately plain: the wordmark's initial in the app's
 own type and ink, over the hairline rule the whole design system is built on.
-Replace it freely — nothing reads these files but the build.
+
+**The letter is P, and Master Idea's is I.** The two are one family and look
+it — same ink, same type, same rule — so the initial is the only thing telling
+them apart in a taskbar or a launcher, and it has to be the one thing that
+differs. It was M for both, which made two identical icons.
 """
 from PIL import Image, ImageDraw, ImageFont
 
 INK = (0x17, 0x18, 0x1A, 255)      # MpColors.light.ink
 CANVAS = (0xFB, 0xFB, 0xFA, 255)   # MpColors.light.canvas
 FONT = 'packages/mp_design/assets/fonts/Inter-SemiBold.ttf'
+
+# The half of the pair this is. Master Idea draws the same mark with an I.
+LETTER = 'P'
 
 ICO = 'app/windows/runner/resources/app_icon.ico'
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
@@ -41,7 +48,7 @@ def mark(px, *, squircle=True):
         d.rectangle([0, 0, S - 1, S - 1], fill=INK)
 
     f = ImageFont.truetype(FONT, int(S * 0.56))
-    box = d.textbbox((0, 0), 'M', font=f)
+    box = d.textbbox((0, 0), LETTER, font=f)
     w, h = box[2] - box[0], box[3] - box[1]
 
     rw, rh = int(S * 0.30), max(1, int(S * 0.045))
@@ -54,7 +61,7 @@ def mark(px, *, squircle=True):
 
     # Type is placed from its bounding box, never from the em, or it sits low
     # and to the left of where it looks centred.
-    d.text((S / 2 - w / 2 - box[0], top - box[1]), 'M', font=f, fill=CANVAS)
+    d.text((S / 2 - w / 2 - box[0], top - box[1]), LETTER, font=f, fill=CANVAS)
     ry = top + h + gap
     d.rounded_rectangle([S / 2 - rw / 2, ry, S / 2 + rw / 2, ry + rh],
                         radius=rh // 2, fill=CANVAS)
