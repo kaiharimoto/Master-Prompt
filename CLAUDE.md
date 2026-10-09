@@ -377,6 +377,13 @@ one level, because the CLI can be missing, logged out or rate-limited.
   gate. The red-team pass did exactly that for a while. It now holds the result
   and applies nothing until accepted, which also stops a proposed value flipping
   the gate shut and replacing the screen with the not-ready notice.
+- **A pasted prompt is evidence, not an answer.** A mission started from a
+  prompt the user already had is read by one round before anything is asked,
+  and what that round takes still arrives `proposed` and passes the review
+  beat; `SourcePrompt.read` flips only when it is accepted. Anything in the
+  prompt that fits no section goes to `standingInstructions` via `carry`, word
+  for word — a mapping onto sections alone would quietly make the "improved"
+  brief say less than the original.
 - **What changed is named, not counted.** Every `applied` line carries its
   value, truncated — thirty lines reading "Failure condition recorded." tell you
   no more than the number thirty did.

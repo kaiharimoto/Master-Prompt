@@ -54,10 +54,13 @@ class FlowController extends ChangeNotifier {
     return FlowBeat.ask;
   }
 
-  /// A mission has begun once it has been described at all.
+  /// A mission has begun once it has been described at all — in a sentence,
+  /// or by a prompt the user already had, which describes it before anything
+  /// has been read out of it.
   static bool isSeeded(MissionSpec spec) =>
-      spec.missionStatement.hasValue &&
-      (spec.missionStatement.value ?? '').trim().isNotEmpty;
+      spec.source != null ||
+      (spec.missionStatement.hasValue &&
+          (spec.missionStatement.value ?? '').trim().isNotEmpty);
 
   /// The user handed this round to Claude. Advance without being asked to.
   void handedOff() {
@@ -126,6 +129,26 @@ abstract final class MissionSeed {
       return clean.endsWith('.') ? clean.substring(0, clean.length - 1) : clean;
     }
     return '${words.take(6).join(' ')}…';
+  }
+
+  /// A title for a mission started from a whole prompt.
+  ///
+  /// The first line that says anything, with markdown heading marks and
+  /// emphasis taken off. A prompt's first line is usually either its title or
+  /// its opening instruction, and both are recognisable in a list; the
+  /// reading round can still rename it.
+  static String titleFromPrompt(String prompt) {
+    for (final String raw in prompt.split('\n')) {
+      if (RegExp(r'^[-*_=]{3,}$').hasMatch(raw.trim())) continue;
+      final String line = raw
+          .replaceAll(RegExp(r'^\s*(#+|>|[-*]|\d+[.)])\s*'), '')
+          .replaceAll(RegExp(r'[*_`]'), '')
+          .replaceAll(RegExp(r'<[^>]*>'), '')
+          .trim();
+      if (line.isEmpty) continue;
+      return titleFrom(line);
+    }
+    return 'Untitled mission';
   }
 
   /// A kebab-case identifier used for directories and state files.

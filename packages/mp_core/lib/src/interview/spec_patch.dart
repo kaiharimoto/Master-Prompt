@@ -418,6 +418,15 @@ class SpecPatchParser {
         case 'checks':
         case 'check':
           strings('check', e.value);
+        case 'carry':
+        case 'carried':
+        case 'standing':
+          // One instruction sent as a bare string is still one instruction.
+          if (e.value is List) {
+            strings('carry', e.value);
+          } else {
+            scalar('carry', e.value);
+          }
 
         case 'regions':
         case 'region':
@@ -565,6 +574,7 @@ class SpecPatchParser {
     'check',
     'dir',
     'file',
+    'carry',
   };
 
   static final RegExp _line = RegExp(
@@ -599,6 +609,7 @@ class SpecPatchParser {
     final List<String> materials = <String>[...spec.quality.materials];
     final List<String> storytelling = <String>[...spec.quality.storytelling];
     final List<String> checks = <String>[...spec.validation.checks];
+    final List<String> standing = <String>[...spec.standingInstructions];
 
     MissionSpec out = spec;
     QualityLanguage q = spec.quality;
@@ -806,6 +817,10 @@ class SpecPatchParser {
           );
           applied.add('Deliverable: ${parts.first}');
 
+        case 'carry':
+          standing.add(value);
+          applied.add(_said('Standing instruction', value));
+
         default:
           rejected.add(d.source);
       }
@@ -853,6 +868,7 @@ class SpecPatchParser {
         reportContract: val.reportContract,
       ),
       deliverables: del,
+      standingInstructions: standing,
     );
 
     return SpecPatchResult(
@@ -880,6 +896,7 @@ class SpecPatchParser {
     'file',
     'storytelling',
     'evidence_of_use',
+    'carry',
   };
 
   SpecField<String> _proposed(String v) => SpecField<String>(

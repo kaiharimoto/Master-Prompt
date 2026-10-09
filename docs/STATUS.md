@@ -4,15 +4,58 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that made a desktop run survivable — a run that can
-be stopped, resumed, watched, and judged against the brief rather than against
-the exit code._
+_Last updated: the commit that let a mission start from a prompt the user
+already had, rather than from one sentence._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
 button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
+
+### Starting from a prompt you already have
+
+Asked for in chat: paste an existing prompt instead of building one from
+scratch, and be interviewed *about that prompt* until it meets the same
+requirements a brief built from nothing has to meet.
+
+The opening screen keeps its one question and gains a quiet second action,
+**Start from a prompt I have**, which swaps the sentence field for a paste box.
+Nothing else about the flow forks. The prompt is kept on the spec as a
+`SourcePrompt`, verbatim, and three things follow from it:
+
+- **The first round reads it and asks nothing.** `nextTurn` returns the reading
+  turn while the prompt is unread: every requirement in the gate with its *why*,
+  a union of every stage's answer keys, and the rule that a key the prompt does
+  not clearly settle is left out rather than filled with good practice. What it
+  takes arrives `proposed` and passes the ordinary review beat — a model
+  reading a prompt is still a model inferring. Accepting that round marks the
+  prompt read; discarding it does not, so the reading is offered again.
+- **Nothing the prompt said is lost.** A real prompt is full of instructions
+  that belong to no section — a convention, a tone, a thing never to do. The
+  new `carry` key collects them word for word into
+  `MissionSpec.standingInstructions`, which the compiler sets under `01 / TASK`
+  as **Standing instructions**. Without it, the "improved" brief would have said
+  less than the original.
+- **Every later round is grounded in it.** A standalone turn carries the
+  prompt again (a chat restarted after a limit has never seen it) and tells the
+  model to quote the passage each question is about; a continuing turn carries
+  one line saying so instead of the prompt itself.
+
+The prompt travels as the turn's `document`, wrapped in `<original_prompt>`
+tags, so on a phone a round too long to paste leaves as a file through the same
+`MpOutbound` the brief uses — a chat app cuts an oversized paste off without
+saying so. A **Skip the reading** escape sits under *Your original prompt* for
+a prompt that will not read cleanly; the prompt still goes along with every
+question.
+
+Both new spec keys serialise only when present, because the content hash is
+taken over `toJson()` and a key every mission suddenly carried would mark every
+compiled brief stale on first launch.
+
+**Not yet proven:** how a real model handles the reading round against a long,
+messy prompt — whether it stays inside "only what the prompt states", and
+whether `carry` comes back verbatim or paraphrased.
 
 ### Reading the diff back, which found six more
 

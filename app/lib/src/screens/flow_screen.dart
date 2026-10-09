@@ -11,6 +11,7 @@ import '../store/claude_chat.dart';
 import '../store/diagnostics.dart';
 import '../store/project.dart';
 import '../widgets/asked_questions.dart';
+import '../widgets/exchange.dart';
 import 'destinations.dart';
 
 /// The whole app, most of the time: one question, one action.
@@ -56,6 +57,12 @@ class _FlowScreenState extends State<FlowScreen> {
   AskedRound? _asked;
 
   final TextEditingController _seedField = TextEditingController();
+  final TextEditingController _promptField = TextEditingController();
+
+  /// Whether the opening screen is taking a whole prompt rather than a
+  /// sentence. Local to the screen: until a mission exists there is nothing
+  /// else it could belong to.
+  bool _fromPrompt = false;
   final TextEditingController _replyField = TextEditingController();
   final TextEditingController _followUpField = TextEditingController();
   bool _busy = false;
@@ -78,6 +85,7 @@ class _FlowScreenState extends State<FlowScreen> {
   @override
   void dispose() {
     _seedField.dispose();
+    _promptField.dispose();
     _replyField.dispose();
     _followUpField.dispose();
     super.dispose();
@@ -108,6 +116,47 @@ class _FlowScreenState extends State<FlowScreen> {
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
     }
+  }
+
+  /// Starts a mission from a prompt the user already had.
+  ///
+  /// Nothing in the prompt counts toward the gate yet, not even its first
+  /// line: what it settles is read out of it by the first round, and that is a
+  /// model inferring, accepted like any other round. The prompt itself is kept
+  /// exactly as pasted.
+  Future<void> _beginFromPrompt() async {
+    final String prompt = _promptField.text.trim();
+    if (prompt.isEmpty || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final Project p = await widget.store.create(
+        title: MissionSeed.titleFromPrompt(prompt),
+      );
+      p.spec = p.spec.copyWith(source: SourcePrompt(text: prompt));
+      widget.flow.reset();
+      _promptField.clear();
+      _fromPrompt = false;
+      Diagnostics.instance.log(
+        'Seeded mission "${p.spec.taskId}" from a pasted prompt '
+        '(${prompt.length} chars).',
+      );
+      if (mounted) setState(() => _busy = false);
+      await widget.store.save(p);
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  /// Goes straight to the questions without the reading round.
+  ///
+  /// For a reading that will not come back usable — a prompt that is mostly
+  /// examples, or a chat that keeps asking instead of taking. The prompt stays
+  /// with the mission either way, so the questions still quote it.
+  Future<void> _skipReading(Project p) async {
+    p.spec = p.spec.markSourceRead();
+    widget.flow.reset();
+    await widget.store.save(p);
+    Diagnostics.instance.log('Skipped reading the pasted prompt.');
   }
 
   Future<void> _handOff(String text) async {
@@ -234,7 +283,9 @@ class _FlowScreenState extends State<FlowScreen> {
     // round changed. Compiled from the outgoing spec while it is still the
     // current one.
     p.briefBaseline = const PromptCompiler().compile(p.spec).body;
-    p.spec = r.spec.confirmProposals();
+    // Accepting any round while the prompt is unread is accepting the reading
+    // of it, which is the only round that can come first.
+    p.spec = r.spec.confirmProposals().markSourceRead();
     await widget.store.save(p);
     widget.flow.accepted();
     Diagnostics.instance.log('Accepted a round: ${r.applied.length} changes.');
@@ -247,10 +298,10 @@ class _FlowScreenState extends State<FlowScreen> {
     widget.flow.reconsider();
   }
 
-  Future<void> _pasteFromClipboard() async {
+  Future<void> _pasteFromClipboard([TextEditingController? into]) async {
     final ClipboardData? d = await Clipboard.getData(Clipboard.kTextPlain);
     if (d?.text != null && mounted) {
-      setState(() => _replyField.text = d!.text!);
+      setState(() => (into ?? _replyField).text = d!.text!);
     }
   }
 
@@ -282,13 +333,17 @@ class _FlowScreenState extends State<FlowScreen> {
     );
   }
 
-  String _stageEyebrow(ReadinessReport r) =>
-      'Step ${r.currentStage.step} of ${InterviewStage.stepCount} · '
-      '${r.currentStage.title}';
+  String _stageEyebrow(Project p, ReadinessReport r) {
+    final SourcePrompt? source = p.spec.source;
+    if (source != null && !source.read) return 'Your prompt · Reading it';
+    return 'Step ${r.currentStage.step} of ${InterviewStage.stepCount} · '
+        '${r.currentStage.title}';
+  }
 
   // -- beats ---------------------------------------------------------------
 
   Widget _seed() {
+    if (_fromPrompt) return _seedFromPrompt();
     final MpColors c = MpTheme.colorsOf(context);
     return MpFocal(
       key: const ValueKey<String>('beat-seed'),
@@ -314,9 +369,64 @@ class _FlowScreenState extends State<FlowScreen> {
       ),
       primary: MpButton(
         label: _busy ? 'Starting…' : 'Begin',
+        icon: Icons.arrow_forward,
         kind: MpButtonKind.primary,
         expand: true,
         onPressed: _busy ? null : _begin,
+      ),
+      secondary: MpButton(
+        label: 'Start from a prompt I have',
+        kind: MpButtonKind.quiet,
+        expand: true,
+        onPressed: _busy ? null : () => setState(() => _fromPrompt = true),
+      ),
+    );
+  }
+
+  /// The opening screen, for someone who already has a prompt.
+  ///
+  /// Still one question and one action. The prompt is read in the round after
+  /// this, not here: nothing in it should count before the user has seen what
+  /// was taken from it.
+  Widget _seedFromPrompt() {
+    final MpColors c = MpTheme.colorsOf(context);
+    return MpFocal(
+      key: const ValueKey<String>('beat-seed-prompt'),
+      question: 'Paste the prompt you have',
+      supporting:
+          'Claude reads it first and takes what it already settles. Then it '
+          'asks about what an unattended run would still have to guess, a '
+          'stage at a time, quoting your prompt as it goes.',
+      body: MpSubmit(
+        onSubmit: _busy ? null : _beginFromPrompt,
+        child: TextField(
+          controller: _promptField,
+          autofocus: _typeStraightAway,
+          maxLines: 14,
+          minLines: 8,
+          style: MpType.mono.copyWith(color: c.ink),
+          decoration: InputDecoration(
+            hintText: 'Paste it here, as it is',
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.content_paste, size: 20),
+              tooltip: 'Paste from clipboard',
+              onPressed: () => _pasteFromClipboard(_promptField),
+            ),
+          ),
+        ),
+      ),
+      primary: MpButton(
+        label: _busy ? 'Starting…' : 'Read it',
+        icon: Icons.arrow_forward,
+        kind: MpButtonKind.primary,
+        expand: true,
+        onPressed: _busy ? null : _beginFromPrompt,
+      ),
+      secondary: MpButton(
+        label: 'Describe it in a sentence instead',
+        kind: MpButtonKind.quiet,
+        expand: true,
+        onPressed: _busy ? null : () => setState(() => _fromPrompt = false),
       ),
     );
   }
@@ -340,21 +450,60 @@ class _FlowScreenState extends State<FlowScreen> {
       style: continuing ? TurnStyle.continuing : TurnStyle.standalone,
     );
     final List<ReadinessGap> gaps = turn.gaps;
+    final bool reading = turn.reading;
+    final SourcePrompt? source = p.spec.source;
+
+    // A round that carries a pasted prompt can be longer than a chat app will
+    // take in one paste, and a chat app cuts it off without saying so. The
+    // prompt then leaves as a file, the same way the brief does.
+    final bool oversized =
+        !connected &&
+        turn.document.isNotEmpty &&
+        turn.text.length > widget.store.settings.pasteLimit;
 
     return MpFocal(
-      key: const ValueKey<String>('beat-ask'),
-      eyebrow: _stageEyebrow(report),
-      question: report.currentStage.question,
+      key: ValueKey<String>(reading ? 'beat-ask-reading' : 'beat-ask'),
+      eyebrow: _stageEyebrow(p, report),
+      question: reading
+          ? 'What does your prompt already settle?'
+          : report.currentStage.question,
       // The count follows the prompt, which now asks for up to six per round
       // because answering is a tap: a further question costs a moment and a
       // further round trip costs a minute.
-      supporting: connected
+      supporting: reading
+          ? 'Claude reads it against everything an unattended run needs, '
+                'takes what it already settles and names what it leaves open. '
+                'Nothing counts until you accept it.'
+          : connected
           ? 'Claude will ask a few questions about this, most of them with '
                 'options to tap. Answer them here; nothing leaves the app.'
           : 'Claude will ask a few questions about this, most of them with '
                 'options to tap. Answer them in the chat, then bring its '
                 'reply back here.',
-      primary: connected
+      body: oversized
+          ? MpOutbound(
+              title: reading ? 'Your prompt, to be read' : 'This round',
+              subtitle:
+                  'Too long to paste in one go. Save it and attach the file '
+                  'in Claude, with the message beside it.',
+              document: turn.document,
+              note: turn.note,
+              fileName: '${p.spec.taskId}-prompt.md',
+              limit: widget.store.settings.pasteLimit,
+            )
+          : null,
+      primary: oversized
+          ? MpButton(
+              label: 'Bring the reply back',
+              icon: Icons.arrow_forward,
+              kind: MpButtonKind.primary,
+              expand: true,
+              onPressed: () {
+                setState(() => _viaCli = false);
+                widget.flow.handedOff();
+              },
+            )
+          : connected
           ? MpButton(
               label: _busy ? 'Asking Claude…' : 'Ask Claude',
               icon: Icons.arrow_forward,
@@ -372,7 +521,9 @@ class _FlowScreenState extends State<FlowScreen> {
       // The clipboard route survives on a connected desktop, one level down.
       // The CLI can be missing, logged out or rate-limited, and none of those
       // should leave the mission stranded.
-      secondary: connected
+      secondary: oversized
+          ? null
+          : connected
           ? MpButton(
               label: 'Copy for Claude instead',
               icon: Icons.content_copy,
@@ -393,8 +544,40 @@ class _FlowScreenState extends State<FlowScreen> {
               },
             ),
       disclosures: <Widget>[
+        if (source != null)
+          MpDisclosure(
+            label: 'Your original prompt',
+            trailingNote: '${source.text.length} chars',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                SelectableText(
+                  source.text,
+                  style: MpType.mono.copyWith(color: c.inkMuted),
+                ),
+                if (reading) ...<Widget>[
+                  const SizedBox(height: MpSpace.md),
+                  Text(
+                    'Skipping the reading goes straight to the questions, '
+                    'which still quote your prompt. Nothing it settles is '
+                    'taken in on the way.',
+                    style: MpType.caption.copyWith(color: c.inkFaint),
+                  ),
+                  const SizedBox(height: MpSpace.sm),
+                  MpButton(
+                    label: 'Skip the reading',
+                    kind: MpButtonKind.quiet,
+                    expand: true,
+                    onPressed: () => _skipReading(p),
+                  ),
+                ],
+              ],
+            ),
+          ),
         MpDisclosure(
-          label: 'What this round settles',
+          label: reading
+              ? 'What it is read against'
+              : 'What this round settles',
           trailingNote: '${gaps.length}',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +644,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
     return MpFocal(
       key: const ValueKey<String>('beat-await'),
-      eyebrow: _stageEyebrow(report),
+      eyebrow: _stageEyebrow(p, report),
       question: "Paste Claude's reply",
       supporting:
           'Everything it said, including the block at the end. Anything it could '
@@ -546,7 +729,7 @@ class _FlowScreenState extends State<FlowScreen> {
       // The one screen that is a conversation rather than a single question:
       // a reply, any notices, and a box to write in all share the measure.
       maxWidth: MpSpace.conversationWidth,
-      eyebrow: _stageEyebrow(report),
+      eyebrow: _stageEyebrow(p, report),
       question: busy
           ? 'Asking Claude…'
           : failed
@@ -753,7 +936,7 @@ class _FlowScreenState extends State<FlowScreen> {
 
     return MpFocal(
       key: const ValueKey<String>('beat-review'),
-      eyebrow: _stageEyebrow(report),
+      eyebrow: _stageEyebrow(p, report),
       question: applied.length == 1
           ? 'One thing settled'
           : '${applied.length} things settled',

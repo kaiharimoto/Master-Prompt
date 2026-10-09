@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import '../compile/compiled_prompt.dart';
 import '../spec/mission_spec.dart';
+import '../spec/source_prompt.dart';
 import '../spec/spec_types.dart';
 import 'interview_stage.dart';
 import 'readiness.dart';
@@ -35,10 +36,15 @@ class InterviewTurn {
     required this.gaps,
     this.style = TurnStyle.standalone,
     this.document = '',
+    this.reading = false,
     String? note,
   }) : note = note ?? text;
 
   final InterviewStage stage;
+
+  /// Whether this is the round that reads a prompt the user already had,
+  /// rather than one that asks about a stage.
+  final bool reading;
 
   final TurnStyle style;
 
@@ -47,8 +53,9 @@ class InterviewTurn {
   /// The red-team pass is an instruction plus the whole compiled brief, and
   /// the two leave the app by different routes: the instruction fits in a chat
   /// message, the brief does not. Separating them here is what lets the brief
-  /// travel as an attachment instead of as four pasted fragments. Empty for
-  /// every interview turn, which carries no attachment.
+  /// travel as an attachment instead of as four pasted fragments. A mission
+  /// started from a prompt carries that prompt here on every turn written for
+  /// a fresh chat; every other interview turn has none.
   final String document;
 
   /// Everything but [document] — what goes in the message itself.
@@ -90,6 +97,12 @@ class InterviewEngine {
     TurnStyle style = TurnStyle.standalone,
   }) {
     final ReadinessReport report = gate.evaluate(spec);
+    final SourcePrompt? source = spec.source;
+
+    // A prompt that has not been read yet is read before anything is asked:
+    // most of what the stages would ask, a real prompt already answers.
+    if (source != null && !source.read) return _readingTurn(spec, report);
+
     final InterviewStage stage = report.currentStage;
     final List<ReadinessGap> stageGaps = report.gaps
         .where((ReadinessGap g) => g.stage == stage)
@@ -107,14 +120,18 @@ class InterviewEngine {
     if (style == TurnStyle.continuing) {
       return InterviewTurn(
         stage: stage,
-        text: _continuingText(stage, stageGaps),
+        text: _continuingText(stage, stageGaps, fromSource: source != null),
         gaps: stageGaps,
         style: style,
       );
     }
 
     final StringBuffer b = StringBuffer();
-    _role(b);
+    if (source == null) {
+      _role(b);
+    } else {
+      _roleFromSource(b);
+    }
     _missionSoFar(b, spec);
 
     b
@@ -168,6 +185,19 @@ class InterviewEngine {
         'Do not ask about anything already settled above. Do not write the '
         'brief yet.',
       )
+      ..writeln();
+    if (source != null) {
+      b
+        ..writeln(
+          '**Ground every question in my original prompt.** Where it says '
+          'something about the item, quote the passage and ask about what it '
+          'leaves open rather than starting from nothing; where it is silent, '
+          'say so. Let what it says shape your options and your '
+          'recommendation — it is the best evidence there is of what I meant.',
+        )
+        ..writeln();
+    }
+    b
       ..writeln()
       ..writeln('## Index your questions so I can answer by tapping')
       ..writeln()
@@ -215,11 +245,151 @@ class InterviewEngine {
       ..writeln();
     _patchFormat(b, stage);
 
-    return InterviewTurn(
+    if (source == null) {
+      return InterviewTurn(
+        stage: stage,
+        text: b.toString(),
+        gaps: stageGaps,
+        style: style,
+      );
+    }
+    return _withSource(
+      b.toString(),
+      source,
       stage: stage,
-      text: b.toString(),
       gaps: stageGaps,
       style: style,
+    );
+  }
+
+  /// The round that reads a prompt the user already had.
+  ///
+  /// It asks nothing. Its whole job is to take what the prompt already
+  /// settles, under the key each thing belongs to, and say which of the
+  /// requirements it leaves open — the stages that follow ask about those, one
+  /// at a time, grounded in what the prompt said. Splitting the two is what
+  /// keeps the first reply short enough to review: the user accepts what was
+  /// *taken* from their own words before being asked anything new.
+  ///
+  /// Everything it takes still arrives proposed and passes the same accept
+  /// step as any round. A model reading a prompt is still a model inferring,
+  /// and the line between "the prompt says" and "the prompt suggests" is
+  /// exactly the one an unattended run cannot see.
+  InterviewTurn _readingTurn(MissionSpec spec, ReadinessReport report) {
+    final StringBuffer b = StringBuffer()
+      ..writeln(
+        'You are helping me turn a prompt I already wrote into a mission '
+        'brief precise enough that an autonomous agent can execute it for '
+        'hours without asking anything. Every question left unasked now '
+        'becomes a guess later.',
+      )
+      ..writeln()
+      ..writeln(
+        'My prompt is included with this message, between '
+        '`<original_prompt>` tags. Treat it as the evidence of what I want, '
+        'not as a draft to overrule: where it is clear, keep its intent and '
+        'its wording; where it is vague, silent or contradicts itself, that '
+        'is what the next rounds will ask me about.',
+      )
+      ..writeln()
+      ..writeln('## What a brief has to settle')
+      ..writeln()
+      ..writeln(
+        'An unattended run needs every one of these. Each says what goes '
+        'wrong without it.',
+      )
+      ..writeln();
+
+    InterviewStage? heading;
+    for (final SpecRequirement r in gate.requirements) {
+      if (r.stage != heading) {
+        if (heading != null) b.writeln();
+        heading = r.stage;
+        b
+          ..writeln('**${r.stage.title}**')
+          ..writeln();
+      }
+      b.writeln('- ${r.label}${r.required_ ? '' : ' (optional)'} — ${r.why}');
+    }
+    b
+      ..writeln()
+      ..writeln('## This round: read it, and do not ask anything yet')
+      ..writeln()
+      ..writeln(
+        '1. **Take everything my prompt already settles** and put it in the '
+        'block below, under the key it belongs to. Only what it states or '
+        'plainly implies. If you would have to choose between two readings, '
+        'leave the key out: a guess made here reaches an unattended run '
+        'looking exactly like something I wrote.',
+      )
+      ..writeln(
+        '2. **Keep my wording where it works.** Tighten it into full '
+        'sentences that will stand in a brief, but do not add requirements it '
+        'does not contain, and do not fill a gap with good practice.',
+      )
+      ..writeln(
+        '3. **Lose nothing.** Anything in my prompt that matters but fits no '
+        'key — a convention, a tone, a constraint, a thing never to do — goes '
+        'in `carry`, word for word, one instruction per entry.',
+      )
+      ..writeln(
+        '4. **Then say what it leaves open.** In a few short lines above the '
+        'block, name the requirements from the list above that my prompt '
+        'does not settle, the ones that would make an agent guess soonest '
+        'first, and anywhere it contradicts itself. Do not ask the questions '
+        'yet — the next rounds take them one stage at a time, with options.',
+      )
+      ..writeln()
+      ..writeln('## How to hand it back')
+      ..writeln()
+      ..writeln(
+        'End your reply with exactly one fenced `json` code block and put '
+        'nothing at all after it. Use only the keys my prompt actually '
+        'settles and leave every other key out entirely — an empty or '
+        'placeholder value is worse than a missing one. Write full sentences '
+        'in the values; they go into the brief verbatim.',
+      )
+      ..writeln()
+      ..writeln('```json');
+    for (final String line in _readingSchema()) {
+      b.writeln(line);
+    }
+    b.writeln('```');
+
+    return _withSource(
+      b.toString(),
+      spec.source!,
+      stage: report.currentStage,
+      gaps: report.gaps,
+      style: TurnStyle.standalone,
+      reading: true,
+    );
+  }
+
+  /// A turn whose reader also needs the prompt the mission started from.
+  ///
+  /// The prompt is the turn's [InterviewTurn.document], wrapped in tags so it
+  /// cannot be mistaken for instructions to the chat itself: whether it goes
+  /// as the tail of one paste or as an attached file, it reads the same.
+  InterviewTurn _withSource(
+    String instruction,
+    SourcePrompt source, {
+    required InterviewStage stage,
+    required List<ReadinessGap> gaps,
+    required TurnStyle style,
+    bool reading = false,
+  }) {
+    final String note = instruction.trimRight();
+    final String document =
+        '<original_prompt>\n${source.text.trim()}\n</original_prompt>';
+    return InterviewTurn(
+      stage: stage,
+      text: '$note\n\n$document\n',
+      note: note,
+      document: document,
+      gaps: gaps,
+      style: style,
+      reading: reading,
     );
   }
 
@@ -233,7 +403,11 @@ class InterviewEngine {
   /// The two rules survive as one sentence rather than two paragraphs. They are
   /// kept at all because format drift over nine rounds is real, and the cost of
   /// it is a reply the app cannot read; the schema below carries the rest.
-  String _continuingText(InterviewStage stage, List<ReadinessGap> gaps) {
+  String _continuingText(
+    InterviewStage stage,
+    List<ReadinessGap> gaps, {
+    bool fromSource = false,
+  }) {
     final StringBuffer b = StringBuffer()
       ..writeln('## Next: ${stage.title}')
       ..writeln()
@@ -254,6 +428,14 @@ class InterviewEngine {
         'your reply with one fenced `json` block and nothing after it.',
       )
       ..writeln();
+    if (fromSource) {
+      b
+        ..writeln(
+          'Keep my original prompt in view: quote it where it bears on a '
+          'question, and let it shape your recommendations.',
+        )
+        ..writeln();
+    }
     _patchFormat(b, stage);
     return b.toString();
   }
@@ -349,6 +531,23 @@ class InterviewEngine {
       ..writeln();
   }
 
+  void _roleFromSource(StringBuffer b) {
+    b
+      ..writeln(
+        'You are helping me turn a prompt I already wrote into a mission '
+        'brief, before any of it is built.',
+      )
+      ..writeln()
+      ..writeln(
+        'The result is a brief precise enough that an autonomous agent can '
+        'execute it for hours without asking anything. My original prompt is '
+        'included with this message, between `<original_prompt>` tags; what '
+        'it already settled is summarised below, and this round is about '
+        'something it leaves open.',
+      )
+      ..writeln();
+  }
+
   void _missionSoFar(StringBuffer b, MissionSpec spec) {
     b
       ..writeln('## The mission so far')
@@ -384,6 +583,9 @@ class InterviewEngine {
         'Avoiding: ${spec.quality.avoid.join('; ')}',
       if (spec.failureConditions.isNotEmpty)
         'Failure conditions: ${spec.failureConditions.length} recorded',
+      if (spec.standingInstructions.isNotEmpty)
+        'Standing instructions: ${spec.standingInstructions.length} carried '
+            'over',
     ];
     if (settled.isNotEmpty) {
       for (final String s in settled) {
@@ -401,93 +603,131 @@ class InterviewEngine {
   /// the user is meant to take. An object can be located by its braces alone.
   void _patchFormat(StringBuffer b, InterviewStage stage) {
     b.writeln('```json');
-    switch (stage) {
-      case InterviewStage.seed:
-      case InterviewStage.intent:
-        b
-          ..writeln('{')
-          ..writeln('  "mission": "one paragraph on what is being built",')
-          ..writeln('  "story": "the through-line someone should experience",')
-          ..writeln('  "scale": "concrete extent, in real units",')
-          ..writeln('  "audience": "who judges it and by what standard"')
-          ..writeln('}');
-      case InterviewStage.shape:
-        b
-          ..writeln('{')
-          ..writeln('  "regions": [')
-          ..writeln('    {"name": "...", "purpose": "what it is for",')
-          ..writeln('     "requirements": ["...", "..."]}')
-          ..writeln('  ],')
-          ..writeln('  "relationships": ["a rule the parts must obey"],')
-          ..writeln('  "families": [')
-          ..writeln('    {"name": "...", "description": "...", "min": 30,')
-          ..writeln('     "vary": "how instances must differ"}')
-          ..writeln('  ]')
-          ..writeln('}');
-      case InterviewStage.quality:
-        b
-          ..writeln('{')
-          ..writeln('  "avoid": ["an interpretation to steer away from"],')
-          ..writeln('  "palette": ["a colour, tone or stylistic anchor"],')
-          ..writeln('  "materials": ["a surface or substance rule"],')
-          ..writeln('  "atmosphere": "the light, mood or tone",')
-          ..writeln('  "detail": "how close an inspection it must survive",')
-          ..writeln('  "storytelling": ["evidence of real use"]')
-          ..writeln('}');
-      case InterviewStage.evidence:
-        b
-          ..writeln('{')
-          ..writeln('  "evidence": [')
-          ..writeln('    {"ordinal": 1, "file": "01_arrival.png",')
-          ..writeln('     "name": "...", "proves": "what it demonstrates",')
-          ..writeln('     "min": "1920x1080"},')
-          ..writeln('    {"ordinal": 3, "file": "03_hero.png", "name": "Hero",')
-          ..writeln('     "proves": "...", "hero": true, "min": "2560x1440"}')
-          ..writeln('  ]')
-          ..writeln('}');
-      case InterviewStage.runtime:
-        b
-          ..writeln('{')
-          ..writeln('  "compute": "the machine and environment",')
-          ..writeln('  "tool": "the tool the work is done with",')
-          ..writeln('  "harness": "subagents, parallelism, orchestration",')
-          ..writeln('  "budget": "how many tokens",')
-          ..writeln('  "wallclock": "how long",')
-          ..writeln('  "steps": [{"ordinal": 1, "name": "...",')
-          ..writeln('             "instruction": "what happens in this step"}]')
-          ..writeln('}');
-      case InterviewStage.rubric:
-        b
-          ..writeln('{')
-          ..writeln('  "rubric": [')
-          ..writeln('    {"name": "...", "weight": 20, "criteria": "...",')
-          ..writeln('     "min": 17}')
-          ..writeln('  ],')
-          ..writeln('  "total": 100,')
-          ..writeln('  "exit": 90')
-          ..writeln('}');
-      case InterviewStage.review:
-        b
-          ..writeln('{')
-          ..writeln('  "cycles": 4,')
-          ..writeln('  "critics": [')
-          ..writeln('    {"name": "...", "judges": "the one thing it judges"}')
-          ..writeln('  ]')
-          ..writeln('}');
-      case InterviewStage.acceptance:
-      case InterviewStage.ready:
-        b
-          ..writeln('{')
-          ..writeln('  "failures": ["what makes the result unacceptable"],')
-          ..writeln(
-            '  "coldstart": "how to reopen it from nothing and verify",',
-          )
-          ..writeln('  "checks": ["something that must be true at the end"],')
-          ..writeln('  "dir": "project_directory_name",')
-          ..writeln('  "files": {"renders/final/": "what lives here"}')
-          ..writeln('}');
+    for (final String line in _schema(stage)) {
+      b.writeln(line);
     }
     b.writeln('```');
+  }
+
+  /// The answer block for one stage, a line at a time.
+  ///
+  /// Lines rather than one string so the reading round can join every stage's
+  /// keys into a single object, which is what a prompt that settles things
+  /// across all of them needs.
+  static List<String> _schema(InterviewStage stage) => switch (stage) {
+    InterviewStage.seed || InterviewStage.intent => <String>[
+      '{',
+      '  "mission": "one paragraph on what is being built",',
+      '  "story": "the through-line someone should experience",',
+      '  "scale": "concrete extent, in real units",',
+      '  "audience": "who judges it and by what standard"',
+      '}',
+    ],
+    InterviewStage.shape => <String>[
+      '{',
+      '  "regions": [',
+      '    {"name": "...", "purpose": "what it is for",',
+      '     "requirements": ["...", "..."]}',
+      '  ],',
+      '  "relationships": ["a rule the parts must obey"],',
+      '  "families": [',
+      '    {"name": "...", "description": "...", "min": 30,',
+      '     "vary": "how instances must differ"}',
+      '  ]',
+      '}',
+    ],
+    InterviewStage.quality => <String>[
+      '{',
+      '  "avoid": ["an interpretation to steer away from"],',
+      '  "palette": ["a colour, tone or stylistic anchor"],',
+      '  "materials": ["a surface or substance rule"],',
+      '  "atmosphere": "the light, mood or tone",',
+      '  "detail": "how close an inspection it must survive",',
+      '  "storytelling": ["evidence of real use"]',
+      '}',
+    ],
+    InterviewStage.evidence => <String>[
+      '{',
+      '  "evidence": [',
+      '    {"ordinal": 1, "file": "01_arrival.png",',
+      '     "name": "...", "proves": "what it demonstrates",',
+      '     "min": "1920x1080"},',
+      '    {"ordinal": 3, "file": "03_hero.png", "name": "Hero",',
+      '     "proves": "...", "hero": true, "min": "2560x1440"}',
+      '  ]',
+      '}',
+    ],
+    InterviewStage.runtime => <String>[
+      '{',
+      '  "compute": "the machine and environment",',
+      '  "tool": "the tool the work is done with",',
+      '  "harness": "subagents, parallelism, orchestration",',
+      '  "budget": "how many tokens",',
+      '  "wallclock": "how long",',
+      '  "steps": [{"ordinal": 1, "name": "...",',
+      '             "instruction": "what happens in this step"}]',
+      '}',
+    ],
+    InterviewStage.rubric => <String>[
+      '{',
+      '  "rubric": [',
+      '    {"name": "...", "weight": 20, "criteria": "...",',
+      '     "min": 17}',
+      '  ],',
+      '  "total": 100,',
+      '  "exit": 90',
+      '}',
+    ],
+    InterviewStage.review => <String>[
+      '{',
+      '  "cycles": 4,',
+      '  "critics": [',
+      '    {"name": "...", "judges": "the one thing it judges"}',
+      '  ]',
+      '}',
+    ],
+    InterviewStage.acceptance || InterviewStage.ready => <String>[
+      '{',
+      '  "failures": ["what makes the result unacceptable"],',
+      '  "coldstart": "how to reopen it from nothing and verify",',
+      '  "checks": ["something that must be true at the end"],',
+      '  "dir": "project_directory_name",',
+      '  "files": {"renders/final/": "what lives here"}',
+      '}',
+    ],
+  };
+
+  /// Every stage's keys in one object, for the round that reads a whole
+  /// prompt at once, plus the two keys only that round needs: a name, and the
+  /// instructions that belong to no stage.
+  static List<String> _readingSchema() {
+    final List<String> out = <String>[
+      '{',
+      '  "title": "a short name for the mission",',
+    ];
+    for (final InterviewStage s in <InterviewStage>[
+      InterviewStage.intent,
+      InterviewStage.shape,
+      InterviewStage.quality,
+      InterviewStage.evidence,
+      InterviewStage.runtime,
+      InterviewStage.rubric,
+      InterviewStage.review,
+      InterviewStage.acceptance,
+    ]) {
+      final List<String> lines = _schema(s);
+      final List<String> inner = lines.sublist(1, lines.length - 1);
+      out
+        ..addAll(inner.take(inner.length - 1))
+        ..add('${inner.last},');
+    }
+    out
+      ..add(
+        '  "carry": ["an instruction of mine that fits no key above, '
+        'word for word"]',
+      )
+      ..add('}');
+    return out;
   }
 
   String _readyText(MissionSpec spec) =>

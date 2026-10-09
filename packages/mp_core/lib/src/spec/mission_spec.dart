@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 
 import 'spec_field.dart';
+import 'source_prompt.dart';
 import 'spec_sections.dart';
 import 'spec_types.dart';
 
@@ -37,6 +38,8 @@ class MissionSpec {
     this.validation = const ValidationPlan(),
     this.deliverables = const DeliverablePlan(),
     this.failureConditions = const <FailureCondition>[],
+    this.standingInstructions = const <String>[],
+    this.source,
     this.createdAt,
     this.updatedAt,
   });
@@ -87,6 +90,18 @@ class MissionSpec {
   final DeliverablePlan deliverables;
   final List<FailureCondition> failureConditions;
 
+  /// Instructions that bind the whole run but belong to no one section — a
+  /// convention, a tone, a thing never to do.
+  ///
+  /// Exists for missions started from a prompt the user already had. A real
+  /// prompt is full of these, and a mapping that only knew the sections would
+  /// quietly drop every one of them on the way into the brief: the improved
+  /// prompt would say less than the original did.
+  final List<String> standingInstructions;
+
+  /// The prompt this mission was started from, when it was started from one.
+  final SourcePrompt? source;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -117,6 +132,8 @@ class MissionSpec {
     ValidationPlan? validation,
     DeliverablePlan? deliverables,
     List<FailureCondition>? failureConditions,
+    List<String>? standingInstructions,
+    SourcePrompt? source,
     DateTime? updatedAt,
   }) => MissionSpec(
     id: id,
@@ -140,6 +157,8 @@ class MissionSpec {
     validation: validation ?? this.validation,
     deliverables: deliverables ?? this.deliverables,
     failureConditions: failureConditions ?? this.failureConditions,
+    standingInstructions: standingInstructions ?? this.standingInstructions,
+    source: source ?? this.source,
     createdAt: createdAt,
     updatedAt: updatedAt ?? DateTime.now().toUtc(),
   );
@@ -167,6 +186,16 @@ class MissionSpec {
       scale: promote(scale),
       audience: promote(audience),
     );
+  }
+
+  /// Record that the prompt this mission started from has been read.
+  ///
+  /// Called when the reading round is accepted — and only then, so a reading
+  /// that was discarded is offered again rather than skipped.
+  MissionSpec markSourceRead() {
+    final SourcePrompt? s = source;
+    if (s == null || s.read) return this;
+    return copyWith(source: s.markRead());
   }
 
   /// How many fields are waiting to be accepted. Drives the review beat's
@@ -202,6 +231,12 @@ class MissionSpec {
     'failureConditions': failureConditions
         .map((FailureCondition f) => f.toJson())
         .toList(),
+    // Both only when present. The content hash is taken over this map, and a
+    // key that every existing mission suddenly carried would mark every
+    // compiled brief stale on the first launch of this build.
+    if (standingInstructions.isNotEmpty)
+      'standingInstructions': standingInstructions,
+    if (source != null) 'source': source!.toJson(),
     if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
   };
@@ -272,6 +307,11 @@ class MissionSpec {
                   FailureCondition.fromJson(e! as Map<String, Object?>),
             )
             .toList(),
+    standingInstructions:
+        (j['standingInstructions'] as List<Object?>? ?? const <Object?>[])
+            .map((Object? e) => '$e')
+            .toList(),
+    source: SourcePrompt.fromJson(j['source']),
     createdAt: j['createdAt'] == null
         ? null
         : DateTime.tryParse('${j['createdAt']}'),

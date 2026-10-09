@@ -150,6 +150,17 @@ class PromptCompiler {
       w.line('**Avoid these interpretations and shortcuts**');
       w.bullets(spec.quality.avoid);
     }
+
+    // Instructions that bind the whole run without belonging to any one
+    // section. Set out as standing because they are: the agent should read
+    // them as true at every step, not as part of one.
+    if (spec.standingInstructions.isNotEmpty) {
+      w.blank();
+      w.line('**Standing instructions**');
+      w.blank();
+      w.line('These hold for the whole run, in every step and every cycle.');
+      w.bullets(spec.standingInstructions);
+    }
   }
 
   // -- 02 / PROTOCOL -------------------------------------------------------
