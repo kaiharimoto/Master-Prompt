@@ -129,21 +129,25 @@ class SettingsScreen extends StatelessWidget {
                         label: 'Theme',
                         child: SegmentedButton<ThemeMode>(
                           showSelectedIcon: false,
+                          // Paper and Ink, and nothing that follows the system:
+                          // in the family the person chooses, and dark is the
+                          // exact inversion of light rather than a theme of
+                          // its own.
                           segments: const <ButtonSegment<ThemeMode>>[
                             ButtonSegment<ThemeMode>(
-                              value: ThemeMode.system,
-                              label: Text('System'),
-                            ),
-                            ButtonSegment<ThemeMode>(
                               value: ThemeMode.light,
-                              label: Text('Light'),
+                              label: Text('PAPER'),
                             ),
                             ButtonSegment<ThemeMode>(
                               value: ThemeMode.dark,
-                              label: Text('Dark'),
+                              label: Text('INK'),
                             ),
                           ],
-                          selected: <ThemeMode>{s.themeMode},
+                          selected: <ThemeMode>{
+                            s.themeMode == ThemeMode.dark
+                                ? ThemeMode.dark
+                                : ThemeMode.light,
+                          },
                           onSelectionChanged: (Set<ThemeMode> v) => store
                               .updateSettings(s.copyWith(themeMode: v.first)),
                         ),
@@ -401,9 +405,10 @@ class _DiagnosticsPanelState extends State<_DiagnosticsPanel> {
           ],
           if (crashed) ...<Widget>[
             const SizedBox(height: MpSpace.md),
-            Text(
+            const MpNotice(
               'A crash was recorded and is included in the report below.',
-              style: MpType.body.copyWith(color: c.danger),
+              kicker: '✕ Crash',
+              failed: true,
             ),
           ],
           const SizedBox(height: MpSpace.md),
@@ -566,7 +571,7 @@ class _PathFieldState extends State<_PathField> {
 /// Two reasons, both found the hard way. A `ListTile` paints its ink on the
 /// nearest Material, which inside an `MpPanel` is the page *behind* the
 /// panel — so the splash lands under an opaque box and Flutter asserts. And an
-/// accented `MpPanel` wraps its child in `IntrinsicHeight`, which a `ListTile`
+/// accented `MpPanel` used to wrap its child in `IntrinsicHeight`, which a `ListTile`
 /// does not measure reliably inside: the result was an 18px overflow in the
 /// Autonomy panel, which is accented by default because the default permission
 /// mode is `bypassPermissions`. That is the third layout crash this accent bar
@@ -601,7 +606,7 @@ class _SettingSwitch extends StatelessWidget {
           ),
         ),
         const SizedBox(width: MpSpace.md),
-        Switch.adaptive(value: value, onChanged: onChanged),
+        MpSwitch(value: value, onChanged: onChanged),
       ],
     );
   }

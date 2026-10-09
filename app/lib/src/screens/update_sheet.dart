@@ -67,7 +67,7 @@ class _UpdateSheetState extends State<UpdateSheet> {
           children: <Widget>[
             Text('UPDATE', style: MpType.eyebrow.copyWith(color: c.inkFaint)),
             const SizedBox(height: MpSpace.md),
-            Text(_headline, style: MpType.display.copyWith(color: c.ink)),
+            Text(_headline, style: MpType.question.copyWith(color: c.ink)),
             const SizedBox(height: MpSpace.sm),
             Text(_supporting, style: MpType.prose.copyWith(color: c.inkMuted)),
             if (u.phase == UpdatePhase.downloading) ...<Widget>[
@@ -76,11 +76,11 @@ class _UpdateSheetState extends State<UpdateSheet> {
             ],
             if (u.error != null) ...<Widget>[
               const SizedBox(height: MpSpace.md),
-              Text(u.error!, style: MpType.body.copyWith(color: c.danger)),
+              MpNotice(u.error!, kicker: '✕ Failed', failed: true),
             ],
             if (u.handoff != null) ...<Widget>[
               const SizedBox(height: MpSpace.md),
-              Text(u.handoff!, style: MpType.body.copyWith(color: c.warning)),
+              MpNotice(u.handoff!),
             ],
             const SizedBox(height: MpSpace.xl),
             MpButton(

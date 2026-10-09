@@ -949,7 +949,10 @@ class _FlowScreenState extends State<FlowScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.check, size: 18, color: c.success),
+                  Text(
+                    '✓',
+                    style: MpType.numeral.copyWith(fontSize: 13, color: c.ink),
+                  ),
                   const SizedBox(width: MpSpace.sm + 2),
                   Expanded(
                     child: Text(a, style: MpType.body.copyWith(color: c.ink)),

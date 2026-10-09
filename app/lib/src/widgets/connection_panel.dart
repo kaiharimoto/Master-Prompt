@@ -86,7 +86,7 @@ class _ConnectionPanelState extends State<ConnectionPanel> {
                     : found
                     ? 'Connected'
                     : 'Not connected',
-                style: MpType.title.copyWith(color: c.ink),
+                style: MpType.heading.copyWith(color: c.ink),
               ),
               const SizedBox(height: MpSpace.xs),
               Text(

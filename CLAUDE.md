@@ -84,7 +84,8 @@ fake-async zone, so an `await store.create(...)` in a test body hangs forever.
 Use a plain `test()` for storage, or `tester.runAsync()`.
 
 **`CrossAxisAlignment.stretch` in a Row demands a bounded height**, so it throws
-inside any scroll view. This broke every screen once via `MpPanel`.
+inside any scroll view. This broke every screen once via `MpPanel`, and the
+accent bar that caused it is gone: an accented panel is an ink frame now.
 
 **Widget tests must not touch the filesystem.** Use `AppStore(inMemory: true)`.
 Real writes cannot complete in the tester's fake-async zone, so a test that
@@ -320,6 +321,31 @@ package: nearly all of it is provable on Linux first.
 
 ## The interface
 
+**It is Master UI, set in Flutter.** `master-ui/` is the kit as its own `init`
+installed it — read `master-ui/MASTER-UI.md` before touching anything visual.
+The kit ships CSS and React; neither runs here. The implementation is
+`packages/mp_design`: `MpColors` is paper, ink and the alpha ramp (the old
+semantic names — `warning`, `danger`, `success` — survive and all resolve to
+ink, so a call site still says what it means), `buildMpTheme` squares and
+flattens every stock widget, and the primitives are the kit's components. Four
+things about it that a Flutter reader would not guess:
+
+- **`master-ui/check.mjs` reads web files only**, so pointed at this repository
+  it passes forever. `app/test/master_ui_test.dart` holds the same laws over the
+  Dart source — radius, shadow, gradient, any colour outside the tokens, 600,
+  `!` — and was checked by planting a breach of each.
+- **Micro caps cannot be a style in Flutter**, so `MpButton`, `MpTag`,
+  `MpField` and the eyebrow upper-case the string and hand the sentence-case
+  original to the screen reader. A test therefore finds `BEGIN`, not `Begin`.
+  Disclosure rows and menu items stay sentence case, as list rows do in the kit.
+- **The breathing square breathes on a timer, with a rest between breaths.** A
+  repeating controller schedules a frame forever, and every `pumpAndSettle`
+  with a run going then timed out.
+- **There is no colour to carry state**, so failure is an inverted
+  `MpNotice` with a `✕` kicker, a notice is an ink frame, a picked option is
+  inverted, and stage lists use `○ – ✓` glyphs. The theme is Paper or Ink,
+  chosen, never following the system.
+
 One thing on screen at a time. The flow is a three-beat loop per stage — hand the
 question over, bring the answer back, accept what it settled — and it advances
 itself; `FlowController` holds only what the spec cannot know (whether this round
@@ -451,3 +477,26 @@ obvious bugs directly; discuss anything that changes behaviour or appearance
 first. Keep `docs/STATUS.md` current as part of the change — it is the only
 thing that tells the next session where we were. Full description in
 `docs/workflow.md`.
+
+<!-- master-ui:start -->
+## Master UI
+
+This project uses the Master UI design system (Brutalist Swiss Minimal; the family look of Music Master). Before creating or changing any UI, CSS, component, copy or theme, read `master-ui/MASTER-UI.md` in full and follow it exactly. Deeper guides are in `master-ui/guides/`; exact component recipes in `master-ui/guides/COMPONENTS.md`; the voice in `master-ui/guides/VOICE.md`.
+
+The laws, in brief:
+1. Two fills only: paper `#ffffff` and ink `#000000`, plus ink at 70/45/25/12/6% alpha. No other colour, ever — not for errors, success, links or charts.
+2. Zero radius. Nothing is rounded.
+3. No shadows, blur or gradients (the 45° hatch is the only pattern). Layers are separated by 1px rules and an 85% paper overlay.
+4. Emphasis is inversion (ink block, paper text), hatching or motion — never colour. Danger is weight and a `✕` glyph.
+5. Type does the work: scale 96/56/32/20/14/12/11; micro caps (`.t-micro`) for labels and buttons; mono (`.t-mono`) for every number; pages and sections numbered `01`.
+6. Rules, not gaps: sections, rows and grid cells are divided by hairlines, not cards or whitespace.
+7. Light is default; dark is the exact inversion (swap paper and ink).
+8. Quiet voice: sentence case, no exclamation marks, no emoji, British spelling, ` · ` separators, `≈` estimates, `→` for forward actions.
+
+After UI changes run `node master-ui/check.mjs <src>` and fix every error.
+<!-- master-ui:end -->
+
+In this repository the block above is satisfied by `flutter test
+test/master_ui_test.dart` in `app/`; `check.mjs` reads web files only (see *The
+interface*). Re-running the kit's `init --force` replaces the block, not this
+line.

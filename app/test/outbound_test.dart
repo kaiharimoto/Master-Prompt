@@ -136,9 +136,9 @@ void main() {
     testWidgets('keeps the plain one-tap copy', (WidgetTester tester) async {
       await tester.pumpWidget(panel(document: 'short', note: 'Read this.'));
 
-      expect(find.text('Copy for Claude'), findsOneWidget);
+      expect(find.text('COPY FOR CLAUDE'), findsOneWidget);
       expect(
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         findsNothing,
         reason:
             'a file for something that fits in a message is ceremony, and the '
@@ -148,7 +148,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Copy for Claude'),
+        find.text('COPY FOR CLAUDE'),
         until: () => copied.isNotEmpty,
       );
       expect(copied.single, 'Read this.\n\nshort');
@@ -159,12 +159,12 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Copy for Claude'),
+        find.text('COPY FOR CLAUDE'),
         until: () => copied.isNotEmpty,
       );
       await tapAsync(
         tester,
-        find.text('Copy for Claude'),
+        find.text('COPY FOR CLAUDE'),
         until: () => copied.length > 1,
       );
 
@@ -187,20 +187,20 @@ void main() {
       );
 
       expect(
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         findsOneWidget,
         reason:
             'a share always opens a new chat and nothing on this side can name '
             'one, so the route that leaves the choice to the user leads',
       );
-      expect(find.text('Send'), findsOneWidget);
+      expect(find.text('SEND'), findsOneWidget);
       expect(
         find.textContaining('always opens a new one'),
         findsOneWidget,
         reason: 'or the demotion looks arbitrary',
       );
       expect(
-        find.textContaining('Copy part'),
+        find.textContaining('COPY PART'),
         findsNothing,
         reason:
             'eight trips through the app switcher is what this change exists '
@@ -213,7 +213,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         until: () => transport.savedNames.isNotEmpty,
       );
 
@@ -235,7 +235,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         until: () => transport.savedNames.isNotEmpty,
       );
 
@@ -257,7 +257,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         until: () => transport.savedNames.isNotEmpty,
       );
 
@@ -273,7 +273,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Send'),
+        find.text('SEND'),
         until: () => transport.sharedText.isNotEmpty,
       );
 
@@ -308,7 +308,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Send'),
+        find.text('SEND'),
         until: () => transport.sharedText.isNotEmpty,
       );
 
@@ -328,9 +328,9 @@ void main() {
         panel(document: longBody(40), note: 'Attack it.', canShare: false),
       );
 
-      expect(find.text('Send'), findsNothing);
+      expect(find.text('SEND'), findsNothing);
       expect(
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         findsOneWidget,
         reason:
             'this is the floor: it depends on no app registering for anything',
@@ -338,7 +338,7 @@ void main() {
 
       await tapAsync(
         tester,
-        find.text('Save the file'),
+        find.text('SAVE THE FILE'),
         until: () => transport.savedNames.isNotEmpty,
       );
       expect(transport.savedNames, hasLength(1));
@@ -352,7 +352,7 @@ void main() {
       );
 
       expect(
-        find.textContaining('Copy part'),
+        find.textContaining('COPY PART'),
         findsNothing,
         reason: 'nothing is shown until it is looked for',
       );
@@ -361,12 +361,12 @@ void main() {
       await tester.pumpAndSettle();
 
       int guard = 0;
-      while (find.textContaining('Copy part ').evaluate().isNotEmpty &&
+      while (find.textContaining('COPY PART ').evaluate().isNotEmpty &&
           guard++ < 30) {
         final int before = copied.length;
         await tapAsync(
           tester,
-          find.textContaining('Copy part '),
+          find.textContaining('COPY PART '),
           until: () => copied.length > before,
         );
       }
@@ -375,7 +375,7 @@ void main() {
       for (int i = 0; i < copied.length; i++) {
         expect(copied[i], contains('Part ${i + 1} of ${copied.length}'));
       }
-      expect(find.text('Start over'), findsOneWidget);
+      expect(find.text('START OVER'), findsOneWidget);
     });
 
     testWidgets('a regenerated document restarts the part sequence', (
@@ -386,10 +386,10 @@ void main() {
       await tester.pumpAndSettle();
       await tapAsync(
         tester,
-        find.textContaining('Copy part 1 of'),
+        find.textContaining('COPY PART 1 OF'),
         until: () => copied.isNotEmpty,
       );
-      expect(find.textContaining('Copy part 2 of'), findsOneWidget);
+      expect(find.textContaining('COPY PART 2 OF'), findsOneWidget);
 
       // The disclosure stays open across the rebuild, as it should — the user
       // opened it and nothing they did closed it.
@@ -397,7 +397,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.textContaining('Copy part 1 of'),
+        find.textContaining('COPY PART 1 OF'),
         findsOneWidget,
         reason:
             'carrying "you are on part two" across a different document sends '

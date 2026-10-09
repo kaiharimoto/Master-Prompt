@@ -1,0 +1,61 @@
+/* ===========================================================================
+   Master UI — Tailwind v4 theme.
+
+   Usage (your app's entry stylesheet):
+
+     @import 'tailwindcss';
+     @import './master-ui/css/master-ui.css';
+     @import './master-ui/css/master-ui.tailwind.css';
+
+   This maps the foundation tokens onto Tailwind utilities:
+     bg-paper  text-ink  text-ink-70/45/25  border-ink-12  bg-ink-06  bg-overlay
+     font-sans  font-mono  ease-swiss
+   and collapses every radius token to 0 and every shadow token to none, so
+   rounded-* and shadow-* utilities cannot produce a rounded or shadowed box
+   even if someone types them (the linter flags them anyway).
+
+   No tailwind.config.* is needed. Tailwind v3 users: see guides/COMPONENTS.md
+   for a tailwind.config.js equivalent.
+   =========================================================================== */
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-70: var(--ink-70);
+  --color-ink-45: var(--ink-45);
+  --color-ink-25: var(--ink-25);
+  --color-ink-12: var(--ink-12);
+  --color-ink-06: var(--ink-06);
+  --color-overlay: var(--overlay);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --ease-swiss: var(--ease);
+
+  /* Strict edges: every radius token collapses to zero, every shadow to none. */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
+  --inset-shadow-2xs: none;
+  --inset-shadow-xs: none;
+  --inset-shadow-sm: none;
+  --drop-shadow-xs: none;
+  --drop-shadow-sm: none;
+  --drop-shadow-md: none;
+  --drop-shadow-lg: none;
+  --drop-shadow-xl: none;
+  --drop-shadow-2xl: none;
+}

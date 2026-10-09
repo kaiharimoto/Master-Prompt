@@ -1,0 +1,629 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "$description": "Master UI design tokens (W3C DTCG). Two fills, an alpha ramp, zero radius, no shadows. Light is default; dark is the exact inversion. Use $extensions.master-ui.dark for the dark value where it differs.",
+  "color": {
+    "paper": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "The surface. Every background.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#000000",
+          "css": "--paper"
+        }
+      }
+    },
+    "ink": {
+      "$type": "color",
+      "$value": "#000000",
+      "$description": "The mark. Text, rules, fills, inversion.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#ffffff",
+          "css": "--ink"
+        }
+      }
+    },
+    "ink-70": {
+      "$type": "color",
+      "$value": "rgba(0, 0, 0, 0.7)",
+      "$description": "Secondary text, labels.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "rgba(255, 255, 255, 0.7)",
+          "css": "--ink-70"
+        }
+      }
+    },
+    "ink-45": {
+      "$type": "color",
+      "$value": "rgba(0, 0, 0, 0.6)",
+      "$description": "Secondary text and form-field borders. Historical name: 0.60 on paper (5.7:1), 0.50 on ink (5.3:1).",
+      "$extensions": {
+        "master-ui": {
+          "dark": "rgba(255, 255, 255, 0.5)",
+          "css": "--ink-45"
+        }
+      }
+    },
+    "ink-25": {
+      "$type": "color",
+      "$value": "rgba(0, 0, 0, 0.25)",
+      "$description": "Field borders, unplayed waveform, scrollbar thumb.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "rgba(255, 255, 255, 0.25)",
+          "css": "--ink-25"
+        }
+      }
+    },
+    "ink-12": {
+      "$type": "color",
+      "$value": "rgba(0, 0, 0, 0.12)",
+      "$description": "Hairline rules between rows; progress track.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "rgba(255, 255, 255, 0.12)",
+          "css": "--ink-12"
+        }
+      }
+    },
+    "ink-06": {
+      "$type": "color",
+      "$value": "rgba(0, 0, 0, 0.06)",
+      "$description": "Hover wash on rows; skeleton base.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "rgba(255, 255, 255, 0.06)",
+          "css": "--ink-06"
+        }
+      }
+    },
+    "overlay": {
+      "$type": "color",
+      "$value": "rgba(255, 255, 255, 0.85)",
+      "$description": "Behind dialogs and drawers. Paper at 85%, never a dark scrim, never blurred.",
+      "$extensions": {
+        "master-ui": {
+          "dark": "rgba(0, 0, 0, 0.85)",
+          "css": "--overlay"
+        }
+      }
+    }
+  },
+  "guest": {
+    "$description": "Claude room only (optional module). Never used by the app itself.",
+    "dark": {
+      "$type": "color",
+      "$value": "#141413",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#f3f1ea"
+        }
+      }
+    },
+    "light": {
+      "$type": "color",
+      "$value": "#faf9f5",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#1c1b19"
+        }
+      }
+    },
+    "mid": {
+      "$type": "color",
+      "$value": "#b0aea5",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#8a877e"
+        }
+      }
+    },
+    "gray": {
+      "$type": "color",
+      "$value": "#e8e6dc",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#34322e"
+        }
+      }
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "#f0eee6",
+      "$extensions": {
+        "master-ui": {
+          "dark": "#262521"
+        }
+      }
+    },
+    "orange": {
+      "$type": "color",
+      "$value": "#d97757"
+    },
+    "blue": {
+      "$type": "color",
+      "$value": "#6a9bcc"
+    },
+    "green": {
+      "$type": "color",
+      "$value": "#788c5d"
+    }
+  },
+  "border": {
+    "hairline": {
+      "$type": "strokeStyle",
+      "$value": "solid",
+      "$description": "1px {color.ink-12}. Between rows."
+    },
+    "field": {
+      "$type": "strokeStyle",
+      "$value": "solid",
+      "$description": "1px {color.ink-25}. Inputs, chips at rest."
+    },
+    "structural": {
+      "$type": "strokeStyle",
+      "$value": "solid",
+      "$description": "1px {color.ink}. Frames, page header, sidebar."
+    },
+    "strong": {
+      "$type": "strokeStyle",
+      "$value": "solid",
+      "$description": "2px {color.ink}. Footer/transport bar and sticky action bars only."
+    },
+    "width": {
+      "hairline": {
+        "$type": "dimension",
+        "$value": "1px"
+      },
+      "strong": {
+        "$type": "dimension",
+        "$value": "2px"
+      }
+    }
+  },
+  "radius": {
+    "all": {
+      "$type": "dimension",
+      "$value": "0px",
+      "$description": "Nothing is ever rounded."
+    }
+  },
+  "shadow": {
+    "all": {
+      "$type": "shadow",
+      "$value": {
+        "color": "#00000000",
+        "offsetX": "0px",
+        "offsetY": "0px",
+        "blur": "0px",
+        "spread": "0px"
+      },
+      "$description": "None. Depth is shown by rules and inversion."
+    }
+  },
+  "space": {
+    "1": {
+      "$type": "dimension",
+      "$value": "4px"
+    },
+    "2": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "3": {
+      "$type": "dimension",
+      "$value": "12px"
+    },
+    "4": {
+      "$type": "dimension",
+      "$value": "16px"
+    },
+    "5": {
+      "$type": "dimension",
+      "$value": "20px"
+    },
+    "6": {
+      "$type": "dimension",
+      "$value": "24px"
+    },
+    "8": {
+      "$type": "dimension",
+      "$value": "32px"
+    },
+    "10": {
+      "$type": "dimension",
+      "$value": "40px"
+    },
+    "12": {
+      "$type": "dimension",
+      "$value": "48px"
+    },
+    "16": {
+      "$type": "dimension",
+      "$value": "64px"
+    }
+  },
+  "shell": {
+    "top-height": {
+      "$type": "dimension",
+      "$value": "40px",
+      "$description": "Title bar."
+    },
+    "bottom-height": {
+      "$type": "dimension",
+      "$value": "88px",
+      "$description": "Transport / footer bar."
+    },
+    "sidebar-width": {
+      "$type": "dimension",
+      "$value": "232px",
+      "$description": "Index rail."
+    },
+    "rail-item-height": {
+      "$type": "dimension",
+      "$value": "56px"
+    },
+    "window-min-width": {
+      "$type": "dimension",
+      "$value": "1024px"
+    },
+    "window-min-height": {
+      "$type": "dimension",
+      "$value": "680px"
+    },
+    "window-default-width": {
+      "$type": "dimension",
+      "$value": "1440px"
+    },
+    "window-default-height": {
+      "$type": "dimension",
+      "$value": "900px"
+    }
+  },
+  "control": {
+    "height-sm": {
+      "$type": "dimension",
+      "$value": "32px"
+    },
+    "height-md": {
+      "$type": "dimension",
+      "$value": "36px"
+    },
+    "height-lg": {
+      "$type": "dimension",
+      "$value": "48px"
+    },
+    "height-xs": {
+      "$type": "dimension",
+      "$value": "28px",
+      "$description": "Segmented sm, chips, icon-sm buttons, tags."
+    },
+    "switch": {
+      "$type": "dimension",
+      "$value": "36px",
+      "$description": "36×18, 12px square thumb."
+    },
+    "checkbox": {
+      "$type": "dimension",
+      "$value": "14px"
+    },
+    "slider-track": {
+      "$type": "dimension",
+      "$value": "1px"
+    },
+    "slider-thumb": {
+      "$type": "dimension",
+      "$value": "10px"
+    },
+    "progress": {
+      "$type": "dimension",
+      "$value": "3px"
+    },
+    "meter-cell": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "live-dot": {
+      "$type": "dimension",
+      "$value": "6px"
+    },
+    "scrollbar": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "focus-ring": {
+      "$type": "dimension",
+      "$value": "2px",
+      "$description": "Solid ink, 1px offset."
+    }
+  },
+  "motion": {
+    "ease": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.2,
+        0,
+        0,
+        1
+      ],
+      "$description": "The only easing. Linear for hatch drift and progress width."
+    },
+    "fast": {
+      "$type": "duration",
+      "$value": "120ms",
+      "$description": "Colour and background changes; chevrons; arrows."
+    },
+    "base": {
+      "$type": "duration",
+      "$value": "180ms",
+      "$description": "Link underline; drawers."
+    },
+    "slow": {
+      "$type": "duration",
+      "$value": "320ms",
+      "$description": "Transforms of a glyph; the largest allowed transition."
+    },
+    "page": {
+      "$type": "duration",
+      "$value": "100ms",
+      "$description": "Page swap fade."
+    },
+    "panel": {
+      "$type": "duration",
+      "$value": "220ms",
+      "$description": "Side panel width."
+    },
+    "progress": {
+      "$type": "duration",
+      "$value": "300ms",
+      "$description": "Progress width, linear."
+    },
+    "hatch": {
+      "$type": "duration",
+      "$value": "600ms",
+      "$description": "Live hatch drift, linear, infinite."
+    },
+    "skeleton": {
+      "$type": "duration",
+      "$value": "1400ms"
+    },
+    "breathe": {
+      "$type": "duration",
+      "$value": "2400ms",
+      "$description": "Opacity 1 → 0.35 → 1, ease-in-out."
+    },
+    "blink": {
+      "$type": "duration",
+      "$value": "1000ms",
+      "$description": "steps(1); 50% on."
+    },
+    "marquee": {
+      "$type": "duration",
+      "$value": "12000ms"
+    }
+  },
+  "font": {
+    "sans": {
+      "$type": "fontFamily",
+      "$value": [
+        "Neue Haas Grotesk Display Pro",
+        "Inter Variable",
+        "Helvetica Neue",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "mono": {
+      "$type": "fontFamily",
+      "$value": [
+        "Cascadia Mono",
+        "Consolas",
+        "JetBrains Mono",
+        "ui-monospace",
+        "monospace"
+      ]
+    },
+    "features": {
+      "$type": "string",
+      "$value": "'ss01', 'cv11'",
+      "$description": "Single-storey a and open digits on Inter; harmless on Neue Haas."
+    },
+    "numerals": {
+      "$type": "string",
+      "$value": "tabular-nums"
+    }
+  },
+  "type": {
+    "display-xl": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "96px",
+        "fontWeight": 700,
+        "letterSpacing": "-0.035em",
+        "lineHeight": 0.88
+      }
+    },
+    "display": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "56px",
+        "fontWeight": 700,
+        "letterSpacing": "-0.03em",
+        "lineHeight": 0.92
+      },
+      "$description": "Empty-state sentences, install states, the biggest thing on a page."
+    },
+    "h1": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "32px",
+        "fontWeight": 500,
+        "letterSpacing": "-0.02em",
+        "lineHeight": 1.05
+      },
+      "$description": "Page title."
+    },
+    "h2": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "20px",
+        "fontWeight": 500,
+        "letterSpacing": "-0.01em",
+        "lineHeight": 1.15
+      },
+      "$description": "Section title, rail item, dialog title, card name."
+    },
+    "body": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "14px",
+        "fontWeight": 400,
+        "letterSpacing": "0",
+        "lineHeight": 1.45
+      }
+    },
+    "small": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "12px",
+        "fontWeight": 400,
+        "letterSpacing": "0",
+        "lineHeight": 1.4
+      }
+    },
+    "micro": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "11px",
+        "fontWeight": 500,
+        "letterSpacing": "0.08em",
+        "lineHeight": 1.2,
+        "textCase": "uppercase"
+      },
+      "$description": "Labels, kickers, button text, tabs, badges."
+    },
+    "mono": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.mono}",
+        "fontSize": "11px",
+        "fontWeight": 400,
+        "letterSpacing": "0",
+        "lineHeight": 1.4
+      },
+      "$description": "Numbers, indexes, durations, seeds, paths, shortcuts."
+    },
+    "wordmark": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "13px",
+        "fontWeight": 700,
+        "letterSpacing": "-0.02em",
+        "lineHeight": 1,
+        "textCase": "uppercase"
+      }
+    },
+    "tile": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "19cqw",
+        "fontWeight": 700,
+        "letterSpacing": "-0.03em",
+        "lineHeight": 0.9,
+        "textCase": "uppercase"
+      },
+      "$description": "Title set on a typographic tile; size is a container-query unit."
+    }
+  },
+  "z": {
+    "sticky": {
+      "$type": "number",
+      "$value": 10
+    },
+    "shell-bottom": {
+      "$type": "number",
+      "$value": 30
+    },
+    "shell-top": {
+      "$type": "number",
+      "$value": 40
+    },
+    "overlay": {
+      "$type": "number",
+      "$value": 50
+    },
+    "tooltip": {
+      "$type": "number",
+      "$value": 60
+    },
+    "palette": {
+      "$type": "number",
+      "$value": 70
+    }
+  },
+  "opacity": {
+    "disabled-control": {
+      "$type": "number",
+      "$value": 0.3
+    },
+    "disabled-field": {
+      "$type": "number",
+      "$value": 0.4
+    },
+    "muted": {
+      "$type": "number",
+      "$value": 0.6
+    },
+    "on-inverted-meta": {
+      "$type": "number",
+      "$value": 0.6,
+      "$description": "text-paper/60 on an inverted row."
+    },
+    "on-inverted-secondary": {
+      "$type": "number",
+      "$value": 0.7
+    },
+    "waveform-played": {
+      "$type": "number",
+      "$value": 1
+    },
+    "waveform-hover": {
+      "$type": "number",
+      "$value": 0.5
+    },
+    "waveform-rest": {
+      "$type": "number",
+      "$value": 0.25
+    }
+  },
+  "hatch": {
+    "angle": {
+      "$type": "number",
+      "$value": 45
+    },
+    "line": {
+      "$type": "dimension",
+      "$value": "1px"
+    },
+    "period": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "tile": {
+      "$type": "dimension",
+      "$value": "16px"
+    }
+  }
+}

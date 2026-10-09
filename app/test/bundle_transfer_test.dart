@@ -204,7 +204,7 @@ void main() {
       await tester.tap(find.text('Move a mission between devices'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Bring it in'), findsOneWidget);
+      expect(find.text('BRING IT IN'), findsOneWidget);
       expect(find.text('This mission as a file'), findsOneWidget);
     });
   });

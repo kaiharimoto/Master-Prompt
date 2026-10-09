@@ -612,7 +612,7 @@ class _RedTeamReview extends StatelessWidget {
             applied.length == 1
                 ? 'One fix, waiting'
                 : '${applied.length} fixes, waiting',
-            style: MpType.title.copyWith(color: c.ink),
+            style: MpType.heading.copyWith(color: c.ink),
           ),
           const SizedBox(height: MpSpace.xs),
           Text(
@@ -621,18 +621,21 @@ class _RedTeamReview extends StatelessWidget {
             style: MpType.caption.copyWith(color: c.inkMuted),
           ),
           const SizedBox(height: MpSpace.md),
-          // Every line, in a plain column. Not a bounded scroller: an accented
-          // MpPanel wraps its child in IntrinsicHeight, which cannot measure a
-          // lazy viewport and throws on layout — and a scroll area inside a
-          // scrolling page is miserable on a phone regardless. The screen
-          // already scrolls, and reading all of them is the point.
+          // Every line, in a plain column. Not a bounded scroller: a scroll
+          // area inside a scrolling page is miserable on a phone, and an
+          // accented panel once wrapped its child in IntrinsicHeight, which
+          // cannot measure a lazy viewport at all. The screen already scrolls,
+          // and reading all of them is the point.
           for (final String line in applied)
             Padding(
               padding: const EdgeInsets.only(bottom: MpSpace.sm),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.check, size: 18, color: c.success),
+                  Text(
+                    '✓',
+                    style: MpType.numeral.copyWith(fontSize: 13, color: c.ink),
+                  ),
                   const SizedBox(width: MpSpace.sm + 2),
                   Expanded(
                     child: Text(

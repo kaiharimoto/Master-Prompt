@@ -80,7 +80,7 @@ void main() {
 
     expect(find.text('Build 57 is waiting'), findsOneWidget);
     expect(
-      find.text('Download 12 B'),
+      find.text('DOWNLOAD 12 B'),
       findsOneWidget,
       reason:
           'the size is the whole reason to say no on a phone, so it belongs '
@@ -88,7 +88,7 @@ void main() {
           'the fake keeps its payload small, not because a build is',
     );
     expect(
-      find.text('Install'),
+      find.text('INSTALL'),
       findsNothing,
       reason: 'one action at a time: install is not offered before it exists',
     );
@@ -108,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ready to install'), findsOneWidget);
-    expect(find.text('Install'), findsOneWidget);
+    expect(find.text('INSTALL'), findsOneWidget);
     expect(
       find.textContaining('Download'),
       findsNothing,

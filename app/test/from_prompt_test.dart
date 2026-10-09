@@ -41,10 +41,10 @@ Future<void> startFromPrompt(
 ) async {
   await tester.pumpWidget(wrap(HomeScreen(store: store)));
   await tester.pump();
-  await tester.tap(find.text('Start from a prompt I have'));
+  await tester.tap(find.text('START FROM A PROMPT I HAVE'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField), prompt);
-  await tester.tap(find.text('Read it'));
+  await tester.tap(find.text('READ IT'));
   await tester.pumpAndSettle();
 }
 
@@ -86,15 +86,17 @@ void main() {
       await tester.pump();
 
       expect(find.text('What are you building?'), findsOneWidget);
-      expect(find.text('Start from a prompt I have'), findsOneWidget);
+      expect(find.text('START FROM A PROMPT I HAVE'), findsOneWidget);
 
-      await tester.tap(find.text('Start from a prompt I have'));
+      await tester.tap(find.text('START FROM A PROMPT I HAVE'));
       await tester.pumpAndSettle();
       expect(find.text('Paste the prompt you have'), findsOneWidget);
-      expect(find.text('Read it'), findsOneWidget);
+      expect(find.text('READ IT'), findsOneWidget);
 
-      await tester.ensureVisible(find.text('Describe it in a sentence instead'));
-      await tester.tap(find.text('Describe it in a sentence instead'));
+      await tester.ensureVisible(
+        find.text('DESCRIBE IT IN A SENTENCE INSTEAD'),
+      );
+      await tester.tap(find.text('DESCRIBE IT IN A SENTENCE INSTEAD'));
       await tester.pumpAndSettle();
       expect(
         find.text('What are you building?'),
@@ -129,7 +131,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await startFromPrompt(tester, store, pasted);
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
 
       expect(copied(), contains('Never use stock HDRIs for the skyline.'));
@@ -143,10 +145,10 @@ void main() {
       WidgetTester tester,
     ) async {
       await startFromPrompt(tester, store, pasted);
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, readingReply);
-      await tester.tap(find.text('Apply reply'));
+      await tester.tap(find.text('APPLY REPLY'));
       await tester.pumpAndSettle();
 
       expect(
@@ -156,7 +158,7 @@ void main() {
       );
       expect(store.current!.spec.source!.read, isFalse);
 
-      await tester.tap(find.text('Accept and continue'));
+      await tester.tap(find.text('ACCEPT AND CONTINUE'));
       await tester.pumpAndSettle();
 
       final MissionSpec spec = store.current!.spec;
@@ -175,12 +177,12 @@ void main() {
       WidgetTester tester,
     ) async {
       await startFromPrompt(tester, store, pasted);
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, readingReply);
-      await tester.tap(find.text('Apply reply'));
+      await tester.tap(find.text('APPLY REPLY'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Discard this reply'));
+      await tester.tap(find.text('DISCARD THIS REPLY'));
       await tester.pumpAndSettle();
 
       expect(store.current!.spec.source!.read, isFalse);
@@ -196,14 +198,14 @@ void main() {
       await startFromPrompt(tester, store, pasted);
       await tester.tap(find.text('Your original prompt'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Skip the reading'));
-      await tester.tap(find.text('Skip the reading'));
+      await tester.ensureVisible(find.text('SKIP THE READING'));
+      await tester.tap(find.text('SKIP THE READING'));
       await tester.pumpAndSettle();
 
       expect(store.current!.spec.source!.read, isTrue);
       expect(find.text(InterviewStage.seed.question), findsOneWidget);
 
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
       expect(
         copied(),
@@ -220,15 +222,15 @@ void main() {
     await startFromPrompt(tester, store, long);
 
     expect(
-      find.text('Copy for Claude'),
+      find.text('COPY FOR CLAUDE'),
       findsNothing,
       reason: 'a chat app cuts an oversized paste off without saying so',
     );
     expect(find.text('Your prompt, to be read'), findsOneWidget);
-    expect(find.text('Bring the reply back'), findsOneWidget);
+    expect(find.text('BRING THE REPLY BACK'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Bring the reply back'));
-    await tester.tap(find.text('Bring the reply back'));
+    await tester.ensureVisible(find.text('BRING THE REPLY BACK'));
+    await tester.tap(find.text('BRING THE REPLY BACK'));
     await tester.pumpAndSettle();
     expect(find.text("Paste Claude's reply"), findsOneWidget);
   });

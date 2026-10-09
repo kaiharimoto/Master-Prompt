@@ -104,7 +104,7 @@ void main() {
       findsNothing,
       reason: 'the wide layout carries its own header instead',
     );
-    expect(find.text('New mission'), findsOneWidget);
+    expect(find.text('NEW MISSION'), findsOneWidget);
   });
 
   testWidgets('a secondary panel opens as a dialog, not a drag sheet', (
@@ -113,7 +113,7 @@ void main() {
     await desktop(tester);
     // Missions is one of the destinations that needs one to exist.
     await tester.enterText(find.byType(TextField).first, 'A rooftop bar');
-    await tester.tap(find.text('Begin'));
+    await tester.tap(find.text('BEGIN'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.more_horiz));
@@ -141,7 +141,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // MpSectionHeader sets its title in the eyebrow style, uppercased.
-    expect(find.text('UPDATES'), findsOneWidget, reason: 'Settings is open');
+    expect(find.text('Updates'), findsOneWidget, reason: 'Settings is open');
     expect(
       find.text('MASTER PROMPT'),
       findsOneWidget,
@@ -149,7 +149,7 @@ void main() {
           'a pushed route covers the whole window, so opening Settings blanked '
           'a 1600px display into a phone page and took the mission list with it',
     );
-    expect(find.text('New mission'), findsOneWidget);
+    expect(find.text('NEW MISSION'), findsOneWidget);
   });
 
   testWidgets('a pane closes back to the mission', (WidgetTester tester) async {
@@ -163,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('What are you building?'), findsOneWidget);
-    expect(find.text('UPDATES'), findsNothing);
+    expect(find.text('Updates'), findsNothing);
   });
 
   testWidgets('the opening question is still the one thing on screen', (
@@ -200,11 +200,11 @@ void main() {
     await tester.pumpWidget(wrap(HomeScreen(store: store, runner: runner)));
     await tester.pump();
 
-    expect(find.text('Running'), findsNothing, reason: 'nothing is going yet');
+    expect(find.text('RUNNING'), findsNothing, reason: 'nothing is going yet');
 
     unawaited(runner.detect(const AppSettings()));
     await tester.pump();
 
-    expect(find.text('Running'), findsOneWidget);
+    expect(find.text('RUNNING'), findsOneWidget);
   });
 }

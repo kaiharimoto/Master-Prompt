@@ -1,0 +1,487 @@
+/* ===========================================================================
+   Master UI — foundation.
+   Brutalist Swiss Minimal. Two fills (paper, ink), an alpha ramp for rules and
+   secondary text, zero radius, no shadows, no gradients, no blur. Emphasis is
+   inversion, hatching and motion. Light (paper) is default; dark is the exact
+   inversion.
+
+   Framework-agnostic: plain CSS custom properties and utility classes. Works
+   alone, with Tailwind (see master-ui.tailwind.css) or with any framework.
+   Theme is selected by `data-theme="light|dark"` on <html>.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   1. Tokens
+--------------------------------------------------------------------------- */
+:root,
+:root[data-theme='light'] {
+  --paper: #ffffff;
+  --ink: #000000;
+  --ink-70: rgba(0, 0, 0, 0.7);
+  --ink-45: rgba(0, 0, 0, 0.6); /* historical name: the secondary-text step, 5.7:1 */
+  --ink-25: rgba(0, 0, 0, 0.25);
+  --ink-12: rgba(0, 0, 0, 0.12);
+  --ink-06: rgba(0, 0, 0, 0.06);
+  --overlay: rgba(255, 255, 255, 0.85);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --paper: #000000;
+  --ink: #ffffff;
+  --ink-70: rgba(255, 255, 255, 0.7);
+  --ink-45: rgba(255, 255, 255, 0.5); /* 5.3:1 on ink */
+  --ink-25: rgba(255, 255, 255, 0.25);
+  --ink-12: rgba(255, 255, 255, 0.12);
+  --ink-06: rgba(255, 255, 255, 0.06);
+  --overlay: rgba(0, 0, 0, 0.85);
+  color-scheme: dark;
+}
+
+:root {
+  /* Rules: one hairline, one strong. */
+  --rule: 1px solid var(--ink-12);
+  --rule-strong: 2px solid var(--ink);
+
+  /* Motion: one easing, three durations. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 320ms;
+
+  /* Shell dimensions (title bar, transport/footer bar, index rail). */
+  --shell-top-h: 40px;
+  --shell-bottom-h: 88px;
+  --sidebar-w: 232px;
+
+  /* Type. Neue Haas Grotesk Display Pro when installed, Inter Variable otherwise. */
+  --font-sans: 'Neue Haas Grotesk Display Pro', 'Inter Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'Cascadia Mono', Consolas, 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Spacing scale (4px base). Prefer these over ad-hoc values. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* Layering ladder. */
+  --z-sticky: 10;
+  --z-shell-bottom: 30;
+  --z-shell-top: 40;
+  --z-overlay: 50;
+  --z-tooltip: 60;
+  --z-palette: 70;
+}
+
+/* ---------------------------------------------------------------------------
+   2. Base
+--------------------------------------------------------------------------- */
+html,
+body,
+#root,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.4;
+  font-feature-settings: 'ss01', 'cv11';
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  background: var(--paper);
+  color: var(--ink);
+  user-select: none;
+}
+
+/* Strict edges: nothing is ever rounded. */
+* {
+  border-radius: 0 !important;
+}
+
+/* Text is selectable only where it is content. */
+textarea,
+input,
+[contenteditable='true'],
+.selectable {
+  user-select: text;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: default;
+}
+
+/* Custom window chrome (Electron). */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Scrollbars: thin ink rule, square. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-25) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ink-25);
+  border: 2px solid var(--paper);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+   3. Type scale
+--------------------------------------------------------------------------- */
+.t-display-xl {
+  font-size: 96px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.88;
+}
+.t-display {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
+.t-h1 {
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.t-h2 {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.t-body {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.t-small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+/* Micro caps: labels, kickers, button text. */
+.t-micro {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+/* Every number, index, shortcut and path. */
+.t-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+/* A number inside a micro-caps label keeps its case and tracking. */
+.t-micro .t-mono,
+.t-micro .normal {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Ink ramp as text colour. */
+.ink {
+  color: var(--ink);
+}
+.ink-70 {
+  color: var(--ink-70);
+}
+.ink-45 {
+  color: var(--ink-45);
+}
+.ink-25 {
+  color: var(--ink-25);
+}
+
+/* ---------------------------------------------------------------------------
+   4. Material
+--------------------------------------------------------------------------- */
+.rule-b {
+  border-bottom: var(--rule);
+}
+.rule-t {
+  border-top: var(--rule);
+}
+.rule-r {
+  border-right: var(--rule);
+}
+.rule-l {
+  border-left: var(--rule);
+}
+.rule-strong-t {
+  border-top: var(--rule-strong);
+}
+.rule-strong-b {
+  border-bottom: var(--rule-strong);
+}
+/* Structural rules (1px ink). */
+.edge-b {
+  border-bottom: 1px solid var(--ink);
+}
+.edge-t {
+  border-top: 1px solid var(--ink);
+}
+.edge-r {
+  border-right: 1px solid var(--ink);
+}
+.edge-l {
+  border-left: 1px solid var(--ink);
+}
+.box {
+  border: 1px solid var(--ink);
+}
+.box-soft {
+  border: var(--rule);
+}
+.box-field {
+  border: 1px solid var(--ink-25);
+}
+.invert {
+  background: var(--ink);
+  color: var(--paper);
+}
+.wash {
+  background: var(--ink-06);
+}
+
+/* Animated 45° hatch: the material for "running". */
+@keyframes hatch-move {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 16px 0;
+  }
+}
+.hatch {
+  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 8px);
+  background-size: 16px 16px;
+}
+.hatch-live {
+  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 8px);
+  background-size: 16px 16px;
+  animation: hatch-move 0.6s linear infinite;
+}
+.hatch-inverse {
+  background-image: repeating-linear-gradient(45deg, var(--paper) 0 1px, transparent 1px 8px);
+  background-size: 16px 16px;
+}
+
+/* Skeleton: soft block with a slow hatch drift. */
+.skeleton {
+  background-color: var(--ink-06);
+  background-image: repeating-linear-gradient(45deg, var(--ink-06) 0 1px, transparent 1px 8px);
+  background-size: 16px 16px;
+  animation: hatch-move 1.4s linear infinite;
+}
+
+/* Blink: a prompt caret, a playhead square. */
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.blink {
+  animation: blink 1s steps(1) infinite;
+}
+
+/* Breathe: the running indicator. Small squares only, never text. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+/* The 6px live square. */
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  flex: none;
+}
+
+/* Marquee for overflowing titles. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 12s linear infinite;
+}
+
+/* Page swap. */
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fade 100ms ease-out;
+}
+
+/* Inversion on hover for any interactive block. */
+.hover-invert {
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.hover-invert:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+/* Wash on hover for rows. */
+.hover-wash {
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.hover-wash:hover {
+  background: var(--ink-06);
+}
+
+/* Underline slide for text links. */
+.link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size var(--dur) var(--ease);
+  cursor: pointer;
+}
+.link:hover {
+  background-size: 100% 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hatch-live,
+  .skeleton,
+  .marquee,
+  .breathe,
+  .blink,
+  .fade-in {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   5. Native controls
+--------------------------------------------------------------------------- */
+/* Range: 1px track, 10px square thumb. Set --pct on the element for the fill. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1px;
+  background: linear-gradient(to right, var(--ink) 0%, var(--ink) var(--pct, 0%), var(--ink-25) var(--pct, 0%), var(--ink-25) 100%);
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  border: 1px solid var(--paper);
+  cursor: ew-resize;
+}
+input[type='range']::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  border: 1px solid var(--paper);
+  cursor: ew-resize;
+}
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+input[type='range']:disabled {
+  opacity: 0.3;
+}
+
+/* Checkbox: 14px square, filled when checked. */
+input[type='checkbox'] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+}
+input[type='checkbox']:checked {
+  background: var(--ink);
+}
+
+/* Media is grayscale. */
+audio,
+video.mui-mono {
+  filter: grayscale(1);
+}
+
+/* ---------------------------------------------------------------------------
+   6. Overlay
+--------------------------------------------------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: var(--z-overlay);
+}

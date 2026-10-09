@@ -568,13 +568,7 @@ class _StatePanel extends StatelessWidget {
           ],
           if (s.isBlocked) ...<Widget>[
             const SizedBox(height: MpSpace.md),
-            MpField(
-              label: 'Blocked',
-              child: Text(
-                s.blocked!,
-                style: MpType.body.copyWith(color: c.danger),
-              ),
-            ),
+            MpNotice(s.blocked!, kicker: '✕ Blocked', failed: true),
           ],
           if (s.hasQuestion) ...<Widget>[
             const SizedBox(height: MpSpace.md),
@@ -747,7 +741,7 @@ class _DesktopRunPanelState extends State<_DesktopRunPanel> {
 
               if (r.error != null) ...<Widget>[
                 const SizedBox(height: MpSpace.md),
-                Text(r.error!, style: MpType.caption.copyWith(color: c.danger)),
+                MpNotice(r.error!, kicker: '✕ Failed', failed: true),
                 const SizedBox(height: MpSpace.sm),
                 // The search reports every candidate and what became of it,
                 // and that list was reachable only from Settings. Being told

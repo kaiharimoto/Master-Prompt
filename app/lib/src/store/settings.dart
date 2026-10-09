@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// lives in its spec, not here.
 class AppSettings {
   const AppSettings({
-    this.themeMode = ThemeMode.system,
+    this.themeMode = ThemeMode.light,
     this.claudePath,
     this.model = '',
     this.effort = 'high',
@@ -95,10 +95,11 @@ class AppSettings {
   };
 
   static AppSettings fromJson(Map<String, Object?> j) => AppSettings(
-    themeMode: ThemeMode.values.firstWhere(
-      (ThemeMode m) => m.name == j['themeMode'],
-      orElse: () => ThemeMode.system,
-    ),
+    // Paper unless Ink was chosen. A saved "system" from before the family
+    // look reads as Paper: Master UI follows the person, not the platform.
+    themeMode: j['themeMode'] == ThemeMode.dark.name
+        ? ThemeMode.dark
+        : ThemeMode.light,
     claudePath: j['claudePath'] as String?,
     model: _readModel(j['model']),
     effort: '${j['effort'] ?? 'high'}',

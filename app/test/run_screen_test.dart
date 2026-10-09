@@ -274,10 +274,10 @@ void main() {
       );
 
       expect(find.text('A run was left unfinished.'), findsOneWidget);
-      expect(find.text('Continue this run'), findsOneWidget);
+      expect(find.text('CONTINUE THIS RUN'), findsOneWidget);
       expect(find.textContaining('a0000000'), findsOneWidget);
       expect(
-        find.text('Start over'),
+        find.text('START OVER'),
         findsOneWidget,
         reason:
             'starting again is still offered, and is now named for what it '
@@ -320,7 +320,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Continue this run'), findsNothing);
+      expect(find.text('CONTINUE THIS RUN'), findsNothing);
     });
   });
 
@@ -444,7 +444,7 @@ void main() {
         ),
       );
       expect(
-        find.text('Stop'),
+        find.text('STOP'),
         findsOneWidget,
         reason:
             'a pause is the state Stop was inert in, so it had better be '

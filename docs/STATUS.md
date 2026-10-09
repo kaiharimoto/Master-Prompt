@@ -4,14 +4,60 @@ A living note, updated as part of each change. It is the only thing that tells a
 new session where we had got to, because feedback lives in chat rather than in
 issues.
 
-_Last updated: the commit that let a mission start from a prompt the user
-already had, rather than from one sentence._
+_Last updated: the commit that moved the whole interface onto Master UI, the
+design system of the Master family of apps._
 
 The loop itself is live: `docs/workflow.md` describes it, CI publishes a rolling
 `dev` prerelease on every green push, and Settings carries a Copy diagnostics
 button. The core job runs on plain Dart in about 35 seconds.
 
 ## Where things stand
+
+### The family look: Master UI
+
+Asked for in chat: redesign the app to fit
+[Master UI](https://github.com/kaiharimoto/Master-UI). The kit is installed
+under `master-ui/` by its own `init`, which also added the managed block to
+`CLAUDE.md`; the app was converted in the order the kit's `TRANSFORM.md` asks
+for — foundation, then shell, then screens, then copy.
+
+- **Foundation.** `MpColors` is paper `#fff`, ink `#000` and ink at 70/60/25/12/6%,
+  with dark as the exact inversion. Every radius is zero, nothing has
+  elevation, the type scale is 56/32/20/14/12/11 in Inter with `ss01`/`cv11` and
+  tabular figures, numbers are mono, and there is one easing.
+- **Shell.** On a desktop: a 40px title bar with the new mark and wordmark,
+  the run status as a breathing 6px square and a micro-caps word, a 232px
+  index rail of numbered missions with the open one inverted, and a page header
+  with the stage strip — nine numbered cells, the current one inverted. On a
+  phone the same pieces in an app bar. The menu is numbered rather than
+  iconned.
+- **Pages.** `MpFocal` now carries its actions in a sticky bar under a 2px ink
+  rule, so the one next thing is always on screen however long the reply above
+  it runs. Buttons are micro caps: primary an ink block, secondary an ink frame,
+  quiet a ghost, a forward arrow trailing as `→`.
+- **State without colour.** Failure is an inverted notice with a `✕` kicker,
+  a picked option is inverted, notices are ink frames, readiness gaps are a
+  stage list of `○` and `–`. The accent bar that crashed three screens is gone.
+- **Theme** is Paper or Ink, chosen. A saved "system" reads as Paper, because
+  the family follows the person, not the platform. This is a behaviour change.
+- **The mark** is a caret and the line after it — a prompt — on an ink square,
+  replacing the initial-on-a-rounded-square that `MARK.md` forbids.
+  `tool/make_icon.py` draws the Android and Windows icons from it.
+
+`app/test/master_ui_test.dart` holds the laws over the Dart source, because the
+kit's `check.mjs` reads only web files and would pass here forever.
+
+**Trade-offs worth a look on a real device.** The kit is a desktop spec, and
+its body text is 14px — the app had moved to 17px for a phone held at arm's
+length. The scale is the kit's exactly, on the reasoning that the family test
+is the point; if it reads small on the phone, the place to change it is
+`MpType`, once, rather than screen by screen. Material outlined icons remain
+where lucide would be in the kit, since there is no lucide in this dependency
+set. Settings still groups its controls in hairline frames, which the kit would
+set as ruled rows.
+
+Screens were rendered at 412×892 and 1440×900 from a throwaway harness to check
+the result by eye; nothing of it is committed.
 
 ### Starting from a prompt you already have
 

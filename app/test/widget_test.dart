@@ -50,7 +50,7 @@ Future<void> seed(WidgetTester tester, AppStore store, String sentence) async {
   await tester.pumpWidget(wrap(HomeScreen(store: store)));
   await tester.pump();
   await tester.enterText(find.byType(TextField), sentence);
-  await tester.tap(find.text('Begin'));
+  await tester.tap(find.text('BEGIN'));
   await tester.pumpAndSettle();
 }
 
@@ -106,12 +106,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('What are you building?'), findsOneWidget);
-      expect(find.text('Begin'), findsOneWidget);
+      expect(find.text('BEGIN'), findsOneWidget);
 
       // The complaint that prompted this redesign: everything at once. None of
       // the old dashboard may appear before a mission exists.
       expect(find.text('READINESS'), findsNothing);
-      expect(find.text('Copy for Claude'), findsNothing);
+      expect(find.text('COPY FOR CLAUDE'), findsNothing);
       expect(find.byType(NavigationBar), findsNothing);
     });
 
@@ -124,7 +124,7 @@ void main() {
       expect(store.current!.spec.taskId, isNotEmpty);
       // Typed by the user, so it counts immediately.
       expect(store.current!.spec.missionStatement.isSettled, isTrue);
-      expect(find.text('Copy for Claude'), findsOneWidget);
+      expect(find.text('COPY FOR CLAUDE'), findsOneWidget);
     });
   });
 
@@ -134,9 +134,9 @@ void main() {
     ) async {
       await seed(tester, store, 'A rooftop bar');
 
-      expect(find.text('Copy for Claude'), findsOneWidget);
+      expect(find.text('COPY FOR CLAUDE'), findsOneWidget);
       expect(find.text("Paste Claude's reply"), findsNothing);
-      expect(find.text('Apply reply'), findsNothing);
+      expect(find.text('APPLY REPLY'), findsNothing);
       // The stage's open items exist but are folded away.
       expect(find.text('What this round settles'), findsOneWidget);
       expect(find.text('Preview the message'), findsOneWidget);
@@ -146,7 +146,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await seed(tester, store, 'A rooftop bar');
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
 
       expect(
@@ -155,24 +155,24 @@ void main() {
         reason: 'the round should actually be on the clipboard',
       );
       expect(find.text("Paste Claude's reply"), findsOneWidget);
-      expect(find.text('Apply reply'), findsOneWidget);
-      expect(find.text('Copy for Claude'), findsNothing);
+      expect(find.text('APPLY REPLY'), findsOneWidget);
+      expect(find.text('COPY FOR CLAUDE'), findsNothing);
     });
 
     testWidgets('a good reply advances to REVIEW and names what landed', (
       WidgetTester tester,
     ) async {
       await seed(tester, store, 'A rooftop bar');
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, shapeReply);
-      await tester.tap(find.text('Apply reply'));
+      await tester.tap(find.text('APPLY REPLY'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('things settled'), findsOneWidget);
       expect(find.textContaining('Cocktail bar'), findsOneWidget);
-      expect(find.text('Accept and continue'), findsOneWidget);
+      expect(find.text('ACCEPT AND CONTINUE'), findsOneWidget);
       // REVIEW is about what happened, not about the question.
       expect(find.text('What parts must exist?'), findsNothing);
     });
@@ -183,39 +183,39 @@ void main() {
       WidgetTester tester,
     ) async {
       await seed(tester, store, 'A rooftop bar');
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, shapeReply);
-      await tester.tap(find.text('Apply reply'));
+      await tester.tap(find.text('APPLY REPLY'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Accept and continue'));
+      await tester.tap(find.text('ACCEPT AND CONTINUE'));
       await tester.pumpAndSettle();
 
       // The mission actually took the changes.
       expect(store.current!.spec.regions, hasLength(2));
       expect(store.current!.spec.families, hasLength(1));
       // And we are asking the next question rather than sitting on a summary.
-      expect(find.text('Copy for Claude'), findsOneWidget);
-      expect(find.text('Accept and continue'), findsNothing);
+      expect(find.text('COPY FOR CLAUDE'), findsOneWidget);
+      expect(find.text('ACCEPT AND CONTINUE'), findsNothing);
     });
 
     testWidgets('a reply that settles nothing never advances the flow', (
       WidgetTester tester,
     ) async {
       await seed(tester, store, 'A rooftop bar');
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
 
       await tester.enterText(
         find.byType(TextField).first,
         'Sure! What sort of atmosphere are you going for?',
       );
-      await tester.tap(find.text('Apply reply'));
+      await tester.tap(find.text('APPLY REPLY'));
       await tester.pumpAndSettle();
 
       // Stays put, explains itself, and does not pretend a round completed.
       expect(find.text("Paste Claude's reply"), findsOneWidget);
-      expect(find.text('Accept and continue'), findsNothing);
+      expect(find.text('ACCEPT AND CONTINUE'), findsNothing);
       expect(
         find.textContaining('answer them in the same chat'),
         findsOneWidget,
@@ -226,12 +226,12 @@ void main() {
       WidgetTester tester,
     ) async {
       await seed(tester, store, 'A rooftop bar');
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Back to the question'));
+      await tester.tap(find.text('BACK TO THE QUESTION'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Copy for Claude'), findsOneWidget);
+      expect(find.text('COPY FOR CLAUDE'), findsOneWidget);
       expect(store.projects, hasLength(1));
     });
   });
@@ -248,12 +248,12 @@ void main() {
             .toString();
 
     Future<void> completeARound(WidgetTester tester) async {
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, shapeReply);
-      await tester.tap(find.text('Apply reply'));
+      await tester.tap(find.text('APPLY REPLY'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Accept and continue'));
+      await tester.tap(find.text('ACCEPT AND CONTINUE'));
       await tester.pumpAndSettle();
     }
 
@@ -261,7 +261,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await seed(tester, store, 'A rooftop bar');
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
 
       expect(
@@ -280,7 +280,7 @@ void main() {
       await completeARound(tester);
 
       clipboard.clear();
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
       final String second = copied();
 
@@ -312,7 +312,7 @@ void main() {
       await completeARound(tester);
 
       expect(
-        find.text('Copy for a new chat'),
+        find.text('COPY FOR A NEW CHAT'),
         findsNothing,
         reason: 'a recovery path is not something to show until looked for',
       );
@@ -324,9 +324,9 @@ void main() {
       // mission's first round already put on the clipboard — a missed tap
       // would otherwise pass.
       clipboard.clear();
-      await tester.ensureVisible(find.text('Copy for a new chat'));
+      await tester.ensureVisible(find.text('COPY FOR A NEW CHAT'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Copy for a new chat'));
+      await tester.tap(find.text('COPY FOR A NEW CHAT'));
       await tester.pumpAndSettle();
 
       expect(
@@ -350,7 +350,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       clipboard.clear();
-      await tester.tap(find.text('Copy for Claude'));
+      await tester.tap(find.text('COPY FOR CLAUDE'));
       await tester.pumpAndSettle();
 
       expect(

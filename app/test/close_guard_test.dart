@@ -76,7 +76,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('A run is still going'), findsOneWidget);
-      await tester.tap(find.text('Keep running'));
+      await tester.tap(find.text('KEEP RUNNING'));
       await tester.pumpAndSettle();
 
       expect(
@@ -98,7 +98,7 @@ void main() {
     final Future<AppExitResponse> asked = WidgetsBinding.instance
         .handleRequestAppExit();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Close anyway'));
+    await tester.tap(find.text('CLOSE ANYWAY'));
     await tester.pumpAndSettle();
 
     expect(await asked, AppExitResponse.exit);

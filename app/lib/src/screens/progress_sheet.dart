@@ -60,16 +60,14 @@ class ProgressSheet extends StatelessWidget {
               style: MpType.eyebrow.copyWith(color: c.inkFaint),
             ),
             const SizedBox(height: MpSpace.md),
-            for (final ReadinessGap g in r.blocking)
-              _Gap(gap: g, tone: c.danger),
+            for (final ReadinessGap g in r.blocking) _Gap(gap: g, glyph: '○'),
             const SizedBox(height: MpSpace.lg),
           ],
 
           if (r.advisory.isNotEmpty) ...<Widget>[
             Text('OPTIONAL', style: MpType.eyebrow.copyWith(color: c.inkFaint)),
             const SizedBox(height: MpSpace.md),
-            for (final ReadinessGap g in r.advisory)
-              _Gap(gap: g, tone: c.inkFaint),
+            for (final ReadinessGap g in r.advisory) _Gap(gap: g, glyph: '–'),
           ],
           SizedBox(height: draggable ? MpSpace.xxl : MpSpace.md),
         ],
@@ -89,25 +87,30 @@ class ProgressSheet extends StatelessWidget {
 }
 
 class _Gap extends StatelessWidget {
-  const _Gap({required this.gap, required this.tone});
+  const _Gap({required this.gap, required this.glyph});
 
   final ReadinessGap gap;
-  final Color tone;
+
+  /// The stage-list glyph: `○` still to do, `–` optional. A glyph rather than
+  /// a coloured dot, because there are no colours to mean anything with.
+  final String glyph;
 
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: MpSpace.md),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: MpSpace.smd),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: c.ink12)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(top: 8, right: MpSpace.md),
-            decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+          SizedBox(
+            width: MpSpace.md,
+            child: Text(glyph, style: MpType.numeral.copyWith(color: c.ink)),
           ),
+          const SizedBox(width: MpSpace.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,9 +124,10 @@ class _Gap extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: MpSpace.smd),
           Text(
-            gap.stage.title,
-            style: MpType.caption.copyWith(color: c.inkFaint),
+            gap.stage.title.toUpperCase(),
+            style: MpType.eyebrow.copyWith(color: c.ink45),
           ),
         ],
       ),

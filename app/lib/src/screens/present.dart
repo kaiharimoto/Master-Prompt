@@ -33,15 +33,14 @@ Future<void> present(
 
   return showDialog<void>(
     context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.35),
+    // Paper at 85%, never a dark scrim.
+    barrierColor: c.overlay,
     builder: (BuildContext context) => Dialog(
       backgroundColor: c.surfaceRaised,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(MpSpace.xl),
-      shape: RoundedRectangleBorder(
-        borderRadius: MpRadius.card,
-        side: BorderSide(color: c.line),
-      ),
+      elevation: 0,
+      shape: RoundedRectangleBorder(side: BorderSide(color: c.ink)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: maxWidth,

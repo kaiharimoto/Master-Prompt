@@ -172,10 +172,9 @@ class _Block extends StatelessWidget {
               child: Container(
                 width: 4,
                 height: 4,
-                decoration: BoxDecoration(
-                  color: colors.inkFaint,
-                  shape: BoxShape.circle,
-                ),
+                // Square, like everything else: there are no circles in the
+                // family's chrome.
+                color: colors.inkFaint,
               ),
             ),
             Expanded(child: _spans(MpType.prose.copyWith(color: colors.ink))),
@@ -244,7 +243,7 @@ class _Block extends StatelessWidget {
             style: switch (s.kind) {
               BriefSpanKind.plain => base,
               BriefSpanKind.strong => base.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
                 color: colors.ink,
               ),
               BriefSpanKind.code => MpType.mono.copyWith(

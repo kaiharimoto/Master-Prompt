@@ -154,7 +154,7 @@ void main() {
     );
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'A rooftop bar at night');
-    await tester.tap(find.text('Begin'));
+    await tester.tap(find.text('BEGIN'));
     await tester.pumpAndSettle();
     return chat;
   }
@@ -164,9 +164,9 @@ void main() {
   ) async {
     await seedDesktop(tester, <String>[questionsOnly]);
 
-    expect(find.text('Ask Claude'), findsOneWidget);
+    expect(find.text('ASK CLAUDE'), findsOneWidget);
     expect(
-      find.text('Copy for Claude instead'),
+      find.text('COPY FOR CLAUDE INSTEAD'),
       findsOneWidget,
       reason:
           'the CLI can be logged out or rate-limited, so the clipboard route '
@@ -181,13 +181,13 @@ void main() {
       questionsOnly,
     ]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     expect(chat.asked, hasLength(1));
     expect(find.text('Claude answered'), findsOneWidget);
     expect(find.textContaining('Twenty seats, or forty?'), findsOneWidget);
-    expect(find.text('Send'), findsOneWidget);
+    expect(find.text('SEND'), findsOneWidget);
     expect(
       find.textContaining('No settled answers'),
       findsNothing,
@@ -205,13 +205,13 @@ void main() {
       shapeReply,
     ]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).last, 'Twenty seats.');
-    await tester.ensureVisible(find.text('Send'));
+    await tester.ensureVisible(find.text('SEND'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send'));
+    await tester.tap(find.text('SEND'));
     await tester.pumpAndSettle();
 
     expect(chat.asked, hasLength(2));
@@ -228,10 +228,10 @@ void main() {
   ) async {
     await seedDesktop(tester, <String>[shapeReply]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Accept and continue'), findsOneWidget);
+    expect(find.text('ACCEPT AND CONTINUE'), findsOneWidget);
     expect(
       store.current!.spec.regions,
       isEmpty,
@@ -241,7 +241,7 @@ void main() {
           'reach an unattended run',
     );
 
-    await tester.tap(find.text('Accept and continue'));
+    await tester.tap(find.text('ACCEPT AND CONTINUE'));
     await tester.pumpAndSettle();
     expect(store.current!.spec.regions, isNotEmpty);
   });
@@ -251,22 +251,22 @@ void main() {
   ) async {
     await seedDesktop(tester, <String>[]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('nothing scripted'), findsOneWidget);
     expect(
-      find.text('Send'),
+      find.text('SEND'),
       findsNothing,
       reason:
           'there is nothing to answer when nothing came back, and a Send that '
           'does nothing is worse than no Send',
     );
 
-    await tester.tap(find.text('Back to the question'));
+    await tester.tap(find.text('BACK TO THE QUESTION'));
     await tester.pumpAndSettle();
     expect(
-      find.text('Ask Claude'),
+      find.text('ASK CLAUDE'),
       findsOneWidget,
       reason: 'the round survives a failed turn and can be sent again',
     );
@@ -280,7 +280,7 @@ void main() {
       questionsOnly,
     ]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     expect(
@@ -300,11 +300,11 @@ void main() {
       questionsOnly,
     ]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Accept and continue'));
+    await tester.tap(find.text('ACCEPT AND CONTINUE'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     expect(chat.asked, hasLength(2));
@@ -325,11 +325,11 @@ void main() {
       questionsOnly,
     ], manual: true);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pump();
 
-    expect(find.text('Asking Claude…'), findsWidgets);
-    await tester.tap(find.text('Asking Claude…').last, warnIfMissed: false);
+    expect(find.text('ASKING CLAUDE…'), findsWidgets);
+    await tester.tap(find.text('ASKING CLAUDE…').last, warnIfMissed: false);
     await tester.pump();
     expect(
       chat.asked,
@@ -351,7 +351,7 @@ void main() {
       shapeReply,
     ]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).last, 'Twenty seats.');
@@ -377,7 +377,7 @@ void main() {
       questionsOnly,
     ]);
 
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).last, 'Twenty seats.');
@@ -397,7 +397,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await seedDesktop(tester, <String>[questionsIndexed]);
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('How many seats'), findsOneWidget);
@@ -408,7 +408,7 @@ void main() {
       reason: 'one per question, marked and nothing more',
     );
     expect(
-      find.text('Pick an answer'),
+      find.text('PICK AN ANSWER'),
       findsOneWidget,
       reason:
           'nothing is chosen when the questions appear — a pre-pressed button '
@@ -423,7 +423,7 @@ void main() {
       questionsIndexed,
       shapeReply,
     ]);
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     // Two questions with three and two options do not fit an 800x600 tester
@@ -438,8 +438,8 @@ void main() {
     await tapVisible('Twenty');
     await tapVisible('Real depth');
 
-    expect(find.text('Send all 2'), findsOneWidget);
-    await tapVisible('Send all 2');
+    expect(find.text('SEND ALL 2'), findsOneWidget);
+    await tapVisible('SEND ALL 2');
 
     expect(chat.asked, hasLength(2));
     expect(
@@ -455,7 +455,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await seedDesktop(tester, <String>[questionsOnly]);
-    await tester.tap(find.text('Ask Claude'));
+    await tester.tap(find.text('ASK CLAUDE'));
     await tester.pumpAndSettle();
 
     expect(
@@ -463,7 +463,7 @@ void main() {
       findsOneWidget,
       reason: 'the reply is still the reply when nothing could be parsed',
     );
-    expect(find.text('Send'), findsOneWidget);
+    expect(find.text('SEND'), findsOneWidget);
   });
 
   testWidgets('without a CLI the desktop behaves exactly as the phone does', (
@@ -485,10 +485,10 @@ void main() {
     );
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'A rooftop bar at night');
-    await tester.tap(find.text('Begin'));
+    await tester.tap(find.text('BEGIN'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Copy for Claude'), findsOneWidget);
-    expect(find.text('Ask Claude'), findsNothing);
+    expect(find.text('COPY FOR CLAUDE'), findsOneWidget);
+    expect(find.text('ASK CLAUDE'), findsNothing);
   });
 }

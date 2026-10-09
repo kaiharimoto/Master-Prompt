@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>Master UI specimen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="../css/master-ui.css" />
+    <link rel="stylesheet" href="../css/master-ui.components.css" />
+    <style>
+      /* Specimen-only layout helpers (kept to the spacing scale). */
+      .sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 40px; }
+      .sp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+      .sp-col { display: flex; flex-direction: column; gap: 12px; }
+      .sp-swatches { display: grid; grid-template-columns: repeat(8, 1fr); border: 1px solid var(--ink); }
+      .sp-swatch { border-right: 1px solid var(--ink); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+      .sp-swatch:last-child { border-right: 0; }
+      .sp-swatch .sq { height: 40px; border: 1px solid var(--ink-12); }
+      .sp-note { font-size: 11px; color: var(--ink-45); }
+      .sp-shell { height: 420px; border: 1px solid var(--ink); }
+      .sp-marks { display: flex; flex-wrap: wrap; gap: 32px; }
+      .sp-mark { display: flex; align-items: flex-end; gap: 12px; }
+      .sp-shell .shell { height: 100%; }
+      .sp-shell .shell-top { -webkit-app-region: no-drag; }
+      code { font-family: var(--font-mono); font-size: 11px; color: var(--ink-70); }
+      .sp-tile { width: 96px; }
+      #face { font-family: var(--font-sans); }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title"><span class="numeral">00</span> Master UI specimen</h1>
+          <p class="page-sub">Every token, material and component in every state · paper by default, ink by inversion</p>
+        </div>
+        <div class="page-actions">
+          <span class="sp-note" id="face">Face: —</span>
+          <div class="segmented" id="theme">
+            <button type="button" class="is-on" data-theme-value="light">Paper</button>
+            <button type="button" data-theme-value="dark">Ink</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-body" style="padding-bottom: 96px">
+        <!-- 01 Tokens -->
+        <section>
+          <div class="section-title"><h2><span class="numeral">01</span> Fills and the alpha ramp</h2><span class="sp-note">two fills, five alphas, one overlay</span></div>
+          <div class="sp-swatches">
+            <div class="sp-swatch"><div class="sq" style="background: var(--paper)"></div><span class="t-micro">paper</span><code>--paper</code></div>
+            <div class="sp-swatch"><div class="sq" style="background: var(--ink)"></div><span class="t-micro">ink</span><code>--ink</code></div>
+            <div class="sp-swatch"><div class="sq" style="background: var(--ink-70)"></div><span class="t-micro">70</span><code>--ink-70</code></div>
+            <div class="sp-swatch"><div class="sq" style="background: var(--ink-45)"></div><span class="t-micro">45</span><code>--ink-45</code></div>
+            <div class="sp-swatch"><div class="sq" style="background: var(--ink-25)"></div><span class="t-micro">25</span><code>--ink-25</code></div>
+            <div class="sp-swatch"><div class="sq" style="background: var(--ink-12)"></div><span class="t-micro">12</span><code>--ink-12</code></div>
+            <div class="sp-swatch"><div class="sq" style="background: var(--ink-06)"></div><span class="t-micro">06</span><code>--ink-06</code></div>
+            <div class="sp-swatch"><div class="sq hatch"></div><span class="t-micro">hatch</span><code>.hatch</code></div>
+          </div>
+        </section>
+
+        <!-- 02 Type -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">02</span> Type</h2><span class="sp-note">96 · 56 · 32 · 20 · 14 · 12 · 11 · mono</span></div>
+          <div class="sp-col" style="gap: 20px">
+            <div class="t-display-xl">Ready.</div>
+            <div class="t-display">Nothing yet.</div>
+            <div class="t-h1"><span class="numeral">03</span> Library</div>
+            <div class="t-h2">Transcribed melody</div>
+            <div class="t-body" style="max-width: 512px">Body, 14 on 1.45. Describe a song on the left, or write the lyrics and a style, then create. Everything you create is kept here.</div>
+            <div class="t-small ink-70">Small, 12. Upper bound the model may allocate. Leave 1–2 GB for the display.</div>
+            <div class="t-micro ink-70">Micro caps label · <span class="t-mono normal">2:34</span></div>
+            <div class="t-mono ink-45" style="font-size: 11px">3:42 · Melody + chords · seed 12345 · 2h ago · ★★★☆☆ · 2 derived</div>
+          </div>
+        </section>
+
+        <!-- 03 Material -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">03</span> Material</h2><span class="sp-note">rules, boxes, inversion, hatch, skeleton, live square</span></div>
+          <div class="sp-grid">
+            <div class="sp-col">
+              <div class="rule-b" style="padding-bottom: 8px"><span class="t-micro ink-45">hairline · ink-12</span></div>
+              <div class="box-field" style="padding: 8px"><span class="t-micro ink-45">field · ink-25</span></div>
+              <div class="box" style="padding: 8px"><span class="t-micro">structural · ink</span></div>
+              <div class="rule-strong-t" style="padding-top: 8px"><span class="t-micro">strong · 2px</span></div>
+              <div class="invert" style="padding: 8px"><span class="t-micro">inversion</span></div>
+              <div class="wash" style="padding: 8px"><span class="t-micro ink-70">wash · ink-06</span></div>
+            </div>
+            <div class="sp-col">
+              <div class="hatch-live" style="height: 40px; display: flex; align-items: flex-end; padding: 8px"><span class="t-micro" style="background: var(--paper); padding: 0 4px">Running</span></div>
+              <div class="hatch" style="height: 40px; display: flex; align-items: flex-end; padding: 8px"><span class="t-micro" style="background: var(--paper); padding: 0 4px">Instrumental</span></div>
+              <div class="skeleton" style="height: 40px"></div>
+              <div class="sp-row"><span class="dot breathe"></span><span class="t-micro">Working</span><span class="t-micro ink-45" style="margin-left: 16px"><span class="t-mono blink">→</span> prompt</span><span class="link t-micro" style="margin-left: 16px">Sliding underline</span></div>
+              <div class="sp-row"><div class="progress" style="width: 200px"><div class="fill" style="width: 57%"></div></div><span class="t-mono ink-70" style="font-size: 11px">57% · 1m 20s left</span></div>
+              <div class="sp-row"><div class="progress is-indeterminate" style="width: 200px"><div class="fill"></div></div><span class="t-mono ink-70" style="font-size: 11px">indeterminate</span></div>
+              <div class="meter" style="width: 200px"><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span></span><span></span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 04 Buttons -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">04</span> Buttons</h2><span class="sp-note">primary · secondary · subtle · ghost · link · sizes · icon · disabled</span></div>
+          <div class="sp-col">
+            <div class="sp-row">
+              <button class="btn btn-primary">Create →</button>
+              <button class="btn">Compare</button>
+              <button class="btn btn-subtle">Recent</button>
+              <button class="btn btn-ghost">Cancel</button>
+              <button class="btn-link link t-micro">All songs →</button>
+              <button class="btn" disabled>Disabled</button>
+            </div>
+            <div class="sp-row">
+              <button class="btn btn-sm">Small</button>
+              <button class="btn">Medium</button>
+              <button class="btn btn-lg btn-primary" style="min-width: 176px">Create 4 →</button>
+              <button class="btn btn-icon-sm" aria-label="Like">♥</button>
+              <button class="btn btn-icon btn-ghost" aria-label="More">…</button>
+              <button class="btn btn-icon-lg btn-primary" aria-label="Play">▶</button>
+              <button class="btn btn-ghost is-on btn-icon-sm" aria-label="Shuffle">⇄</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 05 Fields -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">05</span> Fields</h2><span class="sp-note">underline input · boxed textarea · select · segmented · switch · checkbox · slider · tabs · tags</span></div>
+          <div class="sp-grid">
+            <div class="stack">
+              <label class="label">Title <span class="hint">optional</span></label>
+              <input class="field" placeholder="Search title, style, lyrics, seed" />
+              <div class="help">Helper text under a control, 11px ink-45.</div>
+            </div>
+            <div class="stack">
+              <label class="label">Max length <span class="hint t-mono">3:00</span></label>
+              <input type="range" min="30" max="300" value="180" style="--pct: 55%" />
+              <div class="t-mono ink-45" style="display: flex; justify-content: space-between; font-size: 11px"><span>0:30</span><span>5:00</span></div>
+            </div>
+            <div class="stack">
+              <label class="label">Style</label>
+              <textarea class="field-box" rows="3" placeholder="A warm, sparse piano ballad with a close female vocal"></textarea>
+              <div class="t-mono ink-45" style="font-size: 11px">2 sections · 6 lines · 48 words</div>
+            </div>
+            <div class="stack">
+              <label class="label">Planning</label>
+              <select class="select">
+                <option>Full score</option>
+                <option>Melody only</option>
+                <option>No score</option>
+              </select>
+              <div class="sp-row" style="margin-top: 4px">
+                <div class="segmented"><button class="is-on" type="button">Simple</button><button type="button">Custom</button></div>
+                <div class="segmented segmented-sm"><button type="button">1</button><button type="button">2</button><button class="is-on" type="button">4</button><button type="button">8</button></div>
+              </div>
+            </div>
+            <div class="stack">
+              <label class="label">Switches</label>
+              <div class="sp-row">
+                <button class="switch" role="switch" aria-checked="true" type="button"></button>
+                <button class="switch" role="switch" aria-checked="false" type="button"></button>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-70)"><input type="checkbox" checked /> Rank &amp; pick the best</label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-70)"><input type="checkbox" /> Instrumental</label>
+                <span class="kbd">Ctrl K</span><span class="kbd">Esc</span>
+              </div>
+            </div>
+            <div class="stack">
+              <label class="label">Tabs and tags</label>
+              <div class="tabs"><button class="tab is-active" type="button">Lyrics</button><button class="tab" type="button">Score · draft</button><button class="tab" type="button">Details</button></div>
+              <div class="sp-row" style="margin-top: 8px"><button class="tag is-on" type="button">Pop</button><button class="tag" type="button">Piano</button><button class="tag" type="button">Female vocal</button><span class="badge">Neutral</span><span class="badge badge-invert">Invert</span><span class="chip">Cover</span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 06 Lists -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">06</span> Rows, tiles, stages</h2><span class="sp-note">feed row · current row · grid tile · typographic tile · stage list · steps · cells</span></div>
+          <div class="sp-grid">
+            <div class="sp-col" style="gap: 0">
+              <div class="feed-row">
+                <div class="tile sp-tile" style="width: 64px; --pat: 1"><div class="tile-label">Mid night</div></div>
+                <div style="min-width: 0; flex: 1"><div style="font-size: 15px; font-weight: 500">Midnight Freight <span class="chip" style="margin-left: 8px">Cover</span></div><div class="t-small ink-70">slow country waltz, pedal steel</div><div class="meta"><span>3:42</span><span>·</span><span>seed 12345</span><span>·</span><span>2h ago</span></div></div>
+              </div>
+              <div class="feed-row is-current">
+                <div class="tile tile-outline sp-tile" style="width: 64px"><div class="tile-label">Glass</div><span class="tile-live"></span></div>
+                <div style="min-width: 0; flex: 1"><div style="font-size: 15px; font-weight: 500">Glass Harbour</div><div class="t-small" style="opacity: 0.7">ambient, no drums</div><div class="meta"><span>4:10</span><span>·</span><span>Melody</span><span>·</span><span>just now</span></div></div>
+              </div>
+              <div class="feed-row">
+                <div class="tile tile-pending sp-tile" style="width: 64px"></div>
+                <div style="min-width: 0; flex: 1"><div style="font-size: 15px; font-weight: 500">Pending song</div><div class="t-micro ink-70" style="display: flex; align-items: center; gap: 8px; margin-top: 8px"><span class="dot breathe"></span> Composing <span class="t-mono normal ink-45">· 0:42 so far</span></div></div>
+              </div>
+              <div class="feed-row is-current" style="border-bottom: 0">
+                <div style="min-width: 0; flex: 1"><span class="t-micro">✕ Failed</span> <span style="opacity: 0.8; font-size: 12px; margin-left: 8px">CUDA out of memory: tried to allocate 2.4 GB</span></div>
+              </div>
+            </div>
+            <div class="sp-col">
+              <div class="steps"><button class="step is-done" type="button"><span class="t-mono">01</span> Source</button><button class="step is-current" type="button"><span class="t-mono">02</span> Melody &amp; lyrics</button><button class="step is-future" type="button"><span class="t-mono">03</span> New style</button></div>
+              <div class="cells">
+                <div class="cell"><span class="numeral">01</span><span class="t-h2">Runtime</span><span class="t-small ink-70">Python 3.12 + PyTorch for your GPU</span><span class="t-micro ink-45" style="margin-top: 8px">≈ 3 GB · 5 min</span></div>
+                <div class="cell"><span class="numeral">02</span><span class="t-h2">Model</span><span class="t-small ink-70">Weights and decoder from Hugging Face</span><span class="t-micro ink-45" style="margin-top: 8px">≈ 10 GB · 10–20 min</span></div>
+                <div class="cell"><span class="numeral">03</span><span class="t-h2">Tools</span><span class="t-small ink-70">Transcription, lyrics, stems</span><span class="t-micro ink-45" style="margin-top: 8px">≈ 4 GB · optional</span></div>
+              </div>
+              <div>
+                <div class="stage"><span class="glyph">✓</span><span>Plan the score</span><span class="right">12s</span></div>
+                <div class="stage"><span class="dot breathe" style="margin: 0 3px"></span><span>Compose</span><span class="right">120/400 tokens · 8.3/s</span></div>
+                <div class="progress" style="margin: 4px 0 4px 24px"><div class="fill" style="width: 30%"></div></div>
+                <div class="stage is-pending"><span class="glyph">○</span><span>Render audio</span></div>
+                <div class="stage is-skipped"><span class="glyph">–</span><span>Stems</span><span class="right">skipped</span></div>
+                <div class="stage"><span class="glyph">✕</span><span>Export</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 07 Overlays -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">07</span> Overlays and feedback</h2><span class="sp-note">tooltip · menu · dialog · toast · notices · empty state</span></div>
+          <div class="sp-grid">
+            <div class="sp-col">
+              <div class="sp-row"><span class="tooltip">Seed locked — same seed every run. Click to randomise.</span><span class="tooltip">Ctrl + Enter</span></div>
+              <div class="list" style="width: 224px">
+                <div class="list-label">Next</div>
+                <div class="list-item">Four variations</div>
+                <div class="list-item is-active">Same melody, new style</div>
+                <div class="list-item">Edit score</div>
+                <div class="list-sep"></div>
+                <div class="list-item" style="font-weight: 500">✕ Delete</div>
+              </div>
+              <div class="toast"><span>Preset saved</span><button class="btn" type="button" style="margin-left: auto">Open</button></div>
+              <div class="notice notice-invert"><span class="t-micro">Engine</span><span style="flex: 1">Engine is not installed on this machine.</span><button class="t-micro link" type="button">Open setup →</button></div>
+              <div class="notice"><span class="t-micro">Cover</span><span style="flex: 1">Re-rendering “Glass Harbour” in a new style.</span><button class="t-micro link" type="button">Clear</button></div>
+            </div>
+            <div class="sp-col">
+              <div class="dialog dialog-sm" style="position: static; transform: none; width: auto">
+                <div class="dialog-title">Delete song</div>
+                <div class="dialog-desc">“Midnight Freight” and its files will be removed. This cannot be undone.</div>
+                <div class="dialog-footer" style="margin-top: 24px"><button class="btn btn-ghost" type="button">Cancel</button><button class="btn btn-primary" type="button">Delete</button></div>
+                <button class="dialog-close" type="button" aria-label="Close">✕</button>
+              </div>
+              <div class="empty empty-boxed" style="padding: 32px">
+                <div class="empty-title" style="font-size: 40px">No sounds yet.</div>
+                <div class="empty-body">Pick 5–30 recordings with a consistent character, give the sound a trigger word, and train.</div>
+                <button class="btn btn-primary" type="button">Train a sound →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 08 Settings -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">08</span> Settings rows and stats</h2></div>
+          <div class="sp-grid">
+            <div>
+              <div class="row"><div><div class="row-label">GPU memory budget</div><div class="help">Upper bound the model may allocate. Leave 1–2 GB for the display.</div></div><div class="row-control"><input type="range" min="4" max="24" value="20" style="--pct: 80%; width: 160px" /><input class="field t-mono" value="20" style="width: 48px; text-align: right" /><span class="t-micro ink-45">GB</span></div></div>
+              <div class="row"><div><div class="row-label">Sounds</div><div class="help">A click on Create and a two-note chime when a song finishes.</div></div><div class="row-control"><button class="switch" role="switch" aria-checked="false" type="button"></button></div></div>
+              <div class="row"><div><div class="row-label">Theme</div></div><div class="row-control"><div class="segmented segmented-sm"><button class="is-on" type="button">Paper</button><button type="button">Ink</button></div></div></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 32px">
+              <div><div class="stat-label">GPU</div><div class="stat-value">Radeon RX 7900 XTX · PyTorch OK</div></div>
+              <div><div class="stat-label">Runtime</div><div class="stat-value">torch 2.9.1 · bf16 yes</div></div>
+              <div><div class="stat-label">Model</div><div class="stat-value">YuE2-3B</div></div>
+              <div><div class="stat-label">VRAM</div><div class="meter" style="margin-top: 6px"><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span class="is-on"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 09 Marks -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">09</span> Marks</h2><span class="sp-note">one per app, each a diagram of its subject · 64 · 32 · 20 · 16px</span></div>
+          <div class="sp-marks">
+            <div class='sp-mark'>
+              <svg viewBox='0 0 100 100' width='64' height='64' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/><rect x='30.82' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='45.65' y='36.4' width='8.7' height='47.6' fill='var(--paper)'/><rect x='60.47' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='75.3' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='32' height='32' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/><rect x='30.82' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='45.65' y='36.4' width='8.7' height='47.6' fill='var(--paper)'/><rect x='60.47' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='75.3' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='20' height='20' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/><rect x='30.82' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='45.65' y='36.4' width='8.7' height='47.6' fill='var(--paper)'/><rect x='60.47' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='75.3' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='16' height='16' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/><rect x='30.82' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='45.65' y='36.4' width='8.7' height='47.6' fill='var(--paper)'/><rect x='60.47' y='53.4' width='8.7' height='30.6' fill='var(--paper)'/><rect x='75.3' y='22.8' width='8.7' height='61.2' fill='var(--paper)'/></svg>
+              <div><div class='t-micro'>levels</div><div class='sp-note'>sound levels</div></div>
+            </div>
+            <div class='sp-mark'>
+              <svg viewBox='0 0 100 100' width='64' height='64' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22' width='68' height='56' fill='var(--paper)'/><rect x='24' y='30' width='52' height='40' fill='var(--ink)'/><polygon points='24 70 46 48 68 70' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='32' height='32' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22' width='68' height='56' fill='var(--paper)'/><rect x='24' y='30' width='52' height='40' fill='var(--ink)'/><polygon points='24 70 46 48 68 70' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='20' height='20' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22' width='68' height='56' fill='var(--paper)'/><rect x='24' y='30' width='52' height='40' fill='var(--ink)'/><polygon points='24 70 46 48 68 70' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='16' height='16' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='22' width='68' height='56' fill='var(--paper)'/><rect x='24' y='30' width='52' height='40' fill='var(--ink)'/><polygon points='24 70 46 48 68 70' fill='var(--paper)'/></svg>
+              <div><div class='t-micro'>frame</div><div class='sp-note'>a picture</div></div>
+            </div>
+            <div class='sp-mark'>
+              <svg viewBox='0 0 100 100' width='64' height='64' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='16' width='68' height='16' fill='var(--paper)'/><rect x='16' y='42' width='46' height='16' fill='var(--paper)'/><rect x='16' y='68' width='24' height='16' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='32' height='32' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='16' width='68' height='16' fill='var(--paper)'/><rect x='16' y='42' width='46' height='16' fill='var(--paper)'/><rect x='16' y='68' width='24' height='16' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='20' height='20' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='16' width='68' height='16' fill='var(--paper)'/><rect x='16' y='42' width='46' height='16' fill='var(--paper)'/><rect x='16' y='68' width='24' height='16' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='16' height='16' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><rect x='16' y='16' width='68' height='16' fill='var(--paper)'/><rect x='16' y='42' width='46' height='16' fill='var(--paper)'/><rect x='16' y='68' width='24' height='16' fill='var(--paper)'/></svg>
+              <div><div class='t-micro'>list</div><div class='sp-note'>an ordered list</div></div>
+            </div>
+            <div class='sp-mark'>
+              <svg viewBox='0 0 100 100' width='64' height='64' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><polygon points='22 16 62 16 78 32 78 84 22 84' fill='var(--paper)'/><rect x='32' y='40' width='36' height='8' fill='var(--ink)'/><rect x='32' y='56' width='36' height='8' fill='var(--ink)'/></svg>
+              <svg viewBox='0 0 100 100' width='32' height='32' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><polygon points='22 16 62 16 78 32 78 84 22 84' fill='var(--paper)'/><rect x='32' y='40' width='36' height='8' fill='var(--ink)'/><rect x='32' y='56' width='36' height='8' fill='var(--ink)'/></svg>
+              <svg viewBox='0 0 100 100' width='20' height='20' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><polygon points='22 16 62 16 78 32 78 84 22 84' fill='var(--paper)'/><rect x='32' y='40' width='36' height='8' fill='var(--ink)'/><rect x='32' y='56' width='36' height='8' fill='var(--ink)'/></svg>
+              <svg viewBox='0 0 100 100' width='16' height='16' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><polygon points='22 16 62 16 78 32 78 84 22 84' fill='var(--paper)'/><rect x='32' y='40' width='36' height='8' fill='var(--ink)'/><rect x='32' y='56' width='36' height='8' fill='var(--ink)'/></svg>
+              <div><div class='t-micro'>page</div><div class='sp-note'>a document</div></div>
+            </div>
+            <div class='sp-mark'>
+              <svg viewBox='0 0 100 100' width='64' height='64' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><circle cx='50' cy='50' r='34' fill='var(--paper)'/><circle cx='50' cy='50' r='24' fill='var(--ink)'/><rect x='46' y='26' width='8' height='28' fill='var(--paper)'/><rect x='46' y='46' width='26' height='8' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='32' height='32' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><circle cx='50' cy='50' r='34' fill='var(--paper)'/><circle cx='50' cy='50' r='24' fill='var(--ink)'/><rect x='46' y='26' width='8' height='28' fill='var(--paper)'/><rect x='46' y='46' width='26' height='8' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='20' height='20' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><circle cx='50' cy='50' r='34' fill='var(--paper)'/><circle cx='50' cy='50' r='24' fill='var(--ink)'/><rect x='46' y='26' width='8' height='28' fill='var(--paper)'/><rect x='46' y='46' width='26' height='8' fill='var(--paper)'/></svg>
+              <svg viewBox='0 0 100 100' width='16' height='16' style='display:block'><rect width='100' height='100' fill='var(--ink)'/><circle cx='50' cy='50' r='34' fill='var(--paper)'/><circle cx='50' cy='50' r='24' fill='var(--ink)'/><rect x='46' y='26' width='8' height='28' fill='var(--paper)'/><rect x='46' y='46' width='26' height='8' fill='var(--paper)'/></svg>
+              <div><div class='t-micro'>dial</div><div class='sp-note'>elapsed time</div></div>
+            </div>
+          </div>
+          <p class="sp-note" style="margin-top: 24px; max-width: 672px">The mark draws what the app acts on, never its initial. Covered up, each should suggest a subject; side by side at 16px, no two should rhyme. Grammar and tests in guides/MARK.md.</p>
+        </section>
+
+        <!-- 09 Shell -->
+        <section class="section">
+          <div class="section-title"><h2><span class="numeral">10</span> Shell</h2><span class="sp-note">40 title bar · 232 index rail · main · 88 footer with the strong rule</span></div>
+          <div class="sp-shell">
+            <div class="shell">
+              <div class="shell-top">
+                <div style="display: flex; align-items: center; gap: 24px">
+                  <div class="wordmark"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="var(--ink)" /><rect x="16" y="22.8" width="11.36" height="61.2" fill="var(--paper)" /><rect x="30.16" y="53.4" width="11.36" height="30.6" fill="var(--paper)" /><rect x="44.32" y="36.4" width="11.36" height="47.6" fill="var(--paper)" /><rect x="58.48" y="53.4" width="11.36" height="30.6" fill="var(--paper)" /><rect x="72.64" y="22.8" width="11.36" height="61.2" fill="var(--paper)" /></svg>Music Master</div>
+                  <span class="pill hover-invert" style="height: 24px"><span class="dot breathe"></span><span class="normal" style="text-transform: none; letter-spacing: normal">Glass Harbour</span><span class="t-mono">57%</span></span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px">
+                  <span class="pill pill-soft">Search <span class="kbd">Ctrl K</span></span>
+                  <span class="t-micro" style="display: flex; align-items: center; gap: 8px"><span class="dot"></span> Engine ready · YuE2-3B · 4.2 / 24 GB</span>
+                </div>
+              </div>
+              <div class="shell-middle">
+                <div class="rail">
+                  <div class="rail-nav">
+                    <button class="rail-item is-active" type="button"><span class="numeral">01</span><span class="name">Create</span><span class="arrow">→</span></button>
+                    <button class="rail-item" type="button"><span class="numeral">02</span><span class="name">Covers</span><span class="arrow">→</span></button>
+                    <button class="rail-item" type="button"><span class="numeral">03</span><span class="name">Library</span><span class="arrow">→</span></button>
+                    <button class="rail-item" type="button"><span class="numeral">04</span><span class="name">Queue</span><span class="t-mono" style="font-size: 11px">2</span><span class="arrow">→</span></button>
+                  </div>
+                  <div class="rail-foot"><span class="t-micro link ink-70">Settings</span><span class="t-micro link ink-70">Setup</span><span class="t-micro link ink-70">Dark</span></div>
+                </div>
+                <div class="shell-main">
+                  <div class="page-header" style="padding: 24px 24px 12px"><div><h1 class="page-title" style="font-size: 24px"><span class="numeral">01</span> Create</h1><p class="page-sub">Describe a song, or write the lyrics and a style</p></div><div class="page-actions"><div class="segmented segmented-sm"><button class="is-on" type="button">Simple</button><button type="button">Custom</button></div></div></div>
+                  <div class="strip" style="padding: 12px 24px"><span>Latest</span><span class="link">All songs →</span></div>
+                </div>
+              </div>
+              <div class="shell-bottom">
+                <div style="display: flex; width: 280px; align-items: center; gap: 12px"><div class="tile" style="width: 56px"><div class="tile-label" style="font-size: 26px">G</div><span class="tile-live"></span></div><div style="min-width: 0"><div style="font-size: 14px; font-weight: 500">Glass Harbour</div><div class="t-small ink-45">ambient, no drums</div></div></div>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="sp-row" style="gap: 4px"><button class="btn btn-ghost btn-icon-sm" type="button">⇄</button><button class="btn btn-ghost btn-icon" type="button">◁</button><button class="btn btn-primary btn-icon-lg" type="button">▶</button><button class="btn btn-ghost btn-icon" type="button">▷</button><button class="btn btn-ghost btn-icon-sm" type="button">↻</button></div><div class="sp-row" style="width: 100%; max-width: 560px; gap: 12px"><span class="t-mono ink-70" style="font-size: 11px; width: 40px; text-align: right">0:42</span><canvas id="bars" style="flex: 1; height: 28px; display: block"></canvas><span class="t-mono ink-70" style="font-size: 11px; width: 40px">4:10</span></div></div>
+                <div style="width: 220px; display: flex; justify-content: flex-end; align-items: center; gap: 8px"><input type="range" min="0" max="100" value="70" style="--pct: 70%; width: 96px" /><button class="btn btn-ghost btn-icon-sm" type="button">≡</button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="bar bar-sticky" style="border-top: 2px solid var(--ink)">
+        <div class="t-mono ink-70" style="font-size: 12px; display: flex; gap: 12px"><span>≈ 2:40</span><span class="ink-25">·</span><span>≈ 3m 05s render</span><span class="ink-25">·</span><span class="badge badge-invert">YuE2-3B</span></div>
+        <button class="btn btn-primary btn-lg" style="min-width: 176px" type="button" id="cta">Create →</button>
+      </div>
+    </div>
+
+    <script>
+      // Theme toggle (the same mechanism as react/theme.ts).
+      const seg = document.getElementById('theme')
+      function setTheme(t) {
+        document.documentElement.dataset.theme = t
+        try { localStorage.setItem('specimen.theme', t) } catch {}
+        for (const b of seg.querySelectorAll('button')) b.classList.toggle('is-on', b.dataset.themeValue === t)
+        drawBars()
+      }
+      seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setTheme(b.dataset.themeValue) })
+      try { const saved = localStorage.getItem('specimen.theme'); if (saved === 'dark' || saved === 'light') setTheme(saved) } catch {}
+
+      // Which face resolved.
+      const probe = document.getElementById('face')
+      function face() {
+        const test = (f) => document.fonts && document.fonts.check(`14px "${f}"`)
+        return test('Neue Haas Grotesk Display Pro') ? 'Neue Haas Grotesk Display Pro' : test('Inter Variable') ? 'Inter Variable' : 'fallback (Helvetica / Arial)'
+      }
+      if (document.fonts) document.fonts.ready.then(() => { probe.textContent = 'Face: ' + face() })
+
+      // Ink bars: 1px bars, done part solid, rest at 25 %, playhead square.
+      const canvas = document.getElementById('bars')
+      function drawBars() {
+        const dpr = window.devicePixelRatio || 1
+        const w = canvas.clientWidth, h = 28
+        canvas.width = w * dpr; canvas.height = h * dpr
+        const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, w, h)
+        const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()
+        const n = Math.floor(w / 3), progress = 0.17
+        for (let i = 0; i < n; i++) {
+          const amp = 0.25 + 0.7 * Math.abs(Math.sin(i * 0.37) * Math.cos(i * 0.11))
+          const bh = Math.max(1, amp * (h - 6))
+          ctx.fillStyle = ink; ctx.globalAlpha = i / n <= progress ? 1 : 0.25
+          ctx.fillRect(i * 3, h / 2 - bh / 2, 1, bh)
+        }
+        ctx.globalAlpha = 1; ctx.fillRect(Math.round(progress * w), 0, 1, h); ctx.fillRect(Math.round(progress * w) - 3, 0, 6, 6)
+      }
+      drawBars(); new ResizeObserver(drawBars).observe(canvas)
+
+      // The one primary action: click to see the busy state.
+      const cta = document.getElementById('cta')
+      cta.addEventListener('click', () => { cta.disabled = true; cta.textContent = 'Queued'; setTimeout(() => { cta.disabled = false; cta.textContent = 'Create →' }, 1200) })
+    </script>
+  </body>
+</html>

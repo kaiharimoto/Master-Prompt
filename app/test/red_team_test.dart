@@ -110,9 +110,9 @@ void main() {
   Future<void> pasteReply(WidgetTester tester) async {
     await tester.pumpWidget(wrap(PromptScreen(store: store, project: project)));
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.text('Generate the red-team pass'));
+    await tapVisible(tester, find.text('GENERATE THE RED-TEAM PASS'));
     await tester.enterText(find.byType(TextField).last, reply);
-    await tapVisible(tester, find.text('Read the fixes'));
+    await tapVisible(tester, find.text('READ THE FIXES'));
   }
 
   testWidgets('a pasted pass changes nothing until it is accepted', (
@@ -150,7 +150,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await pasteReply(tester);
-    await tapVisible(tester, find.text('Accept and put them in the brief'));
+    await tapVisible(tester, find.text('ACCEPT AND PUT THEM IN THE BRIEF'));
 
     expect(
       project.spec.missionStatement.value,
@@ -179,7 +179,7 @@ void main() {
   ) async {
     expect(project.briefBaseline, isNull);
     await pasteReply(tester);
-    await tapVisible(tester, find.text('Accept and put them in the brief'));
+    await tapVisible(tester, find.text('ACCEPT AND PUT THEM IN THE BRIEF'));
 
     expect(
       project.briefBaseline,
@@ -207,8 +207,8 @@ void main() {
     WidgetTester tester,
   ) async {
     await pasteReply(tester);
-    await tapVisible(tester, find.text('Accept and put them in the brief'));
-    await tapVisible(tester, find.textContaining('Read the brief'));
+    await tapVisible(tester, find.text('ACCEPT AND PUT THEM IN THE BRIEF'));
+    await tapVisible(tester, find.textContaining('READ THE BRIEF'));
 
     expect(
       find.text('What the last round changed'),
@@ -227,7 +227,7 @@ void main() {
   ) async {
     final String before = project.spec.missionStatement.value ?? '';
     await pasteReply(tester);
-    await tapVisible(tester, find.text('Discard'));
+    await tapVisible(tester, find.text('DISCARD'));
 
     expect(project.spec.missionStatement.value, before);
     expect(
@@ -250,7 +250,7 @@ void main() {
       find.byType(TextField).last,
       'Good question. Let me think about the glassware.',
     );
-    await tapVisible(tester, find.text('Read the fixes'));
+    await tapVisible(tester, find.text('READ THE FIXES'));
 
     expect(
       find.textContaining('waiting'),
@@ -277,9 +277,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tapVisible(tester, find.text('Generate the red-team pass'));
+      await tapVisible(tester, find.text('GENERATE THE RED-TEAM PASS'));
 
-      expect(find.text('Run the pass here'), findsOneWidget);
+      expect(find.text('RUN THE PASS HERE'), findsOneWidget);
       expect(
         find.text('Carry it across by hand instead'),
         findsOneWidget,
@@ -289,7 +289,7 @@ void main() {
             'anyone to carry by hand',
       );
       expect(
-        find.text('Read the fixes'),
+        find.text('READ THE FIXES'),
         findsNothing,
         reason: 'the paste route is behind the disclosure, not beside it',
       );
@@ -311,10 +311,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tapVisible(tester, find.text('Generate the red-team pass'));
+      await tapVisible(tester, find.text('GENERATE THE RED-TEAM PASS'));
 
-      expect(find.text('Run the pass here'), findsNothing);
-      expect(find.text('Read the fixes'), findsOneWidget);
+      expect(find.text('RUN THE PASS HERE'), findsNothing);
+      expect(find.text('READ THE FIXES'), findsOneWidget);
     });
   });
 }

@@ -275,71 +275,84 @@ class _Option extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final MpColors c = MpTheme.colorsOf(context);
+    // Picked is inverted, the family's one emphasis; the rest wash on hover.
+    final Color fg = selected ? c.paper : c.ink;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: MpRadius.card,
-      child: Container(
-        padding: const EdgeInsets.all(MpSpace.sm + 2),
-        decoration: BoxDecoration(
-          color: selected ? c.surface : Colors.transparent,
-          borderRadius: MpRadius.card,
-          border: Border.all(color: selected ? c.ink : c.line),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 18,
-              color: selected ? c.ink : c.inkFaint,
-            ),
-            const SizedBox(width: MpSpace.sm + 2),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Flexible(
-                        child: Text(
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: MpMotion.fast,
+          curve: MpMotion.ease,
+          padding: const EdgeInsets.symmetric(
+            horizontal: MpSpace.smd,
+            vertical: MpSpace.smd,
+          ),
+          decoration: BoxDecoration(
+            color: selected ? c.ink : Colors.transparent,
+            border: Border.all(color: selected ? c.ink : c.ink25),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SizedBox(
+                width: MpSpace.md,
+                child: Text(
+                  selected ? '●' : '○',
+                  style: MpType.numeral.copyWith(fontSize: 12, color: fg),
+                ),
+              ),
+              const SizedBox(width: MpSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Wrap(
+                      spacing: MpSpace.sm,
+                      runSpacing: MpSpace.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: <Widget>[
+                        Text(
                           option.label,
-                          style: MpType.body.copyWith(color: c.ink),
+                          style: MpType.body.copyWith(
+                            color: fg,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (option.recommended)
+                          // Marked, and that is all. Nothing here selects it.
+                          // A chip in the current colour, so it reads on an
+                          // inverted row as well as a plain one.
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: fg),
+                            ),
+                            child: Text(
+                              'RECOMMENDED',
+                              style: MpType.eyebrow.copyWith(color: fg),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (option.consequence.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        option.consequence,
+                        style: MpType.caption.copyWith(
+                          color: selected
+                              ? c.paper.withValues(alpha: 0.7)
+                              : c.ink70,
                         ),
                       ),
-                      if (option.recommended) ...<Widget>[
-                        const SizedBox(width: MpSpace.sm),
-                        // Marked, and that is all. Nothing here selects it.
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: c.lineStrong),
-                          ),
-                          child: Text(
-                            'RECOMMENDED',
-                            style: MpType.eyebrow.copyWith(color: c.inkMuted),
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
-                  if (option.consequence.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 2),
-                    Text(
-                      option.consequence,
-                      style: MpType.caption.copyWith(color: c.inkMuted),
-                    ),
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

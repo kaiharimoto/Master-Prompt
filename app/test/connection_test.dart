@@ -185,7 +185,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), '/opt/claude');
-    await tester.tap(find.text('Test the connection'));
+    await tester.tap(find.text('TEST THE CONNECTION'));
     await tester.pumpAndSettle();
 
     expect(
